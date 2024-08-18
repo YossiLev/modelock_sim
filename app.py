@@ -9,8 +9,11 @@ from kerr import kerrInit, kerrStep
 
 app = FastHTML(ws_hdr=True, hdrs=(
         Link(rel="stylesheet", href="https://cdnjs.cloudflare.com/ajax/libs/flexboxgrid/6.3.1/flexboxgrid.min.css", type="text/css"),
+        Link(rel="stylesheet", href="static/main.css", type="text/css"),
 
 ))
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 
 count = 0
 run_state = False
@@ -32,24 +35,33 @@ def generate_chart(data, t):
     return Img(src=f'data:image/jpg;base64,{str(my_base64_jpgData, "utf-8")}')
 
 def generate_all_charts():
-    return (Div(Div(generate_chart(data1, "Power"), cls="box", style="background-color: #008080;", id="chart1")),
-            Div(Div(generate_chart(data2, "Spectrum"), cls="box", style="background-color: #008080;", id="chart2")),
-            Div(Div(generate_chart(data3, "Waist"), cls="box", style="background-color: #008080;", id="chart3")),
-            Div(Div(generate_chart(data4, "Phase"), cls="box", style="background-color: #008080;", id="chart4")))
+    global count, data1, data2, run_state, count
+
+    return Div(
+        Div(f"Count is set to {count}", id="count"),
+        Div(
+                Div(Div(generate_chart(data1, "Power"), cls="box", style="background-color: #008080;", id="chart1")),
+                Div(Div(generate_chart(data2, "Spectrum"), cls="box", style="background-color: #008080;", id="chart2")),
+                Div(Div(generate_chart(data3, "Waist"), cls="box", style="background-color: #008080;", id="chart3")),
+                Div(Div(generate_chart(data4, "Phase"), cls="box", style="background-color: #008080;", id="chart4")),
+                cls="row"
+            )
+        ,cls="column"
+    )
+        
+       
 
 @app.get("/")
 def home():
-    global count, data1, data2
 
     return Body(
             Div(H1('Kerr Mode Locking Simulation')), 
-            P(f"Count is set to {count}", id="count"),
             Button("Restart", hx_post="/init", hx_target="#charts", hx_swap="innerHTML"),
             Button("Step", hx_post="/inc", hx_target="#charts", hx_swap="innerHTML"),
             Button("Run", ws_send="1", hx_ext="ws", ws_connect="/run", hx_target="#charts", hx_swap="innerHTML"),
             Button("Stop", hx_post="/stop", hx_target="#charts", hx_swap="innerHTML"),
 
-            Div(generate_all_charts(), id="charts", cls="row", style="color: #fff;")
+            Div(generate_all_charts(), id="charts")
     )       
 
 
@@ -94,7 +106,7 @@ async def run(send):
     while run_state and count < 999:
         count = count + 1
         data1, data2, data3, data4 = kerrStep(count)
-        await send(Div(generate_all_charts(), id="charts", cls="row", style="color: #fff;"))
+        await send(Div(generate_all_charts(), id="charts", cls="row"))
         await asyncio.sleep(0.001)
 
 

@@ -129,7 +129,7 @@ def SatGain(Ew, w, g0, Is, Wp):
     return g
 
 def kerrInit():
-    global n, bw, w, dw, t, dt
+    global n, bw, w, dw, t, dt, cbuf, nbuf
     global n2 ,L, kerr_par, N, Ikl, Is, Wp
     global mirror_loss, spec_G_par, SNR, lambda_, delta, deltaPlane, disp_par, epsilon, num_rounds
     global Ew, Et, It, phaseShift, tata, ph2pi, Imean, R, waist, q, F, g0, W
@@ -172,8 +172,10 @@ def kerrInit():
     epsilon = 0.2  # small number to add to the linear gain
 
     # Simulation parameters
-    num_rounds = 1000  # number of simulated round-trips
+    num_rounds = 2  # number of simulated round-trips
 
+    cbuf = 0
+    nbuf = 1
     # Function definitions
     ##A = lambda w: np.random.rand(n)
     ##theta = (-1 + 2 * np.random.rand(n))*np.pi
@@ -193,20 +195,20 @@ def kerrInit():
     F = np.zeros((num_rounds, n), dtype=complex)  # kerr lens focus
 
     # Starting terms
-    Ew[0, :] = 1e2 * (-1 + 2 * np.random.rand(n) + 2j * np.random.rand(n) - 1j) / 2.0  # initialize field to noise
-    waist[0, :] = np.ones(n) * 3.2e-5  # initial waist size probably
-    R[0, :] = -np.ones(n) * 3.0e-2  # initial waist size probably
-    q[0, :] = 1.0 / (1 / R[0, :] - 1j * (lambda_ / (np.pi * waist[0, :]**2)))
+    Ew[cbuf, :] = 1e2 * (-1 + 2 * np.random.rand(n) + 2j * np.random.rand(n) - 1j) / 2.0  # initialize field to noise
+    waist[cbuf, :] = np.ones(n) * 3.2e-5  # initial waist size probably
+    R[cbuf, :] = -np.ones(n) * 3.0e-2  # initial waist size probably
+    q[cbuf, :] = 1.0 / (1 / R[cbuf, :] - 1j * (lambda_ / (np.pi * waist[cbuf, :]**2)))
 
     g0 = 1 / mirror_loss + epsilon  # linear gain
 
     ##
     W = 1 / (1 + (w / spec_G_par)**2)  # s(w) spectral gain function
-    Et[0, :] = np.fft.fftshift(np.fft.ifft(np.fft.ifftshift(Ew[0, :])))
-    return np.abs(Et[0, :])**2, np.abs(Ew[0, :]), waist[0, :], np.angle(Ew[0, :])
+    Et[cbuf, :] = np.fft.fftshift(np.fft.ifft(np.fft.ifftshift(Ew[cbuf, :])))
+    return np.abs(Et[cbuf, :])**2, np.abs(Ew[cbuf, :]), waist[cbuf, :], np.angle(Ew[cbuf, :])
 
 def kerrStep(m):
-    global n, bw, w, dw, t, dt
+    global n, bw, w, dw, t, dt, cbuf, nbuf
     global n2 ,L, kerr_par, N, Ikl, Is, Wp
     global mirror_loss, spec_G_par, SNR, lambda_, delta, deltaPlane, disp_par, epsilon, num_rounds
     global Ew, Et, It, phaseShift, tata, ph2pi, Imean, R, waist, q, F, g0, W
@@ -215,38 +217,42 @@ def kerrStep(m):
     expW = np.exp(-1j * 2 * np.pi * w)
 
     # Initialize fields based on past round-trip
-    Et[m - 1, :] = np.fft.fftshift(np.fft.ifft(np.fft.ifftshift(Ew[m - 1, :])))
-    It[m - 1, :] = np.abs(Et[m - 1, :])**2
+    Et[cbuf, :] = np.fft.fftshift(np.fft.ifft(np.fft.ifftshift(Ew[cbuf, :])))
+    It[cbuf, :] = np.abs(Et[cbuf, :])**2
 
     # Nonlinear effects calculated in time
-    q[m, :], waist[m, :], Et[m, :] = MLSpatial_gain(delta, Et[m - 1, :], It[m - 1, :], q[m - 1, :], waist[m - 1, :], Ikl, L, deltaPlane)
-    waist[m, :] = (-(1 / q[m, :]).imag * np.pi / lambda_)**(-0.5) 
+    q[nbuf, :], waist[nbuf, :], Et[nbuf, :] = MLSpatial_gain(delta, Et[cbuf, :], It[cbuf, :], q[cbuf, :], waist[cbuf, :], Ikl, L, deltaPlane)
+    waist[nbuf, :] = (-(1 / q[nbuf, :]).imag * np.pi / lambda_)**(-0.5) 
     #Et[m, :] = phiKerr(It[m - 1, :], waist[m - 1, :]) * NLloss(waist[m - 1, :], Wp) * Et[m - 1, :]
-    sd = NLloss(waist[m - 1, :], Wp)
-    Et[m, :] = phiKerr(It[m - 1, :], waist[m, :]) * sd * Et[m - 1, :]
+    sd = NLloss(waist[cbuf, :], Wp)
+    Et[nbuf, :] = phiKerr(It[cbuf, :], waist[nbuf, :]) * sd * Et[cbuf, :]
 
-    Ew[m, :] = np.fft.fftshift(np.fft.fft(np.fft.ifftshift(Et[m, :])))
+    Ew[nbuf, :] = np.fft.fftshift(np.fft.fft(np.fft.ifftshift(Et[nbuf, :])))
 
     ##Imean[m] = np.mean(np.abs(Ew[m, :])**2)  # mean roundtrip intensity
 
-    g = SatGain(Ew[m - 1, :], waist[m - 1, :], g0, Is, Wp)
+    g = SatGain(Ew[cbuf, :], waist[cbuf, :], g0, Is, Wp)
     ## W = 1 / (1 + (w / spec_G_par)**2)  # s(w) spectral gain function
     D = np.exp(-1j * disp_par * w**2)  # exp(-i phi(w)) dispersion
     G = g * W * D  # Overall gain
     T = 0.5 * (1 + mirror_loss * G * expW) ##np.exp(-1j * 2 * np.pi * w))
 
-    Et[m, :] = np.fft.fftshift(np.fft.ifft(np.fft.ifftshift(Ew[m, :])))
+    Et[nbuf, :] = np.fft.fftshift(np.fft.ifft(np.fft.ifftshift(Ew[nbuf, :])))
 
-    Ew[m, :] = T * Ew[m, :]
+    Ew[nbuf, :] = T * Ew[nbuf, :]
 
-    Pt = np.abs(Et[m, :])**2
+    Pt = np.abs(Et[nbuf, :])**2
     am = np.argmax(Pt)
-    phaseShift = np.angle(Ew[m, :])
+    phaseShift = np.angle(Ew[nbuf, :])
     if Pt[am] > 14 * np.mean(Pt):
         for ii in range(len(phaseShift)):
             phaseShift[ii] += (am - 1024) / (326.0 + tata) * (ii - 1024)
         phaseShift = np.mod(phaseShift, ph2pi)
-    return Pt, np.abs(Ew[m, :]), waist[m, :], phaseShift
+
+    cbuf = nbuf
+    nbuf = 1 - nbuf
+
+    return Pt, np.abs(Ew[cbuf, :]), waist[cbuf, :], phaseShift
     # # if m < 20:
     # #     print(Ew[m][1000])
     # # Creating noise

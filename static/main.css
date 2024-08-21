@@ -22,7 +22,50 @@ button:disabled {
     background: gray;
 }
 
+input {
+    padding: 5px 3px;
+    border-radius: 6px;
+    border: 2px solid #367AF6;
+    color: #367AF6;
+}
+
+h1 {
+  font-family: math;
+    font-size: 36px;
+    color: blue;
+    font-weight: bold;
+    margin: 10px 0px;
+}
 .db {
     background: gray;
     cursor: not-allowed;    
+}
+
+.menuItem {
+  font-family: Arial;
+  padding: 8px;
+  margin: 3px;
+  background: #417deb;
+  width: 100px;
+  color: rgb(245, 244, 248);
+  cursor: pointer;
+}
+
+.menuItem:hover {
+  background: #6941eb;
+}
+
+.menuItemSel {
+  font-family: Arial;
+  padding: 8px;
+  margin: 3px;
+  background: #0b4cc6;
+  width: 100px;
+  color: rgb(245, 244, 248);
+}
+
+.sideMenu {
+  margin-right: 8px;
+  background: rgb(208 245 254);
+  width: 126px;
 }

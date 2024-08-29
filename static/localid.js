@@ -24,6 +24,6 @@ function getLocalId() {
     return localId;
 }
 
-window.addEventListener('load', function() {
-    this.document.getElementById("localId").innerHTML = getLocalId();
-})
+// window.addEventListener('load', function() {
+//     this.document.getElementById("localId").innerHTML = getLocalId();
+// })

@@ -23,10 +23,15 @@ button:disabled {
 }
 
 input {
-    padding: 5px 3px;
-    border-radius: 6px;
-    border: 2px solid #367AF6;
+    padding: 2px 2px;
+    border-radius: 4px;
+    border: 1px solid #367AF6;
     color: #367AF6;
+}
+
+.error {
+  color: red;
+  font-weight: bold;
 }
 
 h1 {
@@ -68,4 +73,26 @@ h1 {
   margin-right: 8px;
   background: rgb(208 245 254);
   width: 126px;
+}
+
+.partBlock {
+  border-radius: 5px;
+  padding: 5px 6px;
+  margin: 10px;
+  box-shadow: rgba(6, 24, 44, 0.4) 0px 0px 0px 2px, rgba(6, 24, 44, 0.65) 0px 4px 6px -1px, rgba(255, 255, 255, 0.08) 0px 1px 0px inset;
+  background: #f0ffff;
+}
+
+.paramName {
+  margin-top:8px;
+  margin-bottom:2px;
+  font-family: Arial;
+  font-size: 14px;
+  color: #4c4c68;
+}
+
+.compType {
+  font-size: 16px;
+  border-bottom: 1px solid green;
+  font-family: Arial;
 }

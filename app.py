@@ -2,7 +2,6 @@ from fasthtml import FastHTML
 from fasthtml.common import *
 import numpy as np
 import asyncio
-import uuid
 import time
 import matplotlib
 matplotlib.use('agg')
@@ -10,7 +9,8 @@ import matplotlib.pyplot as plt
 from kerr import kerrStep
 from simulation import generate_all_charts
 from geometry import generate_canvas
-from cavity import CavityDataKerr
+from design import generate_design
+from cavity import CavityDataKerr, CavityDataParts, CavityData, SimParameter
 
 gen_data = {}
 current_tab = "Simulation"
@@ -25,28 +25,27 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 setup_toasts(app)
         
 @app.get("/menu/{new_tab}")
-def menu(session, new_tab: str):
-    global current_tab
-    print(current_tab, new_tab)
+def menu(new_tab: str, localId: str):
+    global current_tab, gen_data
+    dataObj = gen_data[localId] 
     current_tab = new_tab
-    return make_page(session)
-
+    return make_page(dataObj)
 
 def menu_item(item_name, current_item):
     sel = "Sel" if item_name == current_item else ""
-    return Div(item_name, cls=f"menuItem{sel}", hx_get=F"/menu/{item_name}", hx_target="#fullPage")
+    return Div(item_name, cls=f"menuItem{sel}", hx_get=F"/menu/{item_name}", hx_target="#fullPage", hx_vals='js:{localId: getLocalId()}')
 
-def content_table(current_page):
+def content_table(current_page, data_obj):
     global gen_data
     menu_list = ["Design", "Simulation", "Geometry", "Help"]
     return Div(*[menu_item(x, current_page) for x in menu_list],
-                Div(F"hh", name="localId", id="localId"),
+                #Div(F"{data_obj['id']}" if data_obj else F"hh" , name="localId", id="localId"),
                 Div(F"n = {len(list(gen_data.keys()))}"),  cls="sideMenu")
 
-def my_frame(current_page, content):
+def my_frame(current_page, data_obj, content):
     return Div(
             Div(H1('Kerr Mode Locking Simulation')),
-            Div(content_table(current_page), content, cls="row"),
+            Div(content_table(current_page, data_obj), content, cls="row"),
             id="fullPage"
         )
  
@@ -55,7 +54,7 @@ def make_page(data_obj):
     
     match current_tab:
         case "Simulation":
-            return my_frame("Simulation",
+            return my_frame("Simulation", data_obj, 
                 Div(
                     Button("Restart", hx_post=f"/init", hx_target="#charts", hx_include="#seedInit", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML"), 
                     Input(type="text", id="seedInit", name="seedInit", placeholder="Initial seed", style="width:90px;"),
@@ -64,23 +63,40 @@ def make_page(data_obj):
                     Button("Stop", hx_post="/stop", hx_target="#charts", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
                     
                     Div(generate_all_charts(data_obj), id="charts"),
-                    hx_include="#localId",
+                    #hx_include="#localId",
                     style="width:1100px"
                 )
             )
         case "Geometry":
-            return my_frame("Geometry", Div(Div(generate_canvas(), cls="box", style="background-color: #008080;", id="chart4")))
+            return my_frame("Geometry", data_obj, Div(Div(generate_canvas(data_obj), cls="box", style="background-color: rgb(208 245 254);", id="charts2")))
+        case "Design":
+            return my_frame("Design", data_obj, Div(generate_design(data_obj), cls="box", style="background-color: rgb(208 245 254); width:90%;", id="charts2"))
         case _:
-            return my_frame(current_tab, Div("not yet"))
+            return my_frame(current_tab, data_obj, Div("not yet"))
     
 
 @app.get("/")
-def home(session, request:Request):
+def home():
     global current_tab
     current_tab = "Simulation"
 
-    return Body(make_page(None)), cookie('csid', "aaa")
+    return Body(make_page(None))
    
+
+@app.post("/parnum/{id}")
+def parameter_num(localId: str, id: str, param: str):
+    print("parnum ", localId, id, param)
+    global gen_data
+    dataObj = gen_data[localId]
+    cavity: CavityData = dataObj['cavityDataParts']
+
+    simParam, simComp  = cavity.getParameter(id)
+    if simParam.set_value(param):
+        if simComp:
+            simComp.finalize()
+        print(f"set value {param} to {id}")
+
+    return simParam.render()
 
 @app.post("/init")
 def init(session, seedInit: str, localId: str):
@@ -91,33 +107,17 @@ def init(session, seedInit: str, localId: str):
         seed = int(seedInit)
     except:
         pass
-    print(F"Seed Init is {seedInit}, seed is {seed}")
-    count = 0
     if seed == 0:
         seed = int(np.random.rand() * (2 ** 32 - 1))
+    np.random.seed(seed)
+
+    dataObj = {'id': localId, 'seed': seed, 'count': 0, 
+               'run_state': False, 'cavityData': CavityDataKerr(),
+               'cavityDataParts': CavityDataParts()}
+    gen_data[localId] = dataObj
 
     add_toast(session, f"Simulation initialized", "info")
-    print(F"localId value is ----- {localId}")
-    dataObj = {'id': localId, 'seed': 0, 'count': 0, 'run_state': False,
-                'data1': np.zeros(2049), 'data2': np.zeros(2049), 'data3': np.zeros(2049), 'data4': np.zeros(2049), 
-                'cavityData': CavityDataKerr()}
-    #print(F"jksdhfkjads {len(list(gen_data.keys()))} {gen_data.keys()}")
-    #print(F"data obj {dataObj['id']}")
-    gen_data[localId] = dataObj
-    #(F"jksdhfkjads2 {len(list(gen_data.keys()))} {gen_data.keys()}")
 
-
-    #seed = 693039070
-    data1, data2, data3, data4 = dataObj['cavityData'].get_state()
-    dataObj['seed'] = seed
-    dataObj['count'] = count
-    dataObj['run_state'] = False
-    dataObj['data1'] = data1.tolist()
-    dataObj['data2'] = data2.tolist()
-    dataObj['data3'] = data3.tolist()
-    dataObj['data4'] = data4.tolist()
-
-    print("=====A1")
     return generate_all_charts(dataObj)
 
 @app.post("/stop")
@@ -135,20 +135,13 @@ def increment(localId: str):
 
     count = dataObj['count']
 
-    count = count + 1
-    data1, data2, data3, data4 = kerrStep(dataObj['cavityData'])
-    dataObj['count'] = count
-    dataObj['data1'] = data1
-    dataObj['data2'] = data2
-    dataObj['data3'] = data3
-    dataObj['data4'] = data4
+    kerrStep(dataObj['cavityData'])
+    dataObj['count'] = count + 1
 
     return generate_all_charts(dataObj)
 
 async def on_connect(session, send):
     print('Connected!')
-    print(session)
-    #await send(Div('Hello, you have connected', id="notifications"))
 
 async def on_disconnect(ws):
     print('Disconnected!')
@@ -164,13 +157,9 @@ async def run(send, localId: str):
     start_cpu_time = time.time()
 
     while dataObj['run_state'] and count < 999:
+        kerrStep(dataObj['cavityData'])
         count = count + 1
-        data1, data2, data3, data4 = kerrStep(dataObj['cavityData'])
         dataObj['count'] = count
-        dataObj['data1'] = data1
-        dataObj['data2'] = data2
-        dataObj['data3'] = data3
-        dataObj['data4'] = data4
 
         if count % 10 == 0:
             end_cpu_time = time.time()
@@ -178,18 +167,3 @@ async def run(send, localId: str):
             start_cpu_time = end_cpu_time
         await send(Div(generate_all_charts(dataObj), id="charts", cls="row"))
         await asyncio.sleep(0.001)
-
-
-# async def on_connectx(session, send):
-#     print('xxxxConnected!')
-#     print(session)
-#     #await send(Div('Hello, you have connected', id="notifications"))
-
-# async def on_disconnectx(ws):
-#     print('xxxxxDisconnected!')
-
-# @app.ws('/wscon', conn=on_connectx, disconn=on_disconnectx)
-# async def runx(msg:str, xmsg:str):
-#     print('runxxxxxx')
-#     print(F"msg {msg}")
-#     print(F"xmsg {xmsg}")

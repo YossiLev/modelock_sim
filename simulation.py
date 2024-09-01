@@ -17,7 +17,7 @@ def generate_chart(x, y, t):
     return Img(src=f'data:image/jpg;base64,{str(my_base64_jpgData, "utf-8")}')
 
 def generate_all_charts(dataObj):
-    try:
+    # try:
         if dataObj is None:
             return  "No data"
         count = dataObj['count']
@@ -27,10 +27,13 @@ def generate_all_charts(dataObj):
         return Div(
             Div(f"Seed {seed} - Step {count}", id="count"),
             Div(
+                Div(*[p.render() for p in dataObj['cavityData'].getPinnedParameters()], cls="row"), 
                 *[Div(Div(generate_chart(chart.x, chart.y, chart.name), cls="box", style="background-color: #008080;")) for chart in charts],
+                
                     cls="row"
                 )
+
             , cls="column"
         )
-    except:
-        return  "Error in data"
+    # except:
+    #     return  "Error in data"

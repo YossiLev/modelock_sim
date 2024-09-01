@@ -1,5 +1,5 @@
 import numpy as np
-from cavity import CavityDataKerr
+#from cavity import CavityDataKerr
 
 # _sCP5Az_F.e9n5m  matlab
 
@@ -11,11 +11,26 @@ def NLloss(waist, Wp): #pure function
             
     return loss
 
-def MLSpatial_gain(delta, Etx, q1x, W1x, Ikl, L, deltaPlane):
+def SatGain(Ew, w, g0, Is, Wp):
+    Imean = np.mean(np.abs(Ew)**2)  # mean roundtrip intensity
+    Wmin = np.min(w)
+    if Wmin < Wp:
+        factor = (Wmin / Wp) **2
+        Iss = lambda waistMin: Is * waistMin**2 / Wp**2
+        g = g0 / (1 +  Imean / (Is * factor))
+    else:
+        g = g0 / (1 + Imean / Is)
+    return g
+
+def MLSpatial_gain(sim):
+    delta = sim.delta
+    Ikl = sim.Ikl, 
+    L = sim.L
+    deltaPlane = sim.deltaPlane
     deltaPoint = delta - deltaPlane
-    Etp = Etx.copy()
-    q1p = q1x.copy()
-    W1p = W1x.copy()
+    Etp = sim.Et[sim.cbuf, :].copy()
+    q1p = sim.q[sim.cbuf, :].copy()
+    W1p = sim.waist[sim.cbuf, :].copy()
     lambda_ = 780e-9
     RM = 150e-3
     FM = 75e-3
@@ -96,16 +111,6 @@ def MLSpatial_gain(delta, Etx, q1x, W1x, Ikl, L, deltaPlane):
     return qt, W1p, Etp
 
 
-def SatGain(Ew, w, g0, Is, Wp):
-    Imean = np.mean(np.abs(Ew)**2)  # mean roundtrip intensity
-    Wmin = np.min(w)
-    if Wmin < Wp:
-        Iss = lambda waistMin: Is * waistMin**2 / Wp**2
-        g = g0 / (1 +  Imean / Iss(Wmin))
-    else:
-        g = g0 / (1 + Imean / Is)
-    return g
-
 # def kerrInit(seed):
 #     global n, bw, w, expW, dw, t, dt, cbuf, nbuf
 #     global n2 ,L, kerr_par, N, Ikl, Is, Wp
@@ -180,36 +185,36 @@ def SatGain(Ew, w, g0, Is, Wp):
 #     Et[cbuf, :] = np.fft.fftshift(np.fft.ifft(np.fft.ifftshift(Ew[cbuf, :])))
 #     return np.abs(Et[cbuf, :])**2, np.abs(Ew[cbuf, :]), waist[cbuf, :], np.angle(Ew[cbuf, :])
 
-def kerrStep(sim: CavityDataKerr):
+# def kerrStep(sim: CavityDataKerr):
 
-    phiKerr = lambda Itxx, Wxx: np.exp((1j * sim.Ikl * Itxx) / (sim.lambda_ * Wxx**2)) # non-linear instantenous phase accumulated due to Kerr effect
+#     phiKerr = lambda Itxx, Wxx: np.exp((1j * sim.Ikl * Itxx) / (sim.lambda_ * Wxx**2)) # non-linear instantenous phase accumulated due to Kerr effect
 
-    sim.It[sim.cbuf, :] = np.abs(sim.Et[sim.cbuf, :])**2
+#     sim.It[sim.cbuf, :] = np.abs(sim.Et[sim.cbuf, :])**2
 
-    # Nonlinear effects calculated in time
-    sim.q[sim.nbuf, :], sim.waist[sim.nbuf, :], sim.Et[sim.nbuf, :] = MLSpatial_gain(sim.delta, sim.Et[sim.cbuf, :], sim.q[sim.cbuf, :], sim.waist[sim.cbuf, :], sim.Ikl, sim.L, sim.deltaPlane)
-    sd = NLloss(sim.waist[sim.cbuf, :], sim.Wp)
-    sim.Et[sim.nbuf, :] = phiKerr(sim.It[sim.cbuf, :], sim.waist[sim.nbuf, :]) * sd * sim.Et[sim.cbuf, :]
+#     # Nonlinear effects calculated in time
+#     sim.q[sim.nbuf, :], sim.waist[sim.nbuf, :], sim.Et[sim.nbuf, :] = MLSpatial_gain(sim.delta, sim.Et[sim.cbuf, :], sim.q[sim.cbuf, :], sim.waist[sim.cbuf, :], sim.Ikl, sim.L, sim.deltaPlane)
+#     sd = NLloss(sim.waist[sim.cbuf, :], sim.Wp)
+#     sim.Et[sim.nbuf, :] = phiKerr(sim.It[sim.cbuf, :], sim.waist[sim.nbuf, :]) * sd * sim.Et[sim.cbuf, :]
 
-    sim.Ew[sim.nbuf, :] = np.fft.fftshift(np.fft.fft(np.fft.ifftshift(sim.Et[sim.nbuf, :])))
+#     sim.Ew[sim.nbuf, :] = np.fft.fftshift(np.fft.fft(np.fft.ifftshift(sim.Et[sim.nbuf, :])))
 
-    g = SatGain(sim.Ew[sim.cbuf, :], sim.waist[sim.cbuf, :], sim.g0, sim.Is, sim.Wp)
-    #D = np.exp(-1j * disp_par * w**2)  # exp(-i phi(w)) dispersion
-    G = g * sim.W * sim.D  # Overall gain
-    T = 0.5 * (1 + sim.mirror_loss * G * sim.expW) ##np.exp(-1j * 2 * np.pi * w))
-    sim.Ew[sim.nbuf, :] = T * sim.Ew[sim.nbuf, :]
+#     g = SatGain(sim.Ew[sim.cbuf, :], sim.waist[sim.cbuf, :], sim.g0, sim.Is, sim.Wp)
+#     #D = np.exp(-1j * disp_par * w**2)  # exp(-i phi(w)) dispersion
+#     G = g * sim.W * sim.D  # Overall gain
+#     T = 0.5 * (1 + sim.mirror_loss * G * sim.expW) ##np.exp(-1j * 2 * np.pi * w))
+#     sim.Ew[sim.nbuf, :] = T * sim.Ew[sim.nbuf, :]
 
-    sim.Et[sim.nbuf, :] = np.fft.fftshift(np.fft.ifft(np.fft.ifftshift(sim.Ew[sim.nbuf, :])))
+#     sim.Et[sim.nbuf, :] = np.fft.fftshift(np.fft.ifft(np.fft.ifftshift(sim.Ew[sim.nbuf, :])))
 
-    sim.It[sim.nbuf, :] = np.abs(sim.Et[sim.nbuf, :])**2
-    am = np.argmax(sim.It[sim.nbuf, :])
-    sim.phaseShift = np.angle(sim.Ew[sim.nbuf, :])
-    if sim.It[sim.nbuf, :][am] > 14 * np.mean(sim.It[sim.nbuf, :]):
-        for ii in range(len(sim.phaseShift)):
-            sim.phaseShift[ii] += (am - 1024) / (326.0) * (ii - 1024)
-        sim.phaseShift = np.mod(sim.phaseShift, sim.ph2pi)
+#     sim.It[sim.nbuf, :] = np.abs(sim.Et[sim.nbuf, :])**2
+#     am = np.argmax(sim.It[sim.nbuf, :])
+#     sim.phaseShift = np.angle(sim.Ew[sim.nbuf, :])
+#     if sim.It[sim.nbuf, :][am] > 14 * np.mean(sim.It[sim.nbuf, :]):
+#         for ii in range(len(sim.phaseShift)):
+#             sim.phaseShift[ii] += (am - 1024) / (326.0) * (ii - 1024)
+#         sim.phaseShift = np.mod(sim.phaseShift, sim.ph2pi)
 
-    sim.cbuf = sim.nbuf
-    sim.nbuf = 1 - sim.nbuf
+#     sim.cbuf = sim.nbuf
+#     sim.nbuf = 1 - sim.nbuf
 
-    return sim.It[sim.cbuf, :], np.abs(sim.Ew[sim.cbuf, :]), sim.waist[sim.cbuf, :], sim.phaseShift
+#     return sim.It[sim.cbuf, :], np.abs(sim.Ew[sim.cbuf, :]), sim.waist[sim.cbuf, :], sim.phaseShift

@@ -6,7 +6,6 @@ import numpy as np
 from fasthtml.common import *
 from cavity import CavityData
 
-
 def draw_arc(draw, R, P, angle_s, angle_e):
     if R > 0:
         box = [(P[0] - 2 * R, P[1] - R), (P[0], P[1] + R)]
@@ -24,7 +23,7 @@ def generate_canvas(data_obj):
     image = Image.new('RGB', (1024, 512 + 256), (225, 255, 255))
 
     if data_obj:
-        parts: CavityData = data_obj['cavityDataParts']
+        parts: CavityData = data_obj['cavityData']
         draw = ImageDraw.Draw(image)
         parts.draw_cavity(draw)
 

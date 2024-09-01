@@ -33,10 +33,10 @@ class Beam():
         return f"({self.x}, {self.y}) -> ({np.rad2deg(self.angle)} {self.dx}, {self.dy})"
     
 class SimComponent():
-    def __init__(self):
+    def __init__(self, name = ""):
         self.id = uuid.uuid4()
         self.type = ""
-        self.name = ""
+        self.name = name
         self.lineColor = (0, 0, 0)
         self.backColor = (255, 255, 255)
         self.parameters = []
@@ -64,16 +64,16 @@ class SimComponent():
         pass
 
 class LinearComponent(SimComponent):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name = ""):
+        super().__init__(name = name)
         self.M = [[1, 0], [0, 1]]
 
     def transferBeamVec(self, q):
         return (self.M[0][0] * q + self.M[0][1]) / (self.M[1][0] * q + self.M[1][1])
     
 class Propogation(LinearComponent):
-    def __init__(self, distnance = 0.0, refIndex = 1.0):
-        super().__init__()
+    def __init__(self, name = "", distnance = 0.0, refIndex = 1.0):
+        super().__init__(name = name)
         self.type = "Propogation"
         self.parameters = [
             SimParameterNumber(f"{self.id}-propogationDistance", "number", "Distance (mm)", "General", distnance),
@@ -82,19 +82,19 @@ class Propogation(LinearComponent):
         self.finalize()
         
     def finalize(self):
-        self.distnance = self.parameters[0].get_value()
+        self.distance = self.parameters[0].get_value() * 0.001
         self.refIndex = self.parameters[1].get_value()
-        self.M = [[1, self.distnance], [0, 1]]
+        self.M = [[1, self.distance], [0, 1]]
 
     def stepCenterBeam(self, beam: Beam):
         waist_theta = multMat(self.M, [beam.waist, beam.theta])
         #print(f"PROP TRANS {beam.waist} {beam.theta} -> {waist_theta[0]} {waist_theta[1]}")
-        #print(f"stepCenterBeam Prop {self.distnance}")
-        return Beam(beam.x + self.distnance * beam.dx, beam.y + self.distnance * beam.dy, beam.angle, *waist_theta)
+        #print(f"stepCenterBeam Prop {self.distance}")
+        return Beam(beam.x + self.distance * beam.dx, beam.y + self.distance * beam.dy, beam.angle, *waist_theta)
     
 class Mirror(LinearComponent):
-    def __init__(self, radius = 0.0, reflection = 1.0, angleH = 0.0, angleV = 0.0):
-        super().__init__()
+    def __init__(self, name = "", radius = 0.0, reflection = 1.0, angleH = 0.0, angleV = 0.0):
+        super().__init__(name = name)
         self.type = "Mirror"
         self.parameters = [
             SimParameterNumber(f"{self.id}-mirrorRadius", "number", "Radius (mm)", "General", radius),
@@ -104,7 +104,7 @@ class Mirror(LinearComponent):
         self.finalize()
         
     def finalize(self):
-        self.radius = self.parameters[0].get_value()
+        self.radius = self.parameters[0].get_value() * 0.001
         self.reflection = self.parameters[1].get_value()
         self.angleH = np.deg2rad(self.parameters[2].get_value())
         self.angleV = np.deg2rad(0.0)
@@ -126,8 +126,8 @@ class Mirror(LinearComponent):
         return self.reflection    
 
 class Lens(LinearComponent):
-    def __init__(self, focus):
-        super().__init__()
+    def __init__(self, focus, name = ""):
+        super().__init__(name = name)
         self.type = "Lens"
         self.parameters = [
             SimParameterNumber(f"{self.id}-lensFocus", "number", "Focus (mm)", "General", focus),
@@ -135,7 +135,7 @@ class Lens(LinearComponent):
         self.finalize()
         
     def finalize(self):
-        self.focus = self.parameters[0].get_value()
+        self.focus = self.parameters[0].get_value() * 0.001
         self.M = [[1, 0], [-1 / self.focus, 1]]
 
     def stepCenterBeam(self, beam: Beam):
@@ -155,8 +155,8 @@ class Lens(LinearComponent):
         pass
 
 class TiSapphs(SimComponent):
-    def __init__(self, length, n2):
-        super().__init__()
+    def __init__(self, length, n2, name = ""):
+        super().__init__(name = name)
         self.type = "Ti-Sapp"
         self.parameters = [
             SimParameterNumber(f"{self.id}-n2", "number", "n2 (m^2/W)", "General", n2),
@@ -288,6 +288,9 @@ class CavityData():
     def get_state(self):
         return []
     
+    def get_state_analysis(self):
+        return {}
+    
     def simulation_step(self):
         pass
     
@@ -396,6 +399,13 @@ class CavityDataParts(CavityData):
             if isinstance(par, cls):
                 ps.append(par)
         return ps
+    
+    def getPartsByName(self, name):
+        ps = []
+        for par in self.parts:
+            if par.name == name:
+                ps.append(par)
+        return ps
 
     def getPinnedParameters(self):
         pinned = []
@@ -422,13 +432,13 @@ class CavityDataPartsKerr(CavityDataParts):
 
         self.parts = [
             Mirror(),
-            Propogation(distnance = 500.0),
-            Lens(focus = 75.0),
+            Propogation(name = "L1", distnance = 500.0),
+            Lens(name = "Lens", focus = 75.0),
             Propogation(distnance = 75.0),
             TiSapphs(length = 3e-3, n2 = 3e-20),
             Propogation(distnance = 75.0),
-            Mirror(radius = 150.0, angleH = 30.0),
-            Propogation(distnance=200.0),
+            Mirror(name = "Mirror", radius = 150.0, angleH = 30.0),
+            Propogation(name = "L2", distnance = 900.0),
             # Lens(focus = 75.0),
             # Propogation(distnance = 75.0),
             # TiSapphs(length = 3.0, n2 = 3e-20),
@@ -467,6 +477,22 @@ class CavityDataPartsKerr(CavityDataParts):
             self.L = sp.length
             self.Wp = sp.Wp
             self.Is = sp.Is
+
+        lenses = self.getPartsByName("Lens")
+        if len(lenses) == 1:
+            self.FM = lenses[0].focus
+
+        dists = self.getPartsByName("L1")
+        if len(dists) == 1:
+            self.L1 = dists[0].distance
+
+        dists = self.getPartsByName("L2")
+        if len(dists) == 1:
+            self.L2 = dists[0].distance
+
+        mirrors = self.getPartsByName("Mirror")
+        if len(mirrors) == 1:
+            self.RM = mirrors[0].radius
 
         self.dw = self.bw / (self.n - 1)
         self.t = np.linspace(-1/(2*self.dw), 1/(2*self.dw), self.n)
@@ -513,6 +539,31 @@ class CavityDataPartsKerr(CavityDataParts):
         ]
 
         return charts
+    
+    def get_state_analysis(self):
+        analysis = {}
+        power = np.abs(self.Et[self.cbuf, :])**2
+        total_power = np.sum(power)
+        i_max = np.argmax(power)
+        near_power = np.sum(power[max(0, i_max - 20): min(i_max + 20, len(power) - 1)])
+        if near_power * 1.1 > total_power:
+            analysis['state'] = "One peak"
+            analysis['peak location'] = i_max
+            rel = power[max(0, i_max - 50): min(i_max + 50, len(power) - 1)]
+            sum = np.sum(rel)
+            rel = rel / sum
+            l = len(rel)
+            ord = np.linspace(0, l - 1, l)
+            ord2 = ord ** 2
+            width2 = np.sum(rel * ord2) - (np.sum(rel * ord)) ** 2
+            print(width2)
+            analysis['peak width'] = math.sqrt(width2)
+        else:
+            analysis['state'] = "No peaks"
+            print(near_power, total_power, total_power / (near_power + 1))
+
+        print(str(analysis))
+        return analysis
     
     def simulation_step(self):
         sim = self

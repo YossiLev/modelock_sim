@@ -183,9 +183,14 @@ async def run(send, localId: str):
     global gen_data
     dataObj = gen_data[localId]
 
+    if dataObj['run_state']:
+        return
     dataObj['run_state'] = True
+
     count = dataObj['count']
     end_count = count + 1000
+
+    gen_data[localId] = dataObj
 
     start_cpu_time = time.time()
 
@@ -199,6 +204,7 @@ async def run(send, localId: str):
         if count % 100 == 0:
             end_cpu_time = time.time()
             print(end_cpu_time - start_cpu_time, count)
+            dataObj['cavityData'].get_state_analysis()
             start_cpu_time = end_cpu_time
         await send(Div(generate_all_charts(dataObj), id="charts", cls="row"))
         await asyncio.sleep(0.001)

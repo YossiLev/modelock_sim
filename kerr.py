@@ -32,10 +32,10 @@ def MLSpatial_gain(sim):
     q1p = sim.q[sim.cbuf, :].copy()
     W1p = sim.waist[sim.cbuf, :].copy()
     lambda_ = 780e-9
-    RM = 150e-3
-    FM = 75e-3
-    L1 = 0.5
-    L2 = 0.9
+    RM = sim.RM
+    FM = sim.FM
+    L1 = sim.L1
+    L2 = sim.L2
     V = 1 / (2 / RM - 1 / L2)
     N = 5  # number of NL lenses
     n0 = 1#1.76  # linear refractive index of Ti:S

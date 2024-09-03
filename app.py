@@ -203,12 +203,11 @@ async def run(send, quick: bool, localId: str):
     global gen_data
     dataObj = gen_data[localId]
 
-    print(f"quick {quick}")
-
     if dataObj['run_state']:
         return
     dataObj['run_state'] = True
 
+    print('runn')
     count = dataObj['count']
     end_count = count + 1000
 
@@ -236,6 +235,8 @@ async def run(send, quick: bool, localId: str):
             await send(Div(generate_all_charts(dataObj), id="charts", cls="row"))
             await asyncio.sleep(0.001)
 
+    dataObj['run_state'] = False
+    
 #------------------- iterations
 @app.post("/iterInit")
 def iterInit(iterSeedInit: str, iterStartValue:str, iterEndValue:str, iterValueSteps: str, localId: str):

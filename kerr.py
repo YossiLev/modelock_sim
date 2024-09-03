@@ -34,6 +34,8 @@ def MLSpatial_gain(sim):
     lambda_ = 780e-9
     RM = sim.RM
     FM = sim.FM
+    RMD = sim.RMD
+    FMD = sim.FMD
     L1 = sim.L1
     L2 = sim.L2
     V = 1 / (2 / RM - 1 / L2)
@@ -77,7 +79,7 @@ def MLSpatial_gain(sim):
 
     qt = np.zeros(len(Etp), dtype=complex)
 
-    MRight = distance(RM / 2 + deltaPlane - 1e-10 - L / 2) @ Mcur(RM) @ distance(L1) @ distance(L1) @ Mcur(RM) @ distance(RM / 2 + deltaPlane - 1e-10 - L / 2)
+    MRight = distance(RMD + deltaPlane - 1e-10 - L / 2) @ Mcur(RM) @ distance(L1) @ distance(L1) @ Mcur(RM) @ distance(RMD + deltaPlane - 1e-10 - L / 2)
     MLeft = distance(V + deltaPoint - L / 2) @ lens(FM) @ distance(L2) @ distance(L2) @ lens(FM) @ distance(V + deltaPoint - L / 2)
 
     def stepKerr(e, w, Ikl, dist, q, M = None):

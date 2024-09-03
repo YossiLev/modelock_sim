@@ -22,11 +22,22 @@ button:disabled {
     background: gray;
 }
 
+label {
+  font-family: Arial;
+  background: linear-gradient(180deg, #4B91F7 0%, #367AF6 100%);
+  padding: 6px;
+  color: white;
+  font-size: 14px;
+  border-radius: 5px;
+}
+
+
 input {
     padding: 2px 2px;
-    border-radius: 4px;
+    border-radius: 6px;
     border: 1px solid #367AF6;
     color: #367AF6;
+    padding: 6px 5px 5px 5px;
 }
 
 .error {
@@ -95,4 +106,12 @@ h1 {
   font-size: 16px;
   border-bottom: 1px solid green;
   font-family: Arial;
+}
+
+.mono {
+  font-family: monospace;
+}
+.monoRight {
+  font-family: monospace;
+  text-align: right;
 }

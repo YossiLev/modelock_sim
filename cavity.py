@@ -2,6 +2,7 @@ import numpy as np
 from PIL import Image, ImageDraw
 from fasthtml.common import *
 import uuid
+import json
 from kerr import NLloss, SatGain, MLSpatial_gain
 
 def rotAngle(p, a):
@@ -19,7 +20,7 @@ class Chart():
         pass
 
 class Beam():
-    def __init__(self, x, y, angle, waist = 5, theta = 0):
+    def __init__(self, x, y, angle, waist = 5 * 0.001, theta = 0):
         self.x = x
         self.y = y
         self.waist = waist
@@ -59,8 +60,8 @@ class SimComponent():
                    cls="partBlock")
     
     def draw(self, draw, mapper, beam):
-        p1 = (beam.x, beam.y + 10)
-        p2 = (beam.x, beam.y - 10)
+        p1 = (beam.x, beam.y + 10 * 0.001)
+        p2 = (beam.x, beam.y - 10 * 0.001)
         pass
 
 class LinearComponent(SimComponent):
@@ -116,7 +117,7 @@ class Mirror(LinearComponent):
         return Beam(beam.x, beam.y, an + beam.angle, *waist_theta)
 
     def draw(self, draw, mapper, beam):
-        d = rotAngle((0, 10), beam.angle + self.angleH)
+        d = rotAngle((0 * 0.001, 10 * 0.001), beam.angle + self.angleH)
         p1 = (beam.x + d[0], beam.y + d[1])
         p2 = (beam.x - d[0], beam.y - d[1])
         #print(f"mirror {p1} {p2}, {beam.dx} {beam.dy}" )
@@ -144,9 +145,9 @@ class Lens(LinearComponent):
         return Beam(beam.x, beam.y, beam.angle, *waist_theta)        
 
     def draw(self, draw, mapper, beam):
-        d1 = rotAngle((0, 10), beam.angle)
-        d2 = rotAngle((4, 6), beam.angle)
-        d3 = rotAngle((-4, 6), beam.angle)
+        d1 = rotAngle((0 * 0.001, 10 * 0.001), beam.angle)
+        d2 = rotAngle((4 * 0.001, 6 * 0.001), beam.angle)
+        d3 = rotAngle((-4 * 0.001, 6 * 0.001), beam.angle)
         draw.line([mapper((beam.x + d1[0], beam.y + d1[1])), mapper((beam.x - d1[0], beam.y - d1[1]))], fill="black", width=3)
         draw.line([mapper((beam.x + d1[0], beam.y + d1[1])), mapper((beam.x + d2[0], beam.y + d2[1]))], fill="black", width=3)
         draw.line([mapper((beam.x + d1[0], beam.y + d1[1])), mapper((beam.x + d3[0], beam.y + d3[1]))], fill="black", width=3)
@@ -168,7 +169,7 @@ class TiSapphs(SimComponent):
         
     def finalize(self):
         self.n2 = self.parameters[0].get_value()
-        self.length = self.parameters[1].get_value()
+        self.length = self.parameters[1].get_value() * 0.001
         self.Is = self.parameters[2].get_value() * 2049.0 ** 2
         self.Wp = self.parameters[3].get_value()
         self.kerr_par = 4 * self.length * self.n2
@@ -176,8 +177,8 @@ class TiSapphs(SimComponent):
         self.Ikl = self.kerr_par / self.N / 50
 
     def draw(self, draw, mapper, beam):
-        d1 = rotAngle((10, 5), beam.angle)
-        d2 = rotAngle((-10, 5), beam.angle)
+        d1 = rotAngle((10 * 0.001, 5 * 0.001), beam.angle)
+        d2 = rotAngle((-10 * 0.001, 5 * 0.001), beam.angle)
         #print(f"beam angle {np.rad2deg(beam.angle)}, {d1}")
         draw.line([mapper((beam.x + d1[0], beam.y + d1[1])), mapper((beam.x + d2[0], beam.y + d2[1]))], fill="red", width=1)
         draw.line([mapper((beam.x + d2[0], beam.y + d2[1])), mapper((beam.x - d1[0], beam.y - d1[1]))], fill="red", width=1)
@@ -203,6 +204,14 @@ class SimParameter():
 
     def set_value(self, value:str):
         pass
+
+    def ser(self):
+        return json.dumps({"class": "SimParameter", "id": self.id, "type": self.type, "group": self.group, "name": self.name, })
+    
+    @staticmethod
+    def deser(objStr):
+        d = json.loads(objStr)
+        return SimParameter(d["id"], d["type"], d["name"], d["group"])
         
 class SimParameterNumber(SimParameter):
     def __init__(self, id, type, name, group, value):
@@ -229,13 +238,20 @@ class SimParameterNumber(SimParameter):
             self.strValue = value
             self.value = float(value)
             self.value_error = False
-            print(f"new value {value} to parameter {self.id} ({self.value})")
+            #print(f"new value {value} to parameter {self.id} ({self.value})")
             return True
         except ValueError as ve:
             print(f"*** Error set_value {value} ***")
             self.value_error = True
             return False
 
+    def ser(self):
+        return json.dumps({"class": "SimParameterNumber", "id": self.id, "type": self.type, "group": self.group, "name": self.name, "value": self.value})
+    
+    @staticmethod
+    def deser(objStr):
+        d = json.loads(objStr)
+        return SimParameterNumber(d["id"], d["type"], d["name"], d["group"], d["value"])
 
 class CavityData():
     def __init__(self):
@@ -292,6 +308,7 @@ class CavityData():
         return {}
     
     def simulation_step(self):
+
         pass
     
 class CavityDataParts(CavityData):
@@ -346,10 +363,10 @@ class CavityDataParts(CavityData):
                 self.box[2] = beam.x
             if self.box[3] < beam.y:
                 self.box[3] = beam.y
-        self.box[0] -= 50
-        self.box[1] -= 50
-        self.box[2] += 50
-        self.box[3] += 50
+        self.box[0] -= 50 * 0.001
+        self.box[1] -= 50 * 0.001
+        self.box[2] += 50 * 0.001
+        self.box[3] += 50 * 0.001
     
     def draw_cavity(self, draw: ImageDraw):
         self.build_beam_geometry()
@@ -428,29 +445,16 @@ class CavityDataPartsKerr(CavityDataParts):
             SimParameterNumber("lambda", "number", "Center wave length", "Simulation", 780e-9),
             SimParameterNumber("delta", "number", "Delta (m)", "Simulation", 0.001),
         ]
-        print('----i ', len(self.parameters))
 
         self.parts = [
             Mirror(),
             Propogation(name = "L1", distnance = 500.0),
             Lens(name = "Lens", focus = 75.0),
-            Propogation(distnance = 75.0),
-            TiSapphs(length = 3e-3, n2 = 3e-20),
-            Propogation(distnance = 75.0),
+            Propogation(name = "LensD", distnance = 75.0),
+            TiSapphs(length = 3, n2 = 3e-20),
+            Propogation(name = "MirrorD", distnance = 75.0),
             Mirror(name = "Mirror", radius = 150.0, angleH = 30.0),
             Propogation(name = "L2", distnance = 900.0),
-            # Lens(focus = 75.0),
-            # Propogation(distnance = 75.0),
-            # TiSapphs(length = 3.0, n2 = 3e-20),
-            # Propogation(distnance = 75.0),
-            # Lens(focus = 75.0),
-            # Propogation(distnance=150.0),
-            # Mirror(angleH = 10.0),
-            # Propogation(distnance=150.0),
-            # Lens(focus = 75.0),
-            # Propogation(distnance=150.0),
-            # Mirror(angleH = - 10.0),
-            # Propogation(distnance=50.0),
             Mirror(reflection = 0.95),
         ]
         self.finalize()
@@ -489,6 +493,14 @@ class CavityDataPartsKerr(CavityDataParts):
         dists = self.getPartsByName("L2")
         if len(dists) == 1:
             self.L2 = dists[0].distance
+
+        dists = self.getPartsByName("LensD")
+        if len(dists) == 1:
+            self.FMD = dists[0].distance
+
+        dists = self.getPartsByName("MirrorD")
+        if len(dists) == 1:
+            self.RMD = dists[0].distance
 
         mirrors = self.getPartsByName("Mirror")
         if len(mirrors) == 1:
@@ -544,25 +556,61 @@ class CavityDataPartsKerr(CavityDataParts):
         analysis = {}
         power = np.abs(self.Et[self.cbuf, :])**2
         total_power = np.sum(power)
+        analysis['total power'] = float(total_power)
         i_max = np.argmax(power)
         near_power = np.sum(power[max(0, i_max - 20): min(i_max + 20, len(power) - 1)])
+        #print("A ", total_power, near_power, total_power / (near_power + 0.1))
         if near_power * 1.1 > total_power:
-            analysis['state'] = "One peak"
-            analysis['peak location'] = i_max
+            analysis['state_code'] = "1"
+            analysis['state'] = "One pulse"
+            analysis['location'] = int(i_max)
             rel = power[max(0, i_max - 50): min(i_max + 50, len(power) - 1)]
             sum = np.sum(rel)
+            analysis['power'] = float(sum)
             rel = rel / sum
             l = len(rel)
             ord = np.linspace(0, l - 1, l)
             ord2 = ord ** 2
             width2 = np.sum(rel * ord2) - (np.sum(rel * ord)) ** 2
-            print(width2)
-            analysis['peak width'] = math.sqrt(width2)
-        else:
-            analysis['state'] = "No peaks"
-            print(near_power, total_power, total_power / (near_power + 1))
+            analysis['width'] = float(math.sqrt(width2))
+        elif near_power * 2.2 > total_power:
+            #print('------ enter two')
+            rel = power[max(0, i_max - 50): min(i_max + 50, len(power) - 1)]
+            sum_a = np.sum(rel)
+            rel = rel / sum_a
+            l = len(rel)
+            ord_a = np.linspace(0, l - 1, l)
+            ord_a2 = ord_a ** 2
+            width_a2 = np.sum(rel * ord_a2) - (np.sum(rel * ord_a)) ** 2
+            power[max(0, i_max - 50): min(i_max + 50, len(power) - 1)] = np.zeros(l)
+            i_max_b = np.argmax(power)
+            total_power = np.sum(power)
+            near_power_b = np.sum(power[max(0, i_max_b - 20): min(i_max_b + 20, len(power) - 1)])
+            #print("B ", total_power, near_power_b, total_power / (near_power_b + 0.1))
+            if near_power_b * 1.1 > total_power:
+                analysis['state_code'] = "2"
+                analysis['state'] = "Two pulses"
+                analysis['location 1'] = int(i_max)
+                rel = power[max(0, i_max_b - 50): min(i_max_b + 50, len(power) - 1)]
+                sum_b = np.sum(rel)
+                analysis['power 1'] = float(sum_a)
+                analysis['width 1'] = float(math.sqrt(width_a2))
+                rel = rel / sum_b
+                l = len(rel)
+                ord_b = np.linspace(0, l - 1, l)
+                ord_b2 = ord_b ** 2
+                width_b2 = np.sum(rel * ord_b2) - (np.sum(rel * ord_b)) ** 2
+                analysis['location 2'] = int(i_max_b)
+                analysis['power 2'] = float(sum_b)
+                analysis['width 2'] = float(math.sqrt(width_b2))
+            else:
+                analysis['state_code'] = "."
 
-        print(str(analysis))
+                analysis['state'] = "No pulse"
+        else:
+            analysis['state_code'] = "."
+            analysis['state'] = "No pulses"
+
         return analysis
     
     def simulation_step(self):
@@ -599,64 +647,7 @@ class CavityDataPartsKerr(CavityDataParts):
         sim.nbuf = 1 - sim.nbuf
 
         return sim.It[sim.cbuf, :], np.abs(sim.Ew[sim.cbuf, :]), sim.waist[sim.cbuf, :], sim.phaseShift
-
-
-    def build_beam_geometry(self):
-        self.beams = [Beam(0.0, 0.0, np.pi)]
-        for part in self.parts:
-            self.beams.append(part.stepCenterBeam(self.beams[-1]))
-        
-        self.box = [999999, 999999, -999999, -999999] # xmin, ymin, xmax, ymax
-        for beam in self.beams:
-            #print(str(beam))
-            if self.box[0] > beam.x:
-                self.box[0] = beam.x
-            if self.box[1] > beam.y:
-                self.box[1] = beam.y
-            if self.box[2] < beam.x:
-                self.box[2] = beam.x
-            if self.box[3] < beam.y:
-                self.box[3] = beam.y
-        self.box[0] -= 50
-        self.box[1] -= 50
-        self.box[2] += 50
-        self.box[3] += 50
-    
-    def draw_cavity(self, draw: ImageDraw):
-        self.build_beam_geometry()
-
-        self.gWidth = draw._image.width
-        self.gHeight = draw._image.height
-
-        self.hScale = self.gWidth / (self.box[2] - self.box[0])
-        self.vScale = self.gHeight / (self.box[3] - self.box[1])
-        if self.vScale > self.hScale:
-            self.vScale = self.hScale
-        else:
-            self.hScale = self.vScale
-        self.hShift = - self.box[0] * self.hScale
-        self.vShift = - self.box[1] * self.vScale
-        #print("Shifts ", self.hScale, self.vScale, self.hShift, self.vShift)
-
-        for iComponent in range(len(self.parts)):
-            self.parts[iComponent].draw(draw, self.point, self.beams[iComponent])
-
-        self.draw_beam_geometry(draw)
-
-    def draw_beam_geometry(self, draw: ImageDraw):
-
-        for iBeam in range(len(self.beams)):
-            if iBeam > 0:
-                dp = rotAngle((0, self.beams[iBeam - 1].waist), self.beams[iBeam - 1].angle)
-                dc = rotAngle((0, self.beams[iBeam].waist), self.beams[iBeam].angle)
-
-                bp = (self.beams[iBeam - 1].x , self.beams[iBeam - 1].y)
-                bc = (self.beams[iBeam].x , self.beams[iBeam].y)
-                draw.line([self.point(bp), self.point(bc)], fill=["orange", "green", "blue"][np.mod(iBeam - 1, 3)], width=3)
-                draw.line([self.point((bp[0] + dp[0], bp[1] + dp[1])), 
-                                      self.point((bc[0] + dc[0], bc[1] + dc[1]))], fill="brown", width=1)
-                draw.line([self.point((bp[0] - dp[0], bp[1] - dp[1])), 
-                                      self.point((bc[0] - dc[0], bc[1] - dc[1]))], fill="brown", width=1)
+   
 
 class CavityDataKerr(CavityData):
     def __init__(self):

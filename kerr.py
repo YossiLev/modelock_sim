@@ -1,7 +1,4 @@
 import numpy as np
-#from cavity import CavityDataKerr
-
-# _sCP5Az_F.e9n5m  matlab
 
 def NLloss(waist, Wp): #pure function
     loss = np.ones_like(waist)

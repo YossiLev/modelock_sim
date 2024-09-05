@@ -1,3 +1,36 @@
+nav {
+  padding: 1.5rem 2rem;
+  background-color: #222831;
+  color: #fff;
+ }
+
+ .checkbtn {
+  font-size: 1.5rem;
+  color: white;
+  cursor: pointer;
+ }
+
+ .dropMenu {
+  position: absolute;
+  background: rgb(213 236 242);;
+  overflow: hidden;
+  height:0px;
+  transition: height 0.25s ease;
+ }
+.B:checked ~ .dropMenu {
+  height:120px;
+}
+.dropMenuItem{
+  padding: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  user-select: none;
+  color: #66666a;
+}
+.dropMenuItem:hover{
+  background: rgb(216, 216, 216);
+}
+
 button  {
   display: inline-block;
   flex-direction: row;
@@ -114,4 +147,27 @@ h1 {
 .monoRight {
   font-family: monospace;
   text-align: right;
+}
+
+#simulations {
+  font-family: Arial, Helvetica, sans-serif;
+  border-collapse: collapse;
+  width: 100%;
+}
+
+#simulations td, #customers th {
+  border: 1px solid #ddd;
+  padding: 8px;
+}
+
+#simulations tr:nth-child(even){background-color: #f2f2f2;}
+
+#simulations tr:hover {background-color: #ddd;}
+
+#simulations th {
+
+  padding: 12px 8px;
+  text-align: left;
+  background: linear-gradient(180deg, #4B91F7 0%, #367AF6 100%);
+  color: white;
 }

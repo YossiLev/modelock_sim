@@ -21,6 +21,7 @@ class Iteration():
         self.state = ['---------------' for v in self.values]
         self.reports = [[] for v in self.values]
         self.reportsFinal = ["Wait.." for v in self.values]
+        self.seeds = [-1 for v in self.values]
 
         self.current_index = 0
         self.current_count = 0
@@ -30,7 +31,13 @@ class Iteration():
         if self.current_index < self.n_values:
             if self.current_count < self.max_count:
                 if self.current_count == 0:
-                    self.sim.restart(self.seed)
+                    if self.seed != 0:
+                        seed = self.seed
+                    else:
+                        seed = int(np.random.rand() * (2 ** 32 - 1))
+                    self.seeds[self.current_index] = seed
+
+                    self.sim.restart(seed)
                     p, part = self.sim.getParameter(self.parameterId)
                     v = self.values[self.current_index]
                     p.set_value(str(v))
@@ -58,8 +65,8 @@ class Iteration():
     def render(self):
         return Div(
             Table(
-                Tr(Th(self.parameterName), Th("State", style="min-width:140px;"), Th("Report")),
-                *[Tr(Td(f"{value:.1f}", cls="monoRight"), Td(state, cls="mono", style="min-width:140px;"), Td(report)) for value, state, report in zip(self.values, self.state, self.reportsFinal)]
+                Tr(Th(self.parameterName), Th("Seed"), Th("State", style="min-width:140px;"), Th("Report")),
+                *[Tr(Td(f"{value:.1f}", cls="monoRight"), Td(f"{seed}", cls="monoRight"), Td(state, cls="mono", style="min-width:140px;"), Td(report)) for value, seed, state, report in zip(self.values, self.seeds, self.state, self.reportsFinal)]
             )
         )
 

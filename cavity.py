@@ -35,7 +35,7 @@ class Beam():
     
 class SimComponent():
     def __init__(self, name = ""):
-        self.id = uuid.uuid4()
+        self.id = str(uuid.uuid4())
         self.type = ""
         self.name = name
         self.lineColor = (0, 0, 0)
@@ -53,9 +53,18 @@ class SimComponent():
 
     def stepCenterBeam(self, beam: Beam):
         return Beam(beam.x, beam.y, beam.angle, beam.waist, beam.theta)
+#                    Button("Load", hx_post=f"/load", hx_target="#charts", hx_include="#seedInit", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML"), 
 
     def render(self):
-        return Div(Div(Span(NotStr("&#9776;"), style="font-size:24px;line-height:16px;"), Span(self.type), cls="compType"), 
+        return Div(Div(Input(type="checkbox", style="z-index:10;position:absolute;opacity:0", cls="B"),
+                       Span(NotStr("&#9776;"), style="font-size:24px;line-height:16px; position:relative; user-select: none;"),
+                       Span(self.type), 
+                       Div(
+                           Div("Remove", cls="dropMenuItem", hx_post=f"/removeComp/{self.id}", hx_target="#cavity", hx_vals='js:{localId: getLocalId()}'),
+                           Div("Add After", cls="dropMenuItem", hx_post=f"/addAfter/{self.id}", hx_target="#cavity", hx_vals='js:{localId: getLocalId()}'),
+                           Div("Add before", cls="dropMenuItem", hx_post=f"/addBefore/{self.id}", hx_target="#cavity", hx_vals='js:{localId: getLocalId()}'),
+                             cls='dropMenu'),
+                       cls="compType"), 
                    Div(*[p.render() for p in self.parameters], style="padding:8px;"),
                    cls="partBlock")
     
@@ -63,7 +72,31 @@ class SimComponent():
         p1 = (beam.x, beam.y + 10 * 0.001)
         p2 = (beam.x, beam.y - 10 * 0.001)
         pass
+    
+class SimComponentInit(SimComponent):
+    def __init__(self, name = ""):
+        super().__init__(name = name)
+        self.type = "Select type"
 
+        self.M = [[1, 0], [0, 1]]
+
+    def render(self):
+        types = ['Lens', 'Mirror', 'Propogation', 'Ti-Sapp']
+        return Div(Div(Input(type="checkbox", style="z-index:10;position:absolute;opacity:0", cls="B"),
+                       Span(NotStr("&#9776;"), style="font-size:24px;line-height:16px; position:relative; user-select: none;"),
+                       Span(self.type), 
+                       Div(
+                           Div("Remove", cls="dropMenuItem", hx_post=f"/removeComp/{self.id}", hx_target="#cavity", hx_vals='js:{localId: getLocalId()}'),
+                           cls='dropMenu'
+                       ),
+                       cls="compType"), 
+                   Div(*[Div(p, cls="dropMenuItem", hx_post=f"/setCompType/{self.id}/{p}", 
+                             hx_target="#cavity", hx_vals='js:{localId: getLocalId()}') for p in types], style="padding:8px;"),
+                   cls="partBlock")
+
+    def transferBeamVec(self, q):
+        return (self.M[0][0] * q + self.M[0][1]) / (self.M[1][0] * q + self.M[1][1])
+    
 class LinearComponent(SimComponent):
     def __init__(self, name = ""):
         super().__init__(name = name)
@@ -89,8 +122,6 @@ class Propogation(LinearComponent):
 
     def stepCenterBeam(self, beam: Beam):
         waist_theta = multMat(self.M, [beam.waist, beam.theta])
-        #print(f"PROP TRANS {beam.waist} {beam.theta} -> {waist_theta[0]} {waist_theta[1]}")
-        #print(f"stepCenterBeam Prop {self.distance}")
         return Beam(beam.x + self.distance * beam.dx, beam.y + self.distance * beam.dy, beam.angle, *waist_theta)
     
 class Mirror(LinearComponent):
@@ -204,14 +235,6 @@ class SimParameter():
 
     def set_value(self, value:str):
         pass
-
-    def ser(self):
-        return json.dumps({"class": "SimParameter", "id": self.id, "type": self.type, "group": self.group, "name": self.name, })
-    
-    @staticmethod
-    def deser(objStr):
-        d = json.loads(objStr)
-        return SimParameter(d["id"], d["type"], d["name"], d["group"])
         
 class SimParameterNumber(SimParameter):
     def __init__(self, id, type, name, group, value):
@@ -245,14 +268,6 @@ class SimParameterNumber(SimParameter):
             self.value_error = True
             return False
 
-    def ser(self):
-        return json.dumps({"class": "SimParameterNumber", "id": self.id, "type": self.type, "group": self.group, "name": self.name, "value": self.value})
-    
-    @staticmethod
-    def deser(objStr):
-        d = json.loads(objStr)
-        return SimParameterNumber(d["id"], d["type"], d["name"], d["group"], d["value"])
-
 class CavityData():
     def __init__(self):
         self.name = ""
@@ -282,6 +297,41 @@ class CavityData():
                     return param, part
         return None
 
+    def getComponentIndexById(self, id):
+        for i_part in range(len(self.parts)):
+            if self.parts[i_part].id == id:
+               return i_part
+        return -1
+
+    def removeComponentById(self, id):
+        i = self.getComponentIndexById(id)
+        if i >= 0:
+            del self.parts[i]
+
+    def addAfterById(self, id):
+        i = self.getComponentIndexById(id)
+        if i >= 0:
+            self.parts.insert(i + 1, SimComponentInit())
+
+    def addBeforeById(self, id):
+        i = self.getComponentIndexById(id)
+        if i >= 0:
+            self.parts.insert(i, SimComponentInit())
+
+
+    def replaceTypeById(self, id, tp):
+        i = self.getComponentIndexById(id)
+        if i >= 0:
+            match tp:
+                case "Lens":
+                    self.parts[i] = Lens(focus = 100.0)
+                case "Mirror":
+                    self.parts[i] = Mirror(radius = 100.0)
+                case "Propogation":
+                    self.parts[i] = Propogation(distnance = 100.0)
+                case "Ti-Sapp":
+                    self.parts[i] = TiSapphs(length = 1.0, n2 = 1e-20)
+
     def build_beam_geometry(self):
         pass
 
@@ -297,8 +347,8 @@ class CavityData():
     def render(self):
         return Div(
             Div(*[p.render() for p in self.parameters], style="padding:8px;"),
-            Div(*[t.render() for t in self.parts], style="padding:8px; width:85%;", cls="row"),
-            cls="row"
+            Div(*[t.render() for t in self.parts], style="padding:8px; width:1300px;", cls="row"),
+            cls="row", id="cavity"
         )
 
     def get_state(self):
@@ -308,9 +358,8 @@ class CavityData():
         return {}
     
     def simulation_step(self):
-
         pass
-    
+   
 class CavityDataParts(CavityData):
     def __init__(self):
         super().__init__()
@@ -439,6 +488,8 @@ class CavityDataParts(CavityData):
 class CavityDataPartsKerr(CavityDataParts):
     def __init__(self):
         super().__init__()
+        self.name = "Kerr modelock"
+        self.description = "Kerr modelock by original simulation"
         self.parameters = [
             SimParameterNumber("nbins", "number", "Number of bins", "Simulation", 2000),
             SimParameterNumber("snr", "number", "SNR", "Simulation", 0.003),
@@ -462,6 +513,8 @@ class CavityDataPartsKerr(CavityDataParts):
         self.build_beam_geometry()
 
     def finalize(self):
+        for part in self.parts:
+            part.finalize()
         self.nbins = self.parameters[0].value
         self.SNR = self.parameters[1].value
         self.lambda_ = self.parameters[2].value

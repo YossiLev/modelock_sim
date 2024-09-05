@@ -12,6 +12,8 @@ from design import generate_design
 from iterations import generate_iterations, Iteration
 from cavity import CavityDataPartsKerr, CavityData
 import app
+import jsonpickle
+import dataset
         
 
 gen_data = {}
@@ -84,10 +86,10 @@ def make_page(data_obj):
         case "Design":
             return my_frame("Design",
                 Div(
-                    Button("Load", hx_post=f"/load", hx_target="#charts", hx_include="#seedInit", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML"), 
-                    Button("Store", hx_post=f"/load", hx_target="#charts", hx_include="#seedInit", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML"), 
-                    Button("New", hx_post=f"/load", hx_target="#charts", hx_include="#seedInit", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML"), 
-                    generate_design(data_obj), cls="box", style="background-color: rgb(208 245 254); width:90%;", id="charts2"))
+                    Button("Load", hx_post=f"/load", hx_target="#cavity", hx_include="#seedInit", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML"), 
+                    Button("Store", hx_post=f"/store", hx_target="#cavity", hx_include="#seedInit", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML"), 
+                    Button("New", hx_post=f"/new", hx_target="#cavity", hx_include="#seedInit", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML"), 
+                    generate_design(data_obj), cls="box", style="background-color: rgb(208 245 254); width:90%;", id="design"))
         
         case "Iterations":
             return my_frame("Iterations", 
@@ -146,7 +148,6 @@ def parameter_num(localId: str, id: str):
 
 @app.post("/init")
 def init(session, seedInit: str, localId: str):
-    global gen_data
     global gen_data
     if localId not in gen_data.keys():
         dataObj = {'id': localId, 'count': 0, 
@@ -236,7 +237,7 @@ async def run(send, quick: bool, localId: str):
             await asyncio.sleep(0.001)
 
     dataObj['run_state'] = False
-    
+
 #------------------- iterations
 @app.post("/iterInit")
 def iterInit(iterSeedInit: str, iterStartValue:str, iterEndValue:str, iterValueSteps: str, localId: str):
@@ -258,9 +259,12 @@ def iterInit(iterSeedInit: str, iterStartValue:str, iterEndValue:str, iterValueS
     value_end = 10.0
     n_values = 10
     values_mode = "log"
-
     try:
         seed = int(iterSeedInit)
+    except:
+        pass
+
+    try:
         value_start = float(iterStartValue)
         value_end = float(iterEndValue)
         n_values = int(iterValueSteps)
@@ -269,20 +273,6 @@ def iterInit(iterSeedInit: str, iterStartValue:str, iterEndValue:str, iterValueS
         pass
 
     iterations.append(Iteration(sim, seed, parameters[0], value_start, value_end, n_values, values_mode, name = f"General"))
-    #seed = 0
-    # try:
-    #     seed = int(seedInit)
-    # except:
-    #     pass
-    # if seed == 0:
-    #     seed = int(np.random.rand() * (2 ** 32 - 1))
-
-    # dataObj['seed'] = seed
-    # dataObj['count'] = 0
-    # dataObj['run_state'] = False
-    # dataObj['cavityData'].restart(seed)
-
-    # add_toast(session, f"Simulation initialized", "info")
 
     return generate_iterations(dataObj)
 
@@ -325,28 +315,120 @@ async def iterRun(send, localId: str):
         await send(Div(generate_iterations(dataObj), id="iterate"))
         await asyncio.sleep(0.001)
 
-    # if dataObj['run_state']:
-    #     return
-    # dataObj['run_state'] = True
+@app.post("/removeComp/{comp_id}")
+def removeComp(session, comp_id: str, localId: str):
+    global gen_data
+    dataObj = gen_data[localId]
+    sim = dataObj['cavityData']
+    sim.removeComponentById(comp_id)
+    return sim.render()
 
-    # count = dataObj['count']
-    # end_count = count + 1000
+@app.post("/addAfter/{comp_id}")
+def removeComp(session, comp_id: str, localId: str):
+    global gen_data
+    dataObj = gen_data[localId]
+    sim = dataObj['cavityData']
+    sim.addAfterById(comp_id)
+    return sim.render()
 
-    # gen_data[localId] = dataObj
+@app.post("/addBefore/{comp_id}")
+def removeComp(session, comp_id: str, localId: str):
+    global gen_data
+    dataObj = gen_data[localId]
+    sim = dataObj['cavityData']
+    sim.addBeforeById(comp_id)
+    return sim.render()
 
-    # start_cpu_time = time.time()
 
-    # while dataObj['run_state'] and count < end_count:
-        
-    #     dataObj['cavityData'].simulation_step()
+@app.post("/setCompType/{comp_id}/{tp}")
+def removeComp(session, comp_id: str, tp: str, localId: str):
+    global gen_data
+    dataObj = gen_data[localId]
+    sim = dataObj['cavityData']
+    sim.replaceTypeById(comp_id, tp)
+    return sim.render()
 
-    #     count = count + 1
-    #     dataObj['count'] = count
+@app.post("/store")
+def stop(localId: str):
+    global gen_data
+    dataObj = gen_data[localId] 
+    sim = dataObj['cavityData']
+    s = jsonpickle.encode(sim)
+    db = dataset.connect('sqlite:///mydatabase.db')
+    table = db['simulation']
+    table.insert(dict(name=sim.name, desctiption=sim.description, content=s))
 
-    #     if count % 100 == 0:
-    #         end_cpu_time = time.time()
-    #         print(end_cpu_time - start_cpu_time, count)
-    #         dataObj['cavityData'].get_state_analysis()
-    #         start_cpu_time = end_cpu_time
-    #     await send(generate_iterations(dataObj), id="charts", cls="row")
-    #     await asyncio.sleep(0.001)
+    print(db['simulation'].columns)
+    print(len(db['simulation']))
+    for simx in db['simulation']:
+        print(simx['name'], simx['desctiption'])
+
+    # sim2 = jsonpickle.decode(s)
+    # print(f"{len(sim2.parameters)} {len(sim2.parts)}")
+    # dataObj['cavityData'] = sim2
+    return generate_design(dataObj)
+
+@app.post("/design")
+def store(localId: str):
+    global gen_data
+    dataObj = gen_data[localId] 
+    return generate_design(dataObj)
+
+@app.post("/store")
+def store(localId: str):
+    global gen_data
+    dataObj = gen_data[localId] 
+    sim = dataObj['cavityData']
+    s = jsonpickle.encode(sim)
+    db = dataset.connect('sqlite:///mydatabase.db')
+    table = db['simulation']
+    table.insert(dict(name=sim.name, desctiption=sim.description, content=s))
+
+    print(db['simulation'].columns)
+    print(len(db['simulation']))
+    for simx in db['simulation']:
+        print(simx['name'], simx['desctiption'])
+
+    # sim2 = jsonpickle.decode(s)
+    # print(f"{len(sim2.parameters)} {len(sim2.parts)}")
+    # dataObj['cavityData'] = sim2
+    return generate_design(dataObj)
+
+
+@app.post("/load")
+def load(localId: str):
+    db = dataset.connect('sqlite:///mydatabase.db')
+    table = db['simulation']
+
+    for simx in db['simulation']:
+         print(simx['id'], simx['name'], simx['desctiption'])
+
+    return Div(Table(
+                Tr(Th("ID"), Th("Name"), Th("Description")),
+                *[Tr(Td(simx['id']), Td(simx['name']), Td(simx['desctiption']),
+                     hx_post=f"/load/{simx['id']}", hx_target="#cavity", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML") for simx in table],
+                id="simulations"),
+                Button("Back", hx_post=f"/design", hx_target="#cavity", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML"), 
+            )
+
+@app.post("/load/{id}")
+def load(id: str, localId: str):
+    global gen_data
+    if localId not in gen_data.keys():
+        dataObj = {'id': localId, 'count': 0, 
+                'run_state': False, 'cavityData': CavityDataPartsKerr(), 
+                'iterationRuns': []} 
+        gen_data[localId] = dataObj
+    dataObj = gen_data[localId] 
+    db = dataset.connect('sqlite:///mydatabase.db')
+    table = db['simulation']
+
+    for simx in db['simulation']:
+         print(simx['id'], simx['name'], simx['desctiption'])
+    rec = table.find_one(id=id)
+
+    s = rec["content"]
+    sim = jsonpickle.decode(s)
+    sim.finalize()
+    dataObj['cavityData'] = sim
+    return generate_design(dataObj)

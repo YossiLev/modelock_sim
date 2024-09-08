@@ -18,6 +18,7 @@ import dataset
 
 gen_data = {}
 current_tab = "Simulation"
+db_path = "sqlite:///data/mydatabase.db"
 
 app = FastHTML(ws_hdr=True, hdrs=(
         Link(rel="shortcut icon", type="image/x-icon", href="static/favicon.ico"),
@@ -28,14 +29,17 @@ app = FastHTML(ws_hdr=True, hdrs=(
 app.mount("/static", StaticFiles(directory="static"), name="static")
 setup_toasts(app)
         
-
 def get_Data_obj(id):
     global gen_data
-    try:
-        dataObj = gen_data[id]
-        return dataObj
-    except:
+    if id not in gen_data.keys():
         return None
+    return gen_data[id]
+        
+def get_sim_obj(id):
+    dataObj = get_Data_obj(id)
+    if dataObj is None:
+        return None
+    return dataObj['cavityData']
     
 @app.post("/menu/{new_tab}")
 def menu(new_tab: str, localId: str):
@@ -57,7 +61,7 @@ def content_table(current_page):
 def my_frame(current_page, content):
     return Div(
             Div(H1('Kerr Mode Locking Simulation')),
-            Div(content_table(current_page), content, cls="row"),
+            Div(content_table(current_page), content, cls="rowx"),
             id="fullPage"
         )
  
@@ -76,20 +80,20 @@ def make_page(data_obj):
                     Label(Input(id="cbxQuick", type='checkbox', name='quick',checked=False), "Speed"),
                     
                     Div(generate_all_charts(data_obj), id="charts"),
-                    style="width:1100px"
+                    style="width:1100px;"
                 )
             )
         case "Geometry":
             return my_frame("Geometry", 
                 Div(
-                    Div(generate_canvas(data_obj), cls="box", style="background-color: rgb(208 245 254);", id="charts2")))
+                    Div(generate_canvas(data_obj, 1), cls="box", style="background-color: rgb(208 245 254);", id="geometry"), style="width:1100px"))
         case "Design":
             return my_frame("Design",
                 Div(
                     Button("Load", hx_post=f"/load", hx_target="#cavity", hx_include="#seedInit", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML"), 
                     Button("Store", hx_post=f"/store", hx_target="#cavity", hx_include="#seedInit", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML"), 
                     Button("New", hx_post=f"/new", hx_target="#cavity", hx_include="#seedInit", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML"), 
-                    generate_design(data_obj), cls="box", style="background-color: rgb(208 245 254); width:90%;", id="design"))
+                    generate_design(data_obj), cls="box", style="background-color: rgb(208 245 254); width:90%; padding:3px 6px;", id="design"))
         
         case "Iterations":
             return my_frame("Iterations", 
@@ -118,9 +122,7 @@ def home():
 
 @app.post("/parnum/{id}")
 def parameter_num(localId: str, id: str, param: str):
-    print("parnum ", localId, id, param)
-    global gen_data
-    dataObj = gen_data[localId]
+    dataObj = get_Data_obj(localId)
     cavity: CavityData = dataObj['cavityData']
 
     simParam, simComp  = cavity.getParameter(id)
@@ -128,21 +130,17 @@ def parameter_num(localId: str, id: str, param: str):
         if simComp:
             simComp.finalize()
             cavity.finalize()
-        print(f"set value {param} to {id}")
 
     return simParam.render()
 
 
 @app.post("/parpinn/{id}")
 def parameter_num(localId: str, id: str):
-    print("parpinn ", localId, id)
-    global gen_data
-    dataObj = gen_data[localId]
+    dataObj = get_Data_obj(localId)
     cavity: CavityData = dataObj['cavityData']
 
     simParam, simComp  = cavity.getParameter(id)
     simParam.pinned = not simParam.pinned
-    print(f"set pinned to {simParam.pinned} for {id}")
 
     return simParam.render()
 
@@ -176,20 +174,24 @@ def init(session, seedInit: str, localId: str):
 
 @app.post("/stop")
 def stop(localId: str):
-    global gen_data
-    dataObj = gen_data[localId] 
-    if dataObj['run_state']:
-        dataObj['run_state'] = False
+    dataObj = get_Data_obj(localId)
+    if dataObj:
+        if dataObj['run_state']:
+            dataObj['run_state'] = False
+
     return generate_all_charts(dataObj)
 
 @app.post("/inc")
 def increment(localId: str):
     global gen_data
-    dataObj = gen_data[localId]
 
-    count = dataObj['count']
-    dataObj['cavityData'].simulation_step()
-    dataObj['count'] = count + 1
+    if localId in gen_data.keys():
+        dataObj = gen_data[localId]
+        count = dataObj['count']
+        dataObj['cavityData'].simulation_step()
+        dataObj['count'] = count + 1
+    else:
+        dataObj = None
 
     return generate_all_charts(dataObj)
 
@@ -202,19 +204,15 @@ async def on_disconnect(ws):
 @app.ws('/run', conn=on_connect, disconn=on_disconnect)
 async def run(send, quick: bool, localId: str):
     global gen_data
+    if localId not in gen_data.keys():
+        return
     dataObj = gen_data[localId]
 
     if dataObj['run_state']:
         return
     dataObj['run_state'] = True
-
-    print('runn')
     count = dataObj['count']
     end_count = count + 1000
-
-    gen_data[localId] = dataObj
-
-    start_cpu_time = time.time()
 
     while dataObj['run_state'] and count < end_count:
         
@@ -224,19 +222,17 @@ async def run(send, quick: bool, localId: str):
         dataObj['count'] = count
 
         if count % 100 == 0:
-            end_cpu_time = time.time()
-            print(end_cpu_time - start_cpu_time, count)
             dataObj['cavityData'].get_state_analysis()
-            start_cpu_time = end_cpu_time
             if quick == 1:
-                await send(Div(generate_all_charts(dataObj), id="charts", cls="row"))
+                await send(Div(generate_all_charts(dataObj), id="charts", cls="rowx"))
                 await asyncio.sleep(0.001)
 
         if quick != 1:
-            await send(Div(generate_all_charts(dataObj), id="charts", cls="row"))
+            await send(Div(generate_all_charts(dataObj), id="charts", cls="rowx"))
             await asyncio.sleep(0.001)
 
-    dataObj['run_state'] = False
+    if count >= end_count:
+        dataObj['run_state'] = False
 
 #------------------- iterations
 @app.post("/iterInit")
@@ -317,44 +313,35 @@ async def iterRun(send, localId: str):
 
 @app.post("/removeComp/{comp_id}")
 def removeComp(session, comp_id: str, localId: str):
-    global gen_data
-    dataObj = gen_data[localId]
-    sim = dataObj['cavityData']
+    sim = get_sim_obj(localId)
     sim.removeComponentById(comp_id)
     return sim.render()
 
 @app.post("/addAfter/{comp_id}")
 def removeComp(session, comp_id: str, localId: str):
-    global gen_data
-    dataObj = gen_data[localId]
-    sim = dataObj['cavityData']
+    sim = get_sim_obj(localId)
     sim.addAfterById(comp_id)
     return sim.render()
 
 @app.post("/addBefore/{comp_id}")
 def removeComp(session, comp_id: str, localId: str):
-    global gen_data
-    dataObj = gen_data[localId]
-    sim = dataObj['cavityData']
+    sim = get_sim_obj(localId)
     sim.addBeforeById(comp_id)
     return sim.render()
 
 
 @app.post("/setCompType/{comp_id}/{tp}")
 def removeComp(session, comp_id: str, tp: str, localId: str):
-    global gen_data
-    dataObj = gen_data[localId]
-    sim = dataObj['cavityData']
+    sim = get_sim_obj(localId)
     sim.replaceTypeById(comp_id, tp)
     return sim.render()
 
 @app.post("/store")
 def stop(localId: str):
-    global gen_data
-    dataObj = gen_data[localId] 
-    sim = dataObj['cavityData']
+    dataObj = get_Data_obj(localId)
+    sim = get_sim_obj(localId)
     s = jsonpickle.encode(sim)
-    db = dataset.connect('sqlite:///mydatabase.db')
+    db = dataset.connect(db_path)
     table = db['simulation']
     table.insert(dict(name=sim.name, desctiption=sim.description, content=s))
 
@@ -363,45 +350,28 @@ def stop(localId: str):
     for simx in db['simulation']:
         print(simx['name'], simx['desctiption'])
 
-    # sim2 = jsonpickle.decode(s)
-    # print(f"{len(sim2.parameters)} {len(sim2.parts)}")
-    # dataObj['cavityData'] = sim2
     return generate_design(dataObj)
 
 @app.post("/design")
 def store(localId: str):
-    global gen_data
-    dataObj = gen_data[localId] 
+    dataObj = get_Data_obj(localId)
     return generate_design(dataObj)
 
 @app.post("/store")
 def store(localId: str):
-    global gen_data
-    dataObj = gen_data[localId] 
-    sim = dataObj['cavityData']
-    s = jsonpickle.encode(sim)
-    db = dataset.connect('sqlite:///mydatabase.db')
+    dataObj = get_Data_obj(localId)
+    sim = get_sim_obj(localId)
+    db = dataset.connect(db_path)
     table = db['simulation']
-    table.insert(dict(name=sim.name, desctiption=sim.description, content=s))
+    table.insert(dict(name=sim.name, desctiption=sim.description, content=jsonpickle.encode(sim)))
 
-    print(db['simulation'].columns)
-    print(len(db['simulation']))
-    for simx in db['simulation']:
-        print(simx['name'], simx['desctiption'])
-
-    # sim2 = jsonpickle.decode(s)
-    # print(f"{len(sim2.parameters)} {len(sim2.parts)}")
-    # dataObj['cavityData'] = sim2
     return generate_design(dataObj)
 
 
 @app.post("/load")
 def load(localId: str):
-    db = dataset.connect('sqlite:///mydatabase.db')
+    db = dataset.connect(db_path)
     table = db['simulation']
-
-    for simx in db['simulation']:
-         print(simx['id'], simx['name'], simx['desctiption'])
 
     return Div(Table(
                 Tr(Th("ID"), Th("Name"), Th("Description")),
@@ -420,7 +390,7 @@ def load(id: str, localId: str):
                 'iterationRuns': []} 
         gen_data[localId] = dataObj
     dataObj = gen_data[localId] 
-    db = dataset.connect('sqlite:///mydatabase.db')
+    db = dataset.connect(db_path)
     table = db['simulation']
 
     for simx in db['simulation']:
@@ -432,3 +402,13 @@ def load(id: str, localId: str):
     sim.finalize()
     dataObj['cavityData'] = sim
     return generate_design(dataObj)
+
+@app.post("/tabgeo/{tabid}")
+def load(tabid: str, localId: str):
+    dataObj = get_Data_obj(localId)
+    return generate_canvas(dataObj, int(tabid))
+
+@app.post("/moveonchart/{offset}")
+def load(offset: int, localId: str):
+    dataObj = get_Data_obj(localId)
+    return generate_canvas(dataObj, 3, offset)

@@ -27,10 +27,9 @@ def generate_all_charts(dataObj):
         return Div(
             Div(f"Seed {seed} - Step {count}", id="count"),
             Div(
-                Div(*[p.render() for p in dataObj['cavityData'].getPinnedParameters()], cls="row"), 
+                Div(*[p.render() for p in dataObj['cavityData'].getPinnedParameters()], cls="rowx"), 
                 Div(*[Div(generate_chart(chart.x, chart.y, chart.name), cls="box", style="background-color: #008080;") for chart in charts],
-                
-                    cls="row"
+                    cls="rowx"
                 ))
 
             , cls="column"

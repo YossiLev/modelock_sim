@@ -2,8 +2,8 @@ import numpy as np
 from PIL import Image, ImageDraw
 from fasthtml.common import *
 import uuid
-import json
 from kerr import NLloss, SatGain, MLSpatial_gain
+from chart import Chart
 
 def rotAngle(p, a):
     return retSC(p, np.sin(a), np.cos(a))
@@ -11,13 +11,6 @@ def retSC(p, s, c):
     return (p[0] * c - p[1] * s, p[1] * c + p[0] * s)
 def multMat(M, v):
     return [M[0][0] * v[0] + M[0][1] * v[1], M[1][0] * v[0] + M[1][1] * v[1]]
-
-class Chart():
-    def __init__(self, x, y, name):
-        self.x = x.tolist()
-        self.y = y.tolist()
-        self.name = name
-        pass
 
 class Beam():
     def __init__(self, x, y, angle, waist = 5 * 0.001, theta = 0):
@@ -51,7 +44,7 @@ class SimComponent():
     def transferBeamVec(self, q):
         pass
 
-    def stepCenterBeam(self, beam: Beam):
+    def stepCenterBeam(self, beam: Beam, aligned = False):
         return Beam(beam.x, beam.y, beam.angle, beam.waist, beam.theta)
 #                    Button("Load", hx_post=f"/load", hx_target="#charts", hx_include="#seedInit", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML"), 
 
@@ -120,7 +113,7 @@ class Propogation(LinearComponent):
         self.refIndex = self.parameters[1].get_value()
         self.M = [[1, self.distance], [0, 1]]
 
-    def stepCenterBeam(self, beam: Beam):
+    def stepCenterBeam(self, beam: Beam, aligned = False):
         waist_theta = multMat(self.M, [beam.waist, beam.theta])
         return Beam(beam.x + self.distance * beam.dx, beam.y + self.distance * beam.dy, beam.angle, *waist_theta)
     
@@ -142,8 +135,8 @@ class Mirror(LinearComponent):
         self.angleV = np.deg2rad(0.0)
         self.M = [[1, 0], [-2 / self.radius if self.radius != 0.0 else 0.0, 1]]
 
-    def stepCenterBeam(self, beam: Beam):
-        an = 2 * self.angleH + np.pi
+    def stepCenterBeam(self, beam: Beam, aligned = False):
+        an = 0 if aligned else 2 * self.angleH + np.pi
         waist_theta = multMat(self.M, [beam.waist, beam.theta])
         return Beam(beam.x, beam.y, an + beam.angle, *waist_theta)
 
@@ -170,7 +163,7 @@ class Lens(LinearComponent):
         self.focus = self.parameters[0].get_value() * 0.001
         self.M = [[1, 0], [-1 / self.focus, 1]]
 
-    def stepCenterBeam(self, beam: Beam):
+    def stepCenterBeam(self, beam: Beam, aligned = False):
         waist_theta = multMat(self.M, [beam.waist, beam.theta])
         #print(f"LENS TRANS {beam.waist} {beam.theta} -> {waist_theta[0]} {waist_theta[1]}")
         return Beam(beam.x, beam.y, beam.angle, *waist_theta)        
@@ -208,8 +201,8 @@ class TiSapphs(SimComponent):
         self.Ikl = self.kerr_par / self.N / 50
 
     def draw(self, draw, mapper, beam):
-        d1 = rotAngle((10 * 0.001, 5 * 0.001), beam.angle)
-        d2 = rotAngle((-10 * 0.001, 5 * 0.001), beam.angle)
+        d1 = rotAngle((5 * 0.001, 3 * 0.001), beam.angle)
+        d2 = rotAngle((-5 * 0.001, 3 * 0.001), beam.angle)
         #print(f"beam angle {np.rad2deg(beam.angle)}, {d1}")
         draw.line([mapper((beam.x + d1[0], beam.y + d1[1])), mapper((beam.x + d2[0], beam.y + d2[1]))], fill="red", width=1)
         draw.line([mapper((beam.x + d2[0], beam.y + d2[1])), mapper((beam.x - d1[0], beam.y - d1[1]))], fill="red", width=1)
@@ -346,9 +339,12 @@ class CavityData():
 
     def render(self):
         return Div(
+            Input(type="text", value=self.name, id="simName", name="simName", placeholder="Name", style="width:120px;"),
+            Input(type="text", value=self.description, id="simDesc", name="simDesc", placeholder="Description", style="width:390px;"),
+            Div(
             Div(*[p.render() for p in self.parameters], style="padding:8px;"),
-            Div(*[t.render() for t in self.parts], style="padding:8px; width:1300px;", cls="row"),
-            cls="row", id="cavity"
+            Div(*[t.render() for t in self.parts], style="padding:8px; width:1300px;", cls="rowx"),
+            cls="rowx"), id="cavity"
         )
 
     def get_state(self):
@@ -396,10 +392,12 @@ class CavityDataParts(CavityData):
         ]
         self.build_beam_geometry()
 
-    def build_beam_geometry(self):
+    def build_beam_geometry(self, aligned = False):
         self.beams = [Beam(0.0, 0.0, np.pi)]
+        notBegin = False
         for part in self.parts:
-            self.beams.append(part.stepCenterBeam(self.beams[-1]))
+            self.beams.append(part.stepCenterBeam(self.beams[-1], aligned and notBegin))
+            notBegin = True
         
         self.box = [999999, 999999, -999999, -999999] # xmin, ymin, xmax, ymax
         for beam in self.beams:
@@ -412,23 +410,24 @@ class CavityDataParts(CavityData):
                 self.box[2] = beam.x
             if self.box[3] < beam.y:
                 self.box[3] = beam.y
-        self.box[0] -= 50 * 0.001
-        self.box[1] -= 50 * 0.001
-        self.box[2] += 50 * 0.001
-        self.box[3] += 50 * 0.001
+        self.box[0] -= 20 * 0.001
+        self.box[1] -= 20 * 0.001
+        self.box[2] += 20 * 0.001
+        self.box[3] += 20 * 0.001
     
-    def draw_cavity(self, draw: ImageDraw):
-        self.build_beam_geometry()
+    def draw_cavity(self, draw: ImageDraw, aligned = False, keep_aspect = True, zoom = 1.0):
+        self.build_beam_geometry(aligned)
 
         self.gWidth = draw._image.width
         self.gHeight = draw._image.height
 
         self.hScale = self.gWidth / (self.box[2] - self.box[0])
         self.vScale = self.gHeight / (self.box[3] - self.box[1])
-        if self.vScale > self.hScale:
-            self.vScale = self.hScale
-        else:
-            self.hScale = self.vScale
+        if keep_aspect:
+            if self.vScale > self.hScale:
+                self.vScale = self.hScale
+            else:
+                self.hScale = self.vScale
         self.hShift = - self.box[0] * self.hScale
         self.vShift = - self.box[1] * self.vScale
         #print("Shifts ", self.hScale, self.vScale, self.hShift, self.vShift)
@@ -596,11 +595,23 @@ class CavityDataPartsKerr(CavityDataParts):
         self.phaseShift = np.angle(self.Ew[self.cbuf, :])
 
     def get_state(self):
+
+        self.It[self.nbuf, :] = np.abs(self.Et[self.nbuf, :])**2
+        am = np.argmax(self.It[self.nbuf, :])
+        self.phaseShift = np.angle(self.Ew[self.nbuf, :])
+        if self.It[self.nbuf, :][am] > 14 * np.mean(self.It[self.nbuf, :]):
+            for ii in range(len(self.phaseShift)):
+                self.phaseShift[ii] += (am - 1024) / (326.0) * (ii - 1024)
+            self.phaseShift = np.mod(self.phaseShift, self.ph2pi)
+
         charts = [
             Chart(self.t, np.abs(self.Et[self.cbuf, :])**2, "Power"),
             Chart(self.w, np.abs(self.Ew[self.cbuf, :]), "Spectrum"),
-            Chart(self.w, self.waist[self.cbuf, :], "Waist"),
-            Chart(self.t, self.phaseShift, "Phase")
+            Chart(self.t, self.waist[self.cbuf, :], "Waist"),
+            Chart(self.t, (self.q[self.cbuf, :].imag / np.pi * self.lambda_) ** (1 / 2), "W0"),
+            Chart(self.t, self.q[self.cbuf, :].real, "Z Q.real"),
+            Chart(self.t, self.q[self.cbuf, :].imag, "Q.imaginary"),
+            Chart(self.w, self.phaseShift, "Phase")
         ]
 
         return charts
@@ -671,13 +682,13 @@ class CavityDataPartsKerr(CavityDataParts):
 
         phiKerr = lambda Itxx, Wxx: np.exp((1j * sim.Ikl * Itxx) / (sim.lambda_ * Wxx**2)) # non-linear instantenous phase accumulated due to Kerr effect
 
+        # calculation in time including Nonlinear effects
         sim.It[sim.cbuf, :] = np.abs(sim.Et[sim.cbuf, :])**2
-
-        # Nonlinear effects calculated in time
         sim.q[sim.nbuf, :], sim.waist[sim.nbuf, :], sim.Et[sim.nbuf, :] = MLSpatial_gain(sim)
         sd = NLloss(sim.waist[sim.cbuf, :], sim.Wp)
         sim.Et[sim.nbuf, :] = phiKerr(sim.It[sim.cbuf, :], sim.waist[sim.nbuf, :]) * sd * sim.Et[sim.cbuf, :]
 
+        # calculation in frequency
         sim.Ew[sim.nbuf, :] = np.fft.fftshift(np.fft.fft(np.fft.ifftshift(sim.Et[sim.nbuf, :])))
 
         g = SatGain(sim.Ew[sim.cbuf, :], sim.waist[sim.cbuf, :], sim.g0, sim.Is, sim.Wp)
@@ -688,19 +699,16 @@ class CavityDataPartsKerr(CavityDataParts):
 
         sim.Et[sim.nbuf, :] = np.fft.fftshift(np.fft.ifft(np.fft.ifftshift(sim.Ew[sim.nbuf, :])))
 
-        sim.It[sim.nbuf, :] = np.abs(sim.Et[sim.nbuf, :])**2
-        am = np.argmax(sim.It[sim.nbuf, :])
-        sim.phaseShift = np.angle(sim.Ew[sim.nbuf, :])
-        if sim.It[sim.nbuf, :][am] > 14 * np.mean(sim.It[sim.nbuf, :]):
-            for ii in range(len(sim.phaseShift)):
-                sim.phaseShift[ii] += (am - 1024) / (326.0) * (ii - 1024)
-            sim.phaseShift = np.mod(sim.phaseShift, sim.ph2pi)
+        # sim.It[sim.nbuf, :] = np.abs(sim.Et[sim.nbuf, :])**2
+        # am = np.argmax(sim.It[sim.nbuf, :])
+        # sim.phaseShift = np.angle(sim.Ew[sim.nbuf, :])
+        # if sim.It[sim.nbuf, :][am] > 14 * np.mean(sim.It[sim.nbuf, :]):
+        #     for ii in range(len(sim.phaseShift)):
+        #         sim.phaseShift[ii] += (am - 1024) / (326.0) * (ii - 1024)
+        #     sim.phaseShift = np.mod(sim.phaseShift, sim.ph2pi)
 
         sim.cbuf = sim.nbuf
-        sim.nbuf = 1 - sim.nbuf
-
-        return sim.It[sim.cbuf, :], np.abs(sim.Ew[sim.cbuf, :]), sim.waist[sim.cbuf, :], sim.phaseShift
-   
+        sim.nbuf = 1 - sim.nbuf   
 
 class CavityDataKerr(CavityData):
     def __init__(self):

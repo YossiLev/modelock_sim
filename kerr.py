@@ -20,28 +20,24 @@ def SatGain(Ew, w, g0, Is, Wp):
     return g
 
 def MLSpatial_gain(sim):
-    delta = sim.delta
-    Ikl = sim.Ikl, 
-    L = sim.L
-    deltaPlane = sim.deltaPlane
-    deltaPoint = delta - deltaPlane
+    Ikl = sim.Ikl
+    deltaPoint = sim.delta - sim.deltaPlane
     Etp = sim.Et[sim.cbuf, :].copy()
     q1p = sim.q[sim.cbuf, :].copy()
     W1p = sim.waist[sim.cbuf, :].copy()
-    lambda_ = 780e-9
-    RM = sim.RM
+    lambda_ = sim.lambda_
     FM = sim.FM
     RMD = sim.RMD
     FMD = sim.FMD
-    L1 = sim.L1
-    L2 = sim.L2
-    V = 1 / (2 / RM - 1 / L2)
+    V = 1 / (2 / sim.RM - 1 / sim.L2)
     N = 5  # number of NL lenses
     n0 = 1#1.76  # linear refractive index of Ti:S
-    LCO = n0 * L  # OPL of the crystal
+    LCO = n0 * sim.L  # OPL of the crystal
+    lens_aperture = 56e-6
+    f = ((2 * np.pi * lens_aperture ** 2) / lambda_)
 
-    def Mcur(RM):
-        return np.array([[1, 0], [-2 / RM, 1]])
+    def Mcur(rm):
+        return np.array([[1, 0], [-2 / rm, 1]])
 
     def distance(d):
         return np.array([[1, d], [0, 1]])
@@ -66,9 +62,6 @@ def MLSpatial_gain(sim):
     def WaistOfQ(qx):
         return (-np.imag(1 / qx) * np.pi / lambda_) ** (-1 / 2)
 
-    lens_aperture = 56e-6
-    f = ((2 * np.pi * lens_aperture ** 2) / lambda_)
-
     def phiKerr(Ptxx, Wxx):
         a = (Ikl * Ptxx) / (lambda_ * Wxx ** 2)
         v = np.exp(1j * a)
@@ -76,8 +69,8 @@ def MLSpatial_gain(sim):
 
     qt = np.zeros(len(Etp), dtype=complex)
 
-    MRight = distance(RMD + deltaPlane - 1e-10 - L / 2) @ Mcur(RM) @ distance(L1) @ distance(L1) @ Mcur(RM) @ distance(RMD + deltaPlane - 1e-10 - L / 2)
-    MLeft = distance(V + deltaPoint - L / 2) @ lens(FM) @ distance(L2) @ distance(L2) @ lens(FM) @ distance(V + deltaPoint - L / 2)
+    MRight = distance(RMD + sim.deltaPlane - 1e-10 - sim.L / 2) @ Mcur(sim.RM) @ distance(sim.L1) @ distance(sim.L1) @ Mcur(sim.RM) @ distance(RMD + sim.deltaPlane - 1e-10 - sim.L / 2)
+    MLeft = distance(V + deltaPoint - sim.L / 2) @ lens(FM) @ distance(sim.L2) @ distance(sim.L2) @ lens(FM) @ distance(V + deltaPoint - sim.L / 2)
 
     def stepKerr(e, w, Ikl, dist, q, M = None):
         p = np.abs(e) ** 2

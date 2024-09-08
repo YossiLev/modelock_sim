@@ -84,7 +84,7 @@ def generate_iterations(dataObj, iterationIndex = - 1):
         return Div(
            
             Div(counts, id="iter_count") ,
-            Div(Div(*[p.render() for p in dataObj['cavityData'].getPinnedParameters()], cls="row"), cls="row"),
+            Div(Div(*[p.render() for p in dataObj['cavityData'].getPinnedParameters()], cls="rowx"), cls="rowx"),
             iteration.render() if iteration is not None else Div("no values"),
             cls="column", id="iterate"
         )

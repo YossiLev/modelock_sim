@@ -73,6 +73,21 @@ input {
     padding: 6px 5px 5px 5px;
 }
 
+.tab {
+  color: #fff;
+  display: inline-block;
+  padding: 6px 6px 4px 6px;
+  font-family: Arial;
+  background: linear-gradient(180deg, #4B91F7 0%, #367AF6 100%);
+  border: 1px solid #626161;
+  border-bottom: none;
+  border-radius: 3px 3px 0px 0px;
+}
+
+.tabselected {
+  background: linear-gradient(180deg, #abc9f4 0%, #8fb6fb 100%);
+  color: #20199e;
+}
 .error {
   color: red;
   font-weight: bold;
@@ -170,4 +185,20 @@ h1 {
   text-align: left;
   background: linear-gradient(180deg, #4B91F7 0%, #367AF6 100%);
   color: white;
+}
+
+.rowx {
+  box-sizing: border-box;
+    display: -webkit-box;
+    display: -ms-flexbox;
+    display: flex;
+    -webkit-box-flex: 0;
+    -ms-flex: 0 1 auto;
+    flex: 0 1 auto;
+    -webkit-box-orient: horizontal;
+    -webkit-box-direction: normal;
+    -ms-flex-direction: row;
+    flex-direction: row;
+    -ms-flex-wrap: wrap;
+    flex-wrap: wrap;
 }

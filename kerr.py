@@ -13,7 +13,6 @@ def SatGain(Ew, w, g0, Is, Wp):
     Wmin = np.min(w)
     if Wmin < Wp:
         factor = (Wmin / Wp) **2
-        Iss = lambda waistMin: Is * waistMin**2 / Wp**2
         g = g0 / (1 +  Imean / (Is * factor))
     else:
         g = g0 / (1 + Imean / Is)
@@ -21,20 +20,28 @@ def SatGain(Ew, w, g0, Is, Wp):
 
 def MLSpatial_gain(sim):
     Ikl = sim.Ikl
-    deltaPoint = sim.delta - sim.deltaPlane
-    Etp = sim.Et[sim.cbuf, :].copy()
-    q1p = sim.q[sim.cbuf, :].copy()
-    W1p = sim.waist[sim.cbuf, :].copy()
+    deltaPoint =  - sim.deltaPlane
+    qp = sim.q[sim.cbuf, :].copy()
+    Wp = sim.waist[sim.cbuf, :].copy()
+    Ep = sim.Et[sim.cbuf, :].copy()
     lambda_ = sim.lambda_
-    FM = sim.FM
-    RMD = sim.RMD
-    FMD = sim.FMD
-    V = 1 / (2 / sim.RM - 1 / sim.L2)
-    N = 5  # number of NL lenses
+    #FM = sim.FM
+    # RMD = sim.RMD
+    # FMD = sim.FMD
+    #V = 1 / (2 / sim.RM - 1 / sim.L2)
+    V = sim.FMD
+    #print(f"v = {V} FMD = {FMD} sim.RM = {sim.RM} sim.L2 = {sim.L2}")
+    N = round(sim.nLenses)  # number of NL lenses
+    if sim.matlab:
+        Nmid = N + 1
+        Nedge = N + 1
+    else:
+        Nmid = N
+        Nedge = 2 * N
     n0 = 1#1.76  # linear refractive index of Ti:S
     LCO = n0 * sim.L  # OPL of the crystal
     lens_aperture = 56e-6
-    f = ((2 * np.pi * lens_aperture ** 2) / lambda_)
+    fAper = ((2 * np.pi * lens_aperture ** 2) / sim.lambda_)
 
     def Mcur(rm):
         return np.array([[1, 0], [-2 / rm, 1]])
@@ -51,8 +58,8 @@ def MLSpatial_gain(sim):
     def ABCD(MX, qx):
         return (MX[0, 0] * qx + MX[0, 1]) / (MX[1, 0] * qx + MX[1, 1])
 
-    def ABCDVec(d, f, qx):
-        qnew = ((1 + d * f) * qx + d) / (f * qx + 1)
+    def ABCDVec(d, tf, qx):
+        qnew = ((1 + d * tf) * qx + d) / (tf * qx + 1)
         return qnew
 
     def ABCDVecM(M, qx):
@@ -67,15 +74,17 @@ def MLSpatial_gain(sim):
         v = np.exp(1j * a)
         return v
 
-    qt = np.zeros(len(Etp), dtype=complex)
+    #qt = np.zeros(len(Etp), dtype=complex)
 
-    MRight = distance(RMD + sim.deltaPlane - 1e-10 - sim.L / 2) @ Mcur(sim.RM) @ distance(sim.L1) @ distance(sim.L1) @ Mcur(sim.RM) @ distance(RMD + sim.deltaPlane - 1e-10 - sim.L / 2)
-    MLeft = distance(V + deltaPoint - sim.L / 2) @ lens(FM) @ distance(sim.L2) @ distance(sim.L2) @ lens(FM) @ distance(V + deltaPoint - sim.L / 2)
+    MRight = distance(sim.RMD + sim.deltaPlane - 1e-10 - sim.L / 2) @ Mcur(sim.RM) @ \
+            distance(sim.L1) @ distance(sim.L1) @ Mcur(sim.RM) @ distance(sim.RMD + sim.deltaPlane - 1e-10 - sim.L / 2)
+    MLeft = distance(V + deltaPoint - sim.L / 2) @ lens(sim.FM) @ distance(sim.L2) @ \
+            distance(sim.L2) @ lens(sim.FM) @ distance(V + deltaPoint - sim.L / 2)
 
-    def stepKerr(e, w, Ikl, dist, q, M = None):
+    def thinKerr(q, w, e, Ikl, dist, M = None):
         p = np.abs(e) ** 2
         Feff = (w ** 4) / (Ikl * p)
-        tf = -1 / Feff - 1j / f
+        tf = -1 / Feff - 1j / fAper
         qt = ABCDVec(dist, tf, q)
         if M is not None:
             qt = ABCDVecM(M, qt)
@@ -84,23 +93,29 @@ def MLSpatial_gain(sim):
 
         return qt, wt, et
     
-    q2, W2, Et2 = stepKerr(Etp, W1p, Ikl, LCO / N, q1p)
-    q3, W3, Et3 = stepKerr(Et2, W2, Ikl, LCO / N, q2)
-    q4, W4, Et4 = stepKerr(Et3, W3, Ikl, LCO / N, q3)
-    q5, W5, Et5 = stepKerr(Et4, W4, Ikl, LCO / N, q4)
+    #print(f"**** s- {qp[0]}")
+    for i in range(N - 1):
+        #qp, Wp, Ep = thinKerr(qp, Wp, Ep, Ikl, LCO / N)
+        qp, Wp, Ep = thinKerr(qp, Wp, Ep, Ikl, LCO / Nmid)
+        #print(f"sa{i} {qp[0]}")
 
-    M = distance(LCO / (2 * N)) @ MRight
-    q5, W5, Et5 = stepKerr(Et5, W5, Ikl, LCO / (2 * N), q5, M)
+    #M = distance(LCO / (2 * N)) @ MRight
+    M = distance(LCO / Nedge) @ MRight
+    #qp, Wp, Ep = thinKerr(qp, Wp, Ep, Ikl, LCO / (2 * N), M)
+    qp, Wp, Ep = thinKerr(qp, Wp, Ep, Ikl, LCO / Nedge, M)
+    #print(f"saf {qp[0]}")
 
-    q4, W4, Et4 = stepKerr(Et5, W5, Ikl, LCO / N, q5)
-    q3, W3, Et3 = stepKerr(Et4, W4, Ikl, LCO / N, q4)
-    q2, W2, Et2 = stepKerr(Et3, W3, Ikl, LCO / N, q3)
-    q1p, W1p, Etp = stepKerr(Et2, W2, Ikl, LCO / N, q2)
+    for i in range(N - 1):
+        #qp, Wp, Ep = thinKerr(qp, Wp, Ep, Ikl, LCO / N)
+        qp, Wp, Ep = thinKerr(qp, Wp, Ep, Ikl, LCO / Nmid)
+        #print(f"sb{i} {qp[0]}")
+    #M = distance(LCO / (2 * N)) @ MLeft
+    M = distance(LCO / Nedge) @ MLeft
+    #qp, Wp, Ep = thinKerr(qp, Wp, Ep, Ikl, LCO / (2 * N), M)
+    qp, Wp, Ep = thinKerr(qp, Wp, Ep, Ikl, LCO / Nedge, M)
+    #print(f"sbf {qp[0]}")
 
-    M = distance(LCO / (2 * N)) @ MLeft
-    qt, W1p, Etp = stepKerr(Etp, W1p, Ikl, LCO / (2 * N), q1p, M)
-
-    return qt, W1p, Etp
+    return qp, Wp, Ep
 
 
 # def kerrInit(seed):

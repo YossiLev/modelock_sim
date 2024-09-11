@@ -51,7 +51,7 @@ class Iteration():
                     analysisP = {k: f"{v:.2e}" if isinstance(v,float) else v for k,v in analysis.items()}
                     self.reportsFinal[self.current_index] = str(analysisP)
                     *state_list, = self.state[self.current_index]
-                    state_list[round(self.current_count / 100) - 1] = analysis['state_code']
+                    state_list[round(self.current_count / 100) - 1] = analysis['code']
                     self.state[self.current_index] = ''.join(map(str, state_list))
                     #cb(self.current_index, self.current_count, sim_report(self.sim))                
             else:
@@ -66,7 +66,7 @@ class Iteration():
         return Div(
             Table(
                 Tr(Th(self.parameterName), Th("Seed"), Th("State", style="min-width:140px;"), Th("Report")),
-                *[Tr(Td(f"{value:.1f}", cls="monoRight"), Td(f"{seed}", cls="monoRight"), Td(state, cls="mono", style="min-width:140px;"), Td(report)) for value, seed, state, report in zip(self.values, self.seeds, self.state, self.reportsFinal)]
+                *[Tr(Td(f"{value:.4f}", cls="monoRight"), Td(f"{seed}", cls="monoRight"), Td(state, cls="mono", style="min-width:140px;"), Td(report, style="font-size:11px;")) for value, seed, state, report in zip(self.values, self.seeds, self.state, self.reportsFinal)]
             )
         )
 

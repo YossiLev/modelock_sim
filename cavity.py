@@ -11,7 +11,7 @@ def retSC(p, s, c):
     return (p[0] * c - p[1] * s, p[1] * c + p[0] * s)
 def multMat(M, v):
     return [M[0][0] * v[0] + M[0][1] * v[1], M[1][0] * v[0] + M[1][1] * v[1]]
-
+   
 class Beam():
     def __init__(self, x, y, angle, waist = 5 * 0.001, theta = 0):
         self.x = x
@@ -46,19 +46,18 @@ class SimComponent():
 
     def stepCenterBeam(self, beam: Beam, aligned = False):
         return Beam(beam.x, beam.y, beam.angle, beam.waist, beam.theta)
-#                    Button("Load", hx_post=f"/load", hx_target="#charts", hx_include="#seedInit", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML"), 
 
     def render(self):
         return Div(Div(Input(type="checkbox", style="z-index:10;position:absolute;opacity:0", cls="B"),
                        Span(NotStr("&#9776;"), style="font-size:24px;line-height:16px; position:relative; user-select: none;"),
                        Span(self.type), 
                        Div(
-                           Div("Remove", cls="dropMenuItem", hx_post=f"/removeComp/{self.id}", hx_target="#cavity", hx_vals='js:{localId: getLocalId()}'),
+                           Div("Remove", cls="dropMenuItem", hx_post=f"/removeComp/{self.id}", hx_target="#cavity", hx_vals='js:{localId: getLocalId()}', hx_confirm="Are you sure you wish to delete this component?"),
                            Div("Add After", cls="dropMenuItem", hx_post=f"/addAfter/{self.id}", hx_target="#cavity", hx_vals='js:{localId: getLocalId()}'),
                            Div("Add before", cls="dropMenuItem", hx_post=f"/addBefore/{self.id}", hx_target="#cavity", hx_vals='js:{localId: getLocalId()}'),
                              cls='dropMenu'),
                        cls="compType"), 
-                   Div(*[p.render() for p in self.parameters], style="padding:8px;"),
+                   Div(*[Div(p.render(), cls="BBB") for p in self.parameters], cls="AAA"),
                    cls="partBlock")
     
     def draw(self, draw, mapper, beam):
@@ -99,17 +98,19 @@ class LinearComponent(SimComponent):
         return (self.M[0][0] * q + self.M[0][1]) / (self.M[1][0] * q + self.M[1][1])
     
 class Propogation(LinearComponent):
-    def __init__(self, name = "", distnance = 0.0, refIndex = 1.0):
+    def __init__(self, name = "", distnance = 0.0, refIndex = 1.0, delta = 0.0):
         super().__init__(name = name)
         self.type = "Propogation"
         self.parameters = [
             SimParameterNumber(f"{self.id}-propogationDistance", "number", "Distance (mm)", "General", distnance),
             SimParameterNumber(f"{self.id}-refractionIndex", "number", "Ref index", "General", refIndex),
+            SimParameterNumber(f"{self.id}-delta", "number", "Delta (mm)", "General", delta),
         ]
         self.finalize()
         
     def finalize(self):
-        self.distance = self.parameters[0].get_value() * 0.001
+        self.distance = (self.parameters[0].get_value() + self.parameters[2].get_value()) * 0.001
+        print(f"{self.name} Prop dist {self.distance}")
         self.refIndex = self.parameters[1].get_value()
         self.M = [[1, self.distance], [0, 1]]
 
@@ -188,6 +189,8 @@ class TiSapphs(SimComponent):
             SimParameterNumber(f"{self.id}-length", "number", "Length (mm)", "General", length),
             SimParameterNumber(f"{self.id}-sat", "number", "Saturation power", "General", 1300),
             SimParameterNumber(f"{self.id}-wp", "number", "Pump waist (m)", "General", 30e-6),
+            SimParameterNumber(f"{self.id}-spec-g", "number", "Spectrum gain", "General", 200),
+            SimParameterNumber(f"{self.id}-n-lens", "number", "Thin lenses", "General", 5),
         ]
         self.finalize()
         
@@ -196,9 +199,12 @@ class TiSapphs(SimComponent):
         self.length = self.parameters[1].get_value() * 0.001
         self.Is = self.parameters[2].get_value() * 2049.0 ** 2
         self.Wp = self.parameters[3].get_value()
+        self.spec_G_par = self.parameters[4].get_value()
+        self.nLenses = round(self.parameters[5].get_value())
+
         self.kerr_par = 4 * self.length * self.n2
-        self.N = 5
-        self.Ikl = self.kerr_par / self.N / 50
+
+        self.Ikl = self.kerr_par / self.nLenses / 50
 
     def draw(self, draw, mapper, beam):
         d1 = rotAngle((5 * 0.001, 3 * 0.001), beam.angle)
@@ -242,7 +248,7 @@ class SimParameterNumber(SimParameter):
                     Input(type="text", name="param", value=str(self.strValue), 
                           hx_post=f"/parnum/{self.id}", hx_vals='js:{localId: getLocalId()}', hx_trigger="keyup changed delay:1s",
                           hx_target="closest form", hx_swap="outerHTML",
-                            style=f"margin-left:16px; width:50px;{'background: #f7e2e2; color: red;' if self.value_error else ''}"),
+                            style=f"margin-left: 40px; margin-top: 5px; width:50px;{'background: #f7e2e2; color: red;' if self.value_error else ''}"),
                             id=f"form{self.id}", 
                             )
 
@@ -262,7 +268,7 @@ class SimParameterNumber(SimParameter):
             return False
 
 class CavityData():
-    def __init__(self):
+    def __init__(self, matlab = False):
         self.name = ""
         self.description = ""
         self.parameters = []        
@@ -274,6 +280,13 @@ class CavityData():
         self.vShift = 0.0
         self.gWidth = 100
         self.gHeight = 100
+        self.beam_x_error = False
+        self.beam_x = 0.0
+        self.str_beam_x = "0.0"
+        self.beam_theta_error = False
+        self.beam_theta = math.radians(0.5)
+        self.str_beam_theta = "0.5"
+        self.matlab = matlab
 
         pass
 
@@ -357,8 +370,8 @@ class CavityData():
         pass
    
 class CavityDataParts(CavityData):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, matlab = False):
+        super().__init__(matlab)
         self.parameters = [
             # SimParameterNumber("nbins", "number", "Number of bins", "Simulation", 2000),
             # SimParameterNumber("snr", "number", "SNR", "Simulation", 0.003),
@@ -393,7 +406,7 @@ class CavityDataParts(CavityData):
         self.build_beam_geometry()
 
     def build_beam_geometry(self, aligned = False):
-        self.beams = [Beam(0.0, 0.0, np.pi)]
+        self.beams = [Beam(0.0, 0.0, np.pi, waist=self.beam_x, theta=self.beam_theta)]
         notBegin = False
         for part in self.parts:
             self.beams.append(part.stepCenterBeam(self.beams[-1], aligned and notBegin))
@@ -485,27 +498,27 @@ class CavityDataParts(CavityData):
         return pinned
 
 class CavityDataPartsKerr(CavityDataParts):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, matlab = False):
+        super().__init__(matlab = matlab)
         self.name = "Kerr modelock"
         self.description = "Kerr modelock by original simulation"
         self.parameters = [
             SimParameterNumber("nbins", "number", "Number of bins", "Simulation", 2000),
             SimParameterNumber("snr", "number", "SNR", "Simulation", 0.003),
             SimParameterNumber("lambda", "number", "Center wave length", "Simulation", 780e-9),
-            SimParameterNumber("delta", "number", "Delta (m)", "Simulation", 0.001),
+           # SimParameterNumber("delta", "number", "Delta (m)", "Simulation", 0.000),
         ]
 
         self.parts = [
-            Mirror(),
-            Propogation(name = "L1", distnance = 500.0),
+            Mirror(name="End Left"),
+            Propogation(name = "L2", distnance = 900.0),
             Lens(name = "Lens", focus = 75.0),
-            Propogation(name = "LensD", distnance = 75.0),
+            Propogation(name = "LensD", distnance = 81.81, delta = 1),
             TiSapphs(length = 3, n2 = 3e-20),
             Propogation(name = "MirrorD", distnance = 75.0),
             Mirror(name = "Mirror", radius = 150.0, angleH = 30.0),
-            Propogation(name = "L2", distnance = 900.0),
-            Mirror(reflection = 0.95),
+            Propogation(name = "L1", distnance = 500.0),
+            Mirror(name="End Right", reflection = 0.95),
         ]
         self.finalize()
         
@@ -514,10 +527,10 @@ class CavityDataPartsKerr(CavityDataParts):
     def finalize(self):
         for part in self.parts:
             part.finalize()
+
         self.nbins = self.parameters[0].value
         self.SNR = self.parameters[1].value
         self.lambda_ = self.parameters[2].value
-        self.delta = self.parameters[3].value
         self.mirror_loss = self.getMirrorLoss()
 
         self.n = 2 ** np.ceil(np.log2(self.nbins)).astype(int)  # number of simulated time-bins, power of 2 for FFT efficiency
@@ -533,6 +546,9 @@ class CavityDataPartsKerr(CavityDataParts):
             self.L = sp.length
             self.Wp = sp.Wp
             self.Is = sp.Is
+            self.spec_G_par = sp.spec_G_par  # Gaussian linewidth parameter
+            self.spectralGain = 1 / (1 + (self.w / self.spec_G_par)**2)  # s(w) spectral gain function
+            self.nLenses = sp.nLenses
 
         lenses = self.getPartsByName("Lens")
         if len(lenses) == 1:
@@ -558,16 +574,18 @@ class CavityDataPartsKerr(CavityDataParts):
         if len(mirrors) == 1:
             self.RM = mirrors[0].radius
 
+
         self.dw = self.bw / (self.n - 1)
         self.t = np.linspace(-1/(2*self.dw), 1/(2*self.dw), self.n)
         self.dt = 1 / (self.n * self.dw)
   
-        self.spec_G_par = 200  # Gaussian linewidth parameter
-        self.delta = 0.001  # how far we go into the stability gap (0.001)
+        #self.spec_G_par = 200  # Gaussian linewidth parameter
+        #self.delta = 0.001  # how far we go into the stability gap (0.001)
         self.deltaPlane = -0.75e-3  # position of crystal - distance from the "plane" lens focal
+        #self.deltaPlane = -0.6e-3  # position of crystal - distance from the "plane" lens focal
         self.disp_par = 0*1e-3 * 2 * np.pi / self.spec_G_par  # net dispersion
         self.epsilon = 0.2  # small number to add to the linear gain
-        self.D = np.exp(-1j * self.disp_par * self.w**2)  # exp(-i phi(w)) dispersion
+        self.dispersion = np.exp(-1j * self.disp_par * self.w**2)  # exp(-i phi(w)) dispersion
 
     def restart(self, seed):
         self.cbuf = 0
@@ -579,20 +597,47 @@ class CavityDataPartsKerr(CavityDataParts):
         self.It = np.zeros((2, self.n))  # instantaneous intensity in time
         self.ph2pi = np.ones(self.n) * 2 * np.pi
         self.waist = np.zeros((2, self.n))  # instantaneous waist size
-        self.q = np.zeros((2, self.n), dtype=complex)  # instantaneous waist size
+        self.q = np.zeros((2, self.n), dtype=complex)  # beam parameter q
 
         # Starting terms
         np.random.seed(seed)
         self.Ew[self.cbuf, :] = 1e2 * (-1 + 2 * np.random.rand(self.n) + 2j * np.random.rand(self.n) - 1j) / 2.0  # initialize field to noise
+
         self.waist[self.cbuf, :] = np.ones(self.n) * 3.2e-5  # initial waist size probably
         R = -np.ones(self.n) * 3.0e-2  # initial waist size probably
         self.q[self.cbuf, :] = 1.0 / (1 / R - 1j * (self.lambda_ / (np.pi * self.waist[self.cbuf, :]**2)))
 
         self.g0 = 1 / self.mirror_loss + self.epsilon  # linear gain
 
-        self.W = 1 / (1 + (self.w / self.spec_G_par)**2)  # s(w) spectral gain function
         self.Et[self.cbuf, :] = np.fft.fftshift(np.fft.ifft(np.fft.ifftshift(self.Ew[self.cbuf, :])))
+
         self.phaseShift = np.angle(self.Ew[self.cbuf, :])
+
+    def simulation_step(self):
+        sim = self
+
+        phiKerr = lambda Itxx, Wxx: np.exp((1j * sim.Ikl * Itxx) / (sim.lambda_ * Wxx**2)) # non-linear instantenous phase accumulated due to Kerr effect
+
+        # calculation in time including Nonlinear effects
+        sim.It[sim.cbuf, :] = np.abs(sim.Et[sim.cbuf, :])**2
+        sim.q[sim.nbuf, :], sim.waist[sim.nbuf, :], sim.Et[sim.nbuf, :] = MLSpatial_gain(sim)
+
+        sd = NLloss(sim.waist[sim.cbuf, :], sim.Wp)
+        sim.Et[sim.nbuf, :] = phiKerr(sim.It[sim.cbuf, :], sim.waist[sim.nbuf, :]) * sd * sim.Et[sim.cbuf, :]
+
+        # calculation in frequency
+        sim.Ew[sim.nbuf, :] = np.fft.fftshift(np.fft.fft(np.fft.ifftshift(sim.Et[sim.nbuf, :])))
+
+        g = SatGain(sim.Ew[sim.cbuf, :], sim.waist[sim.cbuf, :], sim.g0, sim.Is, sim.Wp)
+        G = g * sim.spectralGain * sim.dispersion  # Overall gain
+        T = 0.5 * (1 + sim.mirror_loss * G * sim.expW) ##np.exp(-1j * 2 * np.pi * w))
+        sim.Ew[sim.nbuf, :] = T * sim.Ew[sim.nbuf, :]
+
+        sim.Et[sim.nbuf, :] = np.fft.fftshift(np.fft.ifft(np.fft.ifftshift(sim.Ew[sim.nbuf, :])))
+
+        sim.cbuf = sim.nbuf
+        sim.nbuf = 1 - sim.nbuf   
+
 
     def get_state(self):
 
@@ -620,23 +665,23 @@ class CavityDataPartsKerr(CavityDataParts):
         analysis = {}
         power = np.abs(self.Et[self.cbuf, :])**2
         total_power = np.sum(power)
-        analysis['total power'] = float(total_power)
+        analysis['power'] = float(total_power)
         i_max = np.argmax(power)
         near_power = np.sum(power[max(0, i_max - 20): min(i_max + 20, len(power) - 1)])
         #print("A ", total_power, near_power, total_power / (near_power + 0.1))
         if near_power * 1.1 > total_power:
-            analysis['state_code'] = "1"
+            analysis['code'] = "1"
             analysis['state'] = "One pulse"
-            analysis['location'] = int(i_max)
+            analysis['loc'] = int(i_max)
             rel = power[max(0, i_max - 50): min(i_max + 50, len(power) - 1)]
             sum = np.sum(rel)
-            analysis['power'] = float(sum)
+            analysis['p'] = float(sum)
             rel = rel / sum
             l = len(rel)
             ord = np.linspace(0, l - 1, l)
             ord2 = ord ** 2
             width2 = np.sum(rel * ord2) - (np.sum(rel * ord)) ** 2
-            analysis['width'] = float(math.sqrt(width2))
+            analysis['w'] = float(math.sqrt(width2))
         elif near_power * 2.2 > total_power:
             #print('------ enter two')
             rel = power[max(0, i_max - 50): min(i_max + 50, len(power) - 1)]
@@ -652,129 +697,96 @@ class CavityDataPartsKerr(CavityDataParts):
             near_power_b = np.sum(power[max(0, i_max_b - 20): min(i_max_b + 20, len(power) - 1)])
             #print("B ", total_power, near_power_b, total_power / (near_power_b + 0.1))
             if near_power_b * 1.1 > total_power:
-                analysis['state_code'] = "2"
+                analysis['code'] = "2"
                 analysis['state'] = "Two pulses"
-                analysis['location 1'] = int(i_max)
+                analysis['loc1'] = int(i_max)
                 rel = power[max(0, i_max_b - 50): min(i_max_b + 50, len(power) - 1)]
                 sum_b = np.sum(rel)
-                analysis['power 1'] = float(sum_a)
-                analysis['width 1'] = float(math.sqrt(width_a2))
+                analysis['p1'] = float(sum_a)
+                analysis['w1'] = float(math.sqrt(width_a2))
                 rel = rel / sum_b
                 l = len(rel)
                 ord_b = np.linspace(0, l - 1, l)
                 ord_b2 = ord_b ** 2
                 width_b2 = np.sum(rel * ord_b2) - (np.sum(rel * ord_b)) ** 2
-                analysis['location 2'] = int(i_max_b)
-                analysis['power 2'] = float(sum_b)
-                analysis['width 2'] = float(math.sqrt(width_b2))
+                analysis['loc2'] = int(i_max_b)
+                analysis['p2'] = float(sum_b)
+                analysis['w2'] = float(math.sqrt(width_b2))
             else:
-                analysis['state_code'] = "."
+                analysis['code'] = "."
 
                 analysis['state'] = "No pulse"
         else:
-            analysis['state_code'] = "."
+            analysis['code'] = "."
             analysis['state'] = "No pulses"
 
         return analysis
-    
-    def simulation_step(self):
-        sim = self
 
-        phiKerr = lambda Itxx, Wxx: np.exp((1j * sim.Ikl * Itxx) / (sim.lambda_ * Wxx**2)) # non-linear instantenous phase accumulated due to Kerr effect
+# class CavityDataKerr(CavityData):
+#     def __init__(self):
+#         self.type = 1
 
-        # calculation in time including Nonlinear effects
-        sim.It[sim.cbuf, :] = np.abs(sim.Et[sim.cbuf, :])**2
-        sim.q[sim.nbuf, :], sim.waist[sim.nbuf, :], sim.Et[sim.nbuf, :] = MLSpatial_gain(sim)
-        sd = NLloss(sim.waist[sim.cbuf, :], sim.Wp)
-        sim.Et[sim.nbuf, :] = phiKerr(sim.It[sim.cbuf, :], sim.waist[sim.nbuf, :]) * sd * sim.Et[sim.cbuf, :]
+#         self.SNR = 0e-3  # signal-to-noise ratio
+#         self.lambda_ = 780e-9  # wavelength in meters
 
-        # calculation in frequency
-        sim.Ew[sim.nbuf, :] = np.fft.fftshift(np.fft.fft(np.fft.ifftshift(sim.Et[sim.nbuf, :])))
+#         self.n = 2 ** np.ceil(np.log2(2000)).astype(int)  # number of simulated time-bins, power of 2 for FFT efficiency
+#         self.bw = self.n  # simulated bandwidth
+#         self.n = self.n + 1  # to make the space between frequencies 1
+#         self.w = np.linspace(-self.bw/2, self.bw/2, self.n)  # frequency is in units of reprate, time is in units of round-trip time
+#         self.expW = np.exp(-1j * 2 * np.pi * self.w)
 
-        g = SatGain(sim.Ew[sim.cbuf, :], sim.waist[sim.cbuf, :], sim.g0, sim.Is, sim.Wp)
-        #D = np.exp(-1j * disp_par * w**2)  # exp(-i phi(w)) dispersion
-        G = g * sim.W * sim.D  # Overall gain
-        T = 0.5 * (1 + sim.mirror_loss * G * sim.expW) ##np.exp(-1j * 2 * np.pi * w))
-        sim.Ew[sim.nbuf, :] = T * sim.Ew[sim.nbuf, :]
+#         self.dw = self.bw / (self.n - 1)
+#         self.t = np.linspace(-1/(2*self.dw), 1/(2*self.dw), self.n)
+#         self.dt = 1 / (self.n * self.dw)
 
-        sim.Et[sim.nbuf, :] = np.fft.fftshift(np.fft.ifft(np.fft.ifftshift(sim.Ew[sim.nbuf, :])))
+#         #kerr-gain medium
+#         self.n2 = 3e-20  # n2 of sapphire in m^2/W
+#         self.L = 3e-3  # crystal length in meters
+#         self.kerr_par = 4 * self.L * self.n2
+#         self.N = 5  # number of NL lenses in the crystal
+#         self.Ikl = self.kerr_par / self.N / 50
 
-        # sim.It[sim.nbuf, :] = np.abs(sim.Et[sim.nbuf, :])**2
-        # am = np.argmax(sim.It[sim.nbuf, :])
-        # sim.phaseShift = np.angle(sim.Ew[sim.nbuf, :])
-        # if sim.It[sim.nbuf, :][am] > 14 * np.mean(sim.It[sim.nbuf, :]):
-        #     for ii in range(len(sim.phaseShift)):
-        #         sim.phaseShift[ii] += (am - 1024) / (326.0) * (ii - 1024)
-        #     sim.phaseShift = np.mod(sim.phaseShift, sim.ph2pi)
+#         self.Is = 2.6 * self.n ** 2 * 500  # saturation power (2.6 * self.n ** 2 * 500)
+#         self.Wp = 30e-6  # waist parameter in meters
 
-        sim.cbuf = sim.nbuf
-        sim.nbuf = 1 - sim.nbuf   
+#         self.mirror_loss = 0.95  # loss of the OC (0.95)
+#         self.spec_G_par = 200  # Gaussian linewidth parameter
+#         self.delta = 0.001  # how far we go into the stability gap (0.001)
+#         self.deltaPlane = -0.75e-3  # position of crystal - distance from the "plane" lens focal
+#         self.disp_par = 0*1e-3 * 2 * np.pi / self.spec_G_par  # net dispersion
+#         self.epsilon = 0.2  # small number to add to the linear gain
+#         self.D = np.exp(-1j * self.disp_par * self.w**2)  # exp(-i phi(w)) dispersion
 
-class CavityDataKerr(CavityData):
-    def __init__(self):
-        self.type = 1
-
-        self.SNR = 0e-3  # signal-to-noise ratio
-        self.lambda_ = 780e-9  # wavelength in meters
-
-        self.n = 2 ** np.ceil(np.log2(2000)).astype(int)  # number of simulated time-bins, power of 2 for FFT efficiency
-        self.bw = self.n  # simulated bandwidth
-        self.n = self.n + 1  # to make the space between frequencies 1
-        self.w = np.linspace(-self.bw/2, self.bw/2, self.n)  # frequency is in units of reprate, time is in units of round-trip time
-        self.expW = np.exp(-1j * 2 * np.pi * self.w)
-
-        self.dw = self.bw / (self.n - 1)
-        self.t = np.linspace(-1/(2*self.dw), 1/(2*self.dw), self.n)
-        self.dt = 1 / (self.n * self.dw)
-
-        #kerr-gain medium
-        self.n2 = 3e-20  # n2 of sapphire in m^2/W
-        self.L = 3e-3  # crystal length in meters
-        self.kerr_par = 4 * self.L * self.n2
-        self.N = 5  # number of NL lenses in the crystal
-        self.Ikl = self.kerr_par / self.N / 50
-
-        self.Is = 2.6 * self.n ** 2 * 500  # saturation power (2.6 * self.n ** 2 * 500)
-        self.Wp = 30e-6  # waist parameter in meters
-
-        self.mirror_loss = 0.95  # loss of the OC (0.95)
-        self.spec_G_par = 200  # Gaussian linewidth parameter
-        self.delta = 0.001  # how far we go into the stability gap (0.001)
-        self.deltaPlane = -0.75e-3  # position of crystal - distance from the "plane" lens focal
-        self.disp_par = 0*1e-3 * 2 * np.pi / self.spec_G_par  # net dispersion
-        self.epsilon = 0.2  # small number to add to the linear gain
-        self.D = np.exp(-1j * self.disp_par * self.w**2)  # exp(-i phi(w)) dispersion
-
-        self.cbuf = 0
-        self.nbuf = 1
+#         self.cbuf = 0
+#         self.nbuf = 1
         
-        # Initializations
-        self.Ew = np.zeros((2, self.n), dtype=complex)  # field in frequency
-        self.Et = np.zeros((2, self.n), dtype=complex)  # field in time
-        self.It = np.zeros((2, self.n))  # instantaneous intensity in time
-        self.ph2pi = np.ones(self.n) * 2 * np.pi
-        self.waist = np.zeros((2, self.n))  # instantaneous waist size
-        self.q = np.zeros((2, self.n), dtype=complex)  # instantaneous waist size
+#         # Initializations
+#         self.Ew = np.zeros((2, self.n), dtype=complex)  # field in frequency
+#         self.Et = np.zeros((2, self.n), dtype=complex)  # field in time
+#         self.It = np.zeros((2, self.n))  # instantaneous intensity in time
+#         self.ph2pi = np.ones(self.n) * 2 * np.pi
+#         self.waist = np.zeros((2, self.n))  # instantaneous waist size
+#         self.q = np.zeros((2, self.n), dtype=complex)  # instantaneous waist size
 
-        # Starting terms
-        self.Ew[self.cbuf, :] = 1e2 * (-1 + 2 * np.random.rand(self.n) + 2j * np.random.rand(self.n) - 1j) / 2.0  # initialize field to noise
-        self.waist[self.cbuf, :] = np.ones(self.n) * 3.2e-5  # initial waist size probably
-        R = -np.ones(self.n) * 3.0e-2  # initial waist size probably
-        self.q[self.cbuf, :] = 1.0 / (1 / R - 1j * (self.lambda_ / (np.pi * self.waist[self.cbuf, :]**2)))
+#         # Starting terms
+#         self.Ew[self.cbuf, :] = 1e2 * (-1 + 2 * np.random.rand(self.n) + 2j * np.random.rand(self.n) - 1j) / 2.0  # initialize field to noise
+#         self.waist[self.cbuf, :] = np.ones(self.n) * 3.2e-5  # initial waist size probably
+#         R = -np.ones(self.n) * 3.0e-2  # initial waist size probably
+#         self.q[self.cbuf, :] = 1.0 / (1 / R - 1j * (self.lambda_ / (np.pi * self.waist[self.cbuf, :]**2)))
 
-        self.g0 = 1 / self.mirror_loss + self.epsilon  # linear gain
+#         self.g0 = 1 / self.mirror_loss + self.epsilon  # linear gain
 
-        self.W = 1 / (1 + (self.w / self.spec_G_par)**2)  # s(w) spectral gain function
-        self.Et[self.cbuf, :] = np.fft.fftshift(np.fft.ifft(np.fft.ifftshift(self.Ew[self.cbuf, :])))
-        self.phaseShift = np.angle(self.Ew[self.cbuf, :])
+#         self.W = 1 / (1 + (self.w / self.spec_G_par)**2)  # s(w) spectral gain function
+#         self.Et[self.cbuf, :] = np.fft.fftshift(np.fft.ifft(np.fft.ifftshift(self.Ew[self.cbuf, :])))
+#         self.phaseShift = np.angle(self.Ew[self.cbuf, :])
 
-    def get_state(self):
-        charts = [
-            Chart(self.t, np.abs(self.Et[self.cbuf, :])**2, "Power"),
-            Chart(self.w, np.abs(self.Ew[self.cbuf, :]), "Spectrum"),
-            Chart(self.w, self.waist[self.cbuf, :], "Waist"),
-            Chart(self.t, self.phaseShift, "Phase")
-        ]
+#     def get_state(self):
+#         charts = [
+#             Chart(self.t, np.abs(self.Et[self.cbuf, :])**2, "Power"),
+#             Chart(self.w, np.abs(self.Ew[self.cbuf, :]), "Spectrum"),
+#             Chart(self.w, self.waist[self.cbuf, :], "Waist"),
+#             Chart(self.t, self.phaseShift, "Phase")
+#         ]
 
-        return charts
+#         return charts
     

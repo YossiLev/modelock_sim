@@ -7,7 +7,7 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
 from simulation import generate_all_charts
-from geometry import generate_canvas
+from geometry import generate_canvas, generate_beam_params
 from design import generate_design
 from iterations import generate_iterations, Iteration
 from cavity import CavityDataPartsKerr, CavityData
@@ -72,12 +72,13 @@ def make_page(data_obj):
         case "Simulation":
             return my_frame("Simulation",
                 Div(
-                    Button("Restart", hx_post=f"/init", hx_target="#charts", hx_include="#seedInit", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML"), 
+                    Button("Restart", hx_post=f"/init", hx_target="#charts", hx_include="#seedInit, #cbxmatlab", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML"), 
                     Input(type="text", id="seedInit", name="seedInit", placeholder="Initial seed", style="width:90px;"),
                     Button("Step", hx_post="/inc", hx_target="#charts", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
                     Button("Run", hx_ext="ws", ws_connect="/run", ws_send=True, hx_target="#charts", hx_swap="innerHTML", hx_include="#cbxQuick", hx_vals='js:{localId: getLocalId()}'),
                     Button("Stop", hx_post="/stop", hx_target="#charts", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
-                    Label(Input(id="cbxQuick", type='checkbox', name='quick',checked=False), "Speed"),
+                    Label(Input(id="cbxQuick", type='checkbox', name='quick', checked=False), "Speed"),
+                    #Label(Input(id="cbxmatlab", type='checkbox', name='matlab_style', checked=False), "Matlab style"),
                     
                     Div(generate_all_charts(data_obj), id="charts"),
                     style="width:1100px;"
@@ -122,14 +123,17 @@ def home():
 
 @app.post("/parnum/{id}")
 def parameter_num(localId: str, id: str, param: str):
+    print(f"id = {id}")
     dataObj = get_Data_obj(localId)
     cavity: CavityData = dataObj['cavityData']
 
     simParam, simComp  = cavity.getParameter(id)
     if simParam.set_value(param):
         if simComp:
+            print("change par ")
             simComp.finalize()
-            cavity.finalize()
+        print("change cav")
+        cavity.finalize()
 
     return simParam.render()
 
@@ -146,10 +150,12 @@ def parameter_num(localId: str, id: str):
 
 @app.post("/init")
 def init(session, seedInit: str, localId: str):
+    print("INNNN")
+    matlab = False
     global gen_data
     if localId not in gen_data.keys():
         dataObj = {'id': localId, 'count': 0, 
-                'run_state': False, 'cavityData': CavityDataPartsKerr(), 
+                'run_state': False, 'cavityData': CavityDataPartsKerr(matlab = matlab), 
                 'iterationRuns': []} 
         gen_data[localId] = dataObj
     
@@ -412,3 +418,28 @@ def load(tabid: str, localId: str):
 def load(offset: int, localId: str):
     dataObj = get_Data_obj(localId)
     return generate_canvas(dataObj, 3, offset)
+
+@app.post("/beamParams/{tabid}")
+def parameter_num(tabid: str, localId: str, beam_x: str, beam_theta: str):
+    print(f"beam_x {beam_x} beam_theta {beam_theta}")
+    dataObj = get_Data_obj(localId)
+    sim = get_sim_obj(localId)
+
+    try:
+        sim.str_beam_x = beam_x
+        sim.beam_x = 0.001 * float(beam_x)
+        sim.beam_x_error = False
+    except ValueError as ve:
+        print(f"*** Error set beam_x {beam_x} ***")
+        sim.valuebeam_x_error_error = True
+    
+    try:
+        sim.str_beam_theta = beam_theta
+        sim.beam_theta = math.radians(float(beam_theta))
+        sim.beam_theta_error = False
+    except ValueError as ve:
+        print(f"*** Error set beam_theta {beam_theta} ***")
+        sim.beam_theta_error = True
+    
+    sim.build_beam_geometry()
+    return generate_canvas(dataObj, int(tabid))

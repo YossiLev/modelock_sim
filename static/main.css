@@ -1,3 +1,6 @@
+body {
+  font-family: Arial;
+}
 nav {
   padding: 1.5rem 2rem;
   background-color: #222831;
@@ -136,7 +139,7 @@ h1 {
 
 .partBlock {
   border-radius: 5px;
-  padding: 5px 6px;
+  padding: 5px 6px 12px 6px;
   margin: 10px;
   box-shadow: rgba(6, 24, 44, 0.4) 0px 0px 0px 2px, rgba(6, 24, 44, 0.65) 0px 4px 6px -1px, rgba(255, 255, 255, 0.08) 0px 1px 0px inset;
   background: #f0ffff;
@@ -201,4 +204,20 @@ h1 {
     flex-direction: row;
     -ms-flex-wrap: wrap;
     flex-wrap: wrap;
+}
+
+.AAA {
+  display: flex;
+  flex-wrap: wrap;
+  max-height: 250px; /* Limit the parent height to fit 3 items per column */
+  flex-direction: column;
+  column-count: auto;
+  /* column-width: 150px; */
+}
+.BBB {
+  width: 140px;
+}
+
+.AAA > .BBB {
+  flex-basis: 28%; /* Each child takes up 1/3 of the parent's height */
 }

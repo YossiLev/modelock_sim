@@ -25,21 +25,18 @@ def MLSpatial_gain(sim):
     Wp = sim.waist[sim.cbuf, :].copy()
     Ep = sim.Et[sim.cbuf, :].copy()
     lambda_ = sim.lambda_
-    #FM = sim.FM
-    # RMD = sim.RMD
-    # FMD = sim.FMD
-    #V = 1 / (2 / sim.RM - 1 / sim.L2)
-    V = sim.FMD
-    #print(f"v = {V} FMD = {FMD} sim.RM = {sim.RM} sim.L2 = {sim.L2}")
     N = round(sim.nLenses)  # number of NL lenses
-    if sim.matlab:
-        Nmid = N + 1
-        Nedge = N + 1
-    else:
-        Nmid = N
-        Nedge = 2 * N
     n0 = 1#1.76  # linear refractive index of Ti:S
     LCO = n0 * sim.L  # OPL of the crystal
+    if sim.matlab:
+        Nmid = N
+        fullStep = LCO / (N + 1)
+        edgeFactor = 1
+    else:
+        Nmid = N
+        fullStep = LCO / N
+        edgeFactor = 0.5
+    steps = [1] * (Nmid - 1) + [edgeFactor]
     lens_aperture = 56e-6
     fAper = ((2 * np.pi * lens_aperture ** 2) / sim.lambda_)
 
@@ -52,11 +49,11 @@ def MLSpatial_gain(sim):
     def lens(fL):
         return np.array([[1, 0], [-1 / fL, 1]])
 
-    def lensL(fL, fl):
-        return np.array([[1, 0], [-1 / fL - 1j / fl, 1]])
+    # def lensL(fL, fl):
+    #     return np.array([[1, 0], [-1 / fL - 1j / fl, 1]])
     
-    def ABCD(MX, qx):
-        return (MX[0, 0] * qx + MX[0, 1]) / (MX[1, 0] * qx + MX[1, 1])
+    # def ABCD(MX, qx):
+    #     return (MX[0, 0] * qx + MX[0, 1]) / (MX[1, 0] * qx + MX[1, 1])
 
     def ABCDVec(d, tf, qx):
         qnew = ((1 + d * tf) * qx + d) / (tf * qx + 1)
@@ -74,12 +71,10 @@ def MLSpatial_gain(sim):
         v = np.exp(1j * a)
         return v
 
-    #qt = np.zeros(len(Etp), dtype=complex)
-
-    MRight = distance(sim.RMD + sim.deltaPlane - 1e-10 - sim.L / 2) @ Mcur(sim.RM) @ \
+    MRight = distance(fullStep * edgeFactor) @ distance(sim.RMD + sim.deltaPlane - 1e-10 - sim.L / 2) @ Mcur(sim.RM) @ \
             distance(sim.L1) @ distance(sim.L1) @ Mcur(sim.RM) @ distance(sim.RMD + sim.deltaPlane - 1e-10 - sim.L / 2)
-    MLeft = distance(V + deltaPoint - sim.L / 2) @ lens(sim.FM) @ distance(sim.L2) @ \
-            distance(sim.L2) @ lens(sim.FM) @ distance(V + deltaPoint - sim.L / 2)
+    MLeft = distance(fullStep * edgeFactor) @ distance(sim.FMD + deltaPoint - sim.L / 2) @ lens(sim.FM) @ distance(sim.L2) @ \
+            distance(sim.L2) @ lens(sim.FM) @ distance(sim.FMD + deltaPoint - sim.L / 2)
 
     def thinKerr(q, w, e, Ikl, dist, M = None):
         p = np.abs(e) ** 2
@@ -93,27 +88,35 @@ def MLSpatial_gain(sim):
 
         return qt, wt, et
     
-    #print(f"**** s- {qp[0]}")
-    for i in range(N - 1):
-        #qp, Wp, Ep = thinKerr(qp, Wp, Ep, Ikl, LCO / N)
-        qp, Wp, Ep = thinKerr(qp, Wp, Ep, Ikl, LCO / Nmid)
-        #print(f"sa{i} {qp[0]}")
+    def thickKerrSteps(qp, Wp, Ep, Ikl, fullStep, steps, M = None):
+        for iStep in range(len(steps)):
+            qp, Wp, Ep = thinKerr(qp, Wp, Ep, Ikl, steps[iStep] * fullStep, M if iStep == len(steps) - 1 else None)
+        return qp, Wp, Ep
 
-    #M = distance(LCO / (2 * N)) @ MRight
-    M = distance(LCO / Nedge) @ MRight
-    #qp, Wp, Ep = thinKerr(qp, Wp, Ep, Ikl, LCO / (2 * N), M)
-    qp, Wp, Ep = thinKerr(qp, Wp, Ep, Ikl, LCO / Nedge, M)
-    #print(f"saf {qp[0]}")
+    qp, Wp, Ep = thickKerrSteps(qp, Wp, Ep, Ikl, fullStep, steps, MRight)
+    qp, Wp, Ep = thickKerrSteps(qp, Wp, Ep, Ikl, fullStep, steps, MLeft)
 
-    for i in range(N - 1):
-        #qp, Wp, Ep = thinKerr(qp, Wp, Ep, Ikl, LCO / N)
-        qp, Wp, Ep = thinKerr(qp, Wp, Ep, Ikl, LCO / Nmid)
-        #print(f"sb{i} {qp[0]}")
-    #M = distance(LCO / (2 * N)) @ MLeft
-    M = distance(LCO / Nedge) @ MLeft
-    #qp, Wp, Ep = thinKerr(qp, Wp, Ep, Ikl, LCO / (2 * N), M)
-    qp, Wp, Ep = thinKerr(qp, Wp, Ep, Ikl, LCO / Nedge, M)
-    #print(f"sbf {qp[0]}")
+    # #print(f"**** s- {qp[0]}")
+    # for i in range(N - 1):
+    #     #qp, Wp, Ep = thinKerr(qp, Wp, Ep, Ikl, LCO / N)
+    #     qp, Wp, Ep = thinKerr(qp, Wp, Ep, Ikl, LCO / Nmid)
+    #     #print(f"sa{i} {qp[0]}")
+
+    # #M = distance(LCO / (2 * N)) @ MRight
+    # #M = distance(LCO / Nedge) @ MRight
+    # #qp, Wp, Ep = thinKerr(qp, Wp, Ep, Ikl, LCO / (2 * N), M)
+    # qp, Wp, Ep = thinKerr(qp, Wp, Ep, Ikl, LCO / Nedge, distance(LCO / Nedge) @ MRight)
+    # #print(f"saf {qp[0]}")
+
+    # for i in range(N - 1):
+    #     #qp, Wp, Ep = thinKerr(qp, Wp, Ep, Ikl, LCO / N)
+    #     qp, Wp, Ep = thinKerr(qp, Wp, Ep, Ikl, LCO / Nmid)
+    #     #print(f"sb{i} {qp[0]}")
+    # #M = distance(LCO / (2 * N)) @ MLeft
+    # #M = distance(LCO / Nedge) @ MLeft
+    # #qp, Wp, Ep = thinKerr(qp, Wp, Ep, Ikl, LCO / (2 * N), M)
+    # qp, Wp, Ep = thinKerr(qp, Wp, Ep, Ikl, LCO / Nedge, distance(LCO / Nedge) @ MLeft)
+    # #print(f"sbf {qp[0]}")
 
     return qp, Wp, Ep
 

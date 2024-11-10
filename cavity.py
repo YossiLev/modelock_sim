@@ -110,7 +110,6 @@ class Propogation(LinearComponent):
         
     def finalize(self):
         self.distance = (self.parameters[0].get_value() + self.parameters[2].get_value()) * 0.001
-        print(f"{self.name} Prop dist {self.distance}")
         self.refIndex = self.parameters[1].get_value()
         self.M = [[1, self.distance], [0, 1]]
 
@@ -286,6 +285,7 @@ class CavityData():
         self.beam_theta_error = False
         self.beam_theta = math.radians(0.5)
         self.str_beam_theta = "0.5"
+        print(f"aa matlab {matlab}")
         self.matlab = matlab
 
         pass
@@ -500,6 +500,8 @@ class CavityDataParts(CavityData):
 class CavityDataPartsKerr(CavityDataParts):
     def __init__(self, matlab = False):
         super().__init__(matlab = matlab)
+        print(f"aa1matlab {matlab}")
+
         self.name = "Kerr modelock"
         self.description = "Kerr modelock by original simulation"
         self.parameters = [

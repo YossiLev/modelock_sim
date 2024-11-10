@@ -66,7 +66,7 @@ def my_frame(current_page, content):
         )
  
 def make_page(data_obj):
-    global current_tab, gen_data
+    global current_tab
     
     match current_tab:
         case "Simulation":
@@ -75,10 +75,10 @@ def make_page(data_obj):
                     Button("Restart", hx_post=f"/init", hx_target="#charts", hx_include="#seedInit, #cbxmatlab", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML"), 
                     Input(type="text", id="seedInit", name="seedInit", placeholder="Initial seed", style="width:90px;"),
                     Button("Step", hx_post="/inc", hx_target="#charts", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
-                    Button("Run", hx_ext="ws", ws_connect="/run", ws_send=True, hx_target="#charts", hx_swap="innerHTML", hx_include="#cbxQuick", hx_vals='js:{localId: getLocalId()}'),
+                    Button("Run", hx_ext="ws", ws_connect="/run", ws_send=True, hx_target="#charts", hx_swap="innerHTML", hx_include="#cbxQuick,#cbxmatlab", hx_vals='js:{localId: getLocalId()}'),
                     Button("Stop", hx_post="/stop", hx_target="#charts", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
                     Label(Input(id="cbxQuick", type='checkbox', name='quick', checked=False), "Speed"),
-                    #Label(Input(id="cbxmatlab", type='checkbox', name='matlab_style', checked=False), "Matlab style"),
+                    Label(Input(id="cbxmatlab", type='checkbox', name='matlab', checked=False), "Matlab style"),
                     
                     Div(generate_all_charts(data_obj), id="charts"),
                     style="width:1100px;"
@@ -149,18 +149,16 @@ def parameter_num(localId: str, id: str):
     return simParam.render()
 
 @app.post("/init")
-def init(session, seedInit: str, localId: str):
-    print("INNNN")
-    matlab = False
+def init(session, seedInit: str, localId: str, matlab:bool = False):
     global gen_data
-    if localId not in gen_data.keys():
+    dataObj = get_Data_obj(localId)
+
+    if dataObj is None:
         dataObj = {'id': localId, 'count': 0, 
                 'run_state': False, 'cavityData': CavityDataPartsKerr(matlab = matlab), 
                 'iterationRuns': []} 
         gen_data[localId] = dataObj
     
-    dataObj = gen_data[localId]
-
     seed = 0
     try:
         seed = int(seedInit)
@@ -189,15 +187,11 @@ def stop(localId: str):
 
 @app.post("/inc")
 def increment(localId: str):
-    global gen_data
-
-    if localId in gen_data.keys():
-        dataObj = gen_data[localId]
+    dataObj = get_Data_obj(localId)
+    if dataObj:
         count = dataObj['count']
         dataObj['cavityData'].simulation_step()
         dataObj['count'] = count + 1
-    else:
-        dataObj = None
 
     return generate_all_charts(dataObj)
 
@@ -208,27 +202,26 @@ async def on_disconnect(ws):
     print('Disconnected!')
 
 @app.ws('/run', conn=on_connect, disconn=on_disconnect)
-async def run(send, quick: bool, localId: str):
-    global gen_data
-    if localId not in gen_data.keys():
-        return
-    dataObj = gen_data[localId]
+async def run(send, quick: bool, localId: str, matlab:bool = False):
+    dataObj = get_Data_obj(localId)
+    sim = get_sim_obj(localId)
 
     if dataObj['run_state']:
         return
     dataObj['run_state'] = True
     count = dataObj['count']
     end_count = count + 1000
+    sim.matlab = matlab
 
     while dataObj['run_state'] and count < end_count:
         
-        dataObj['cavityData'].simulation_step()
+        sim.simulation_step()
 
         count = count + 1
         dataObj['count'] = count
 
         if count % 100 == 0:
-            dataObj['cavityData'].get_state_analysis()
+            sim.get_state_analysis()
             if quick == 1:
                 await send(Div(generate_all_charts(dataObj), id="charts", cls="rowx"))
                 await asyncio.sleep(0.001)
@@ -244,14 +237,14 @@ async def run(send, quick: bool, localId: str):
 @app.post("/iterInit")
 def iterInit(iterSeedInit: str, iterStartValue:str, iterEndValue:str, iterValueSteps: str, localId: str):
     global gen_data
+    dataObj = get_Data_obj(localId)
 
-    if localId not in gen_data.keys():
+    if dataObj is None:
         dataObj = {'id': localId, 'count': 0, 
                 'run_state': False, 'cavityData': CavityDataPartsKerr(), 
                 'iterationRuns': []} 
-        gen_data[localId] = dataObj
-    
-    dataObj = gen_data[localId]
+        gen_data[localId] = dataObj    
+
     iterations = dataObj['iterationRuns']
     sim = dataObj['cavityData']
     parameters = sim.getPinnedParameters()
@@ -288,9 +281,7 @@ def stop(localId: str):
 
 @app.post("/iterStep")
 def step(localId: str):
-    global gen_data
-    dataObj = gen_data[localId]
-
+    dataObj = get_Data_obj(localId)
     iterations = dataObj['iterationRuns']
     iterations[0].step()
 
@@ -304,13 +295,10 @@ async def on_disconnect_iter(ws):
 
 @app.ws('/iterRun', conn=on_connect_iter, disconn=on_disconnect_iter)
 async def iterRun(send, localId: str):
-    global gen_data
-    dataObj = gen_data[localId]
-
+    dataObj = get_Data_obj(localId)
     dataObj['run_state'] = True
 
     iteration = dataObj['iterationRuns'][0]
-    print("start steps")
     while iteration.step():
         if not dataObj['run_state']:
             return
@@ -335,7 +323,6 @@ def removeComp(session, comp_id: str, localId: str):
     sim.addBeforeById(comp_id)
     return sim.render()
 
-
 @app.post("/setCompType/{comp_id}/{tp}")
 def removeComp(session, comp_id: str, tp: str, localId: str):
     sim = get_sim_obj(localId)
@@ -351,8 +338,6 @@ def stop(localId: str):
     table = db['simulation']
     table.insert(dict(name=sim.name, desctiption=sim.description, content=s))
 
-    print(db['simulation'].columns)
-    print(len(db['simulation']))
     for simx in db['simulation']:
         print(simx['name'], simx['desctiption'])
 
@@ -373,7 +358,6 @@ def store(localId: str):
 
     return generate_design(dataObj)
 
-
 @app.post("/load")
 def load(localId: str):
     db = dataset.connect(db_path)
@@ -390,12 +374,14 @@ def load(localId: str):
 @app.post("/load/{id}")
 def load(id: str, localId: str):
     global gen_data
-    if localId not in gen_data.keys():
+    dataObj = get_Data_obj(localId)
+
+    if dataObj is None:
         dataObj = {'id': localId, 'count': 0, 
                 'run_state': False, 'cavityData': CavityDataPartsKerr(), 
                 'iterationRuns': []} 
-        gen_data[localId] = dataObj
-    dataObj = gen_data[localId] 
+        gen_data[localId] = dataObj    
+
     db = dataset.connect(db_path)
     table = db['simulation']
 
@@ -411,13 +397,11 @@ def load(id: str, localId: str):
 
 @app.post("/tabgeo/{tabid}")
 def load(tabid: str, localId: str):
-    dataObj = get_Data_obj(localId)
-    return generate_canvas(dataObj, int(tabid))
+    return generate_canvas(get_Data_obj(localId), int(tabid))
 
 @app.post("/moveonchart/{offset}")
 def load(offset: int, localId: str):
-    dataObj = get_Data_obj(localId)
-    return generate_canvas(dataObj, 3, offset)
+    return generate_canvas(get_Data_obj(localId), 3, offset)
 
 @app.post("/beamParams/{tabid}")
 def parameter_num(tabid: str, localId: str, beam_x: str, beam_theta: str):
@@ -443,3 +427,4 @@ def parameter_num(tabid: str, localId: str, beam_x: str, beam_theta: str):
     
     sim.build_beam_geometry()
     return generate_canvas(dataObj, int(tabid))
+# uvicorn app:app --host 0.0.0.0 --port 443 --ssl-keyfile=sim_key.pem --ssl-certfile=sim_cert.pem

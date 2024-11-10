@@ -27,3 +27,9 @@ function getLocalId() {
 // window.addEventListener('load', function() {
 //     this.document.getElementById("localId").innerHTML = getLocalId();
 // })
+function copyToClipboard(str) {
+    navigator.clipboard.writeText(str);
+}
+function copyFromClipboard(cbf) {
+    navigator.clipboard.readText().then(cbf);
+}

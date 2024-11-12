@@ -646,6 +646,7 @@ class CavityDataPartsKerr(CavityDataParts):
         self.It[self.nbuf, :] = np.abs(self.Et[self.nbuf, :])**2
         am = np.argmax(self.It[self.nbuf, :])
         self.phaseShift = np.angle(self.Ew[self.nbuf, :])
+        self.phaseShiftEt = np.angle(self.Et[self.nbuf, :])
         if self.It[self.nbuf, :][am] > 14 * np.mean(self.It[self.nbuf, :]):
             for ii in range(len(self.phaseShift)):
                 self.phaseShift[ii] += (am - 1024) / (326.0) * (ii - 1024)
@@ -658,7 +659,8 @@ class CavityDataPartsKerr(CavityDataParts):
             Chart(self.t, (self.q[self.cbuf, :].imag / np.pi * self.lambda_) ** (1 / 2), "W0"),
             Chart(self.t, self.q[self.cbuf, :].real, "Z Q.real"),
             Chart(self.t, self.q[self.cbuf, :].imag, "Q.imaginary"),
-            Chart(self.w, self.phaseShift, "Phase")
+            Chart(self.w, self.phaseShift, "Phase"),
+            Chart(self.t, self.phaseShiftEt, "Phase Et")
         ]
 
         return charts

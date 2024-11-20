@@ -34,6 +34,15 @@ nav {
   background: rgb(216, 216, 216);
 }
 
+select {
+  padding: 6px 10px;
+  background: #367AF6;
+  color: white;
+  margin: 2px 0px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
+  border: none;
+}
+
 button  {
   display: inline-block;
   flex-direction: row;

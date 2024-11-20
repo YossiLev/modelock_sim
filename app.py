@@ -8,6 +8,7 @@ matplotlib.use('agg')
 import matplotlib.pyplot as plt
 from simulation import generate_all_charts
 from geometry import generate_canvas, generate_beam_params
+from fun import generate_fun
 from design import generate_design
 from iterations import generate_iterations, Iteration
 from cavity import CavityDataPartsKerr, CavityData
@@ -24,7 +25,10 @@ app = FastHTML(ws_hdr=True, hdrs=(
         Link(rel="shortcut icon", type="image/x-icon", href="static/favicon.ico"),
         Link(rel="stylesheet", href="https://cdnjs.cloudflare.com/ajax/libs/flexboxgrid/6.3.1/flexboxgrid.min.css", type="text/css"),
         Link(rel="stylesheet", href="static/main.css", type="text/css"),
+        Script(src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/3.3.0/math.min.js"),
         Script(src="static/localid.js"),
+        Script(src="static/multimode.js"),
+
 ))
 app.mount("/static", StaticFiles(directory="static"), name="static")
 setup_toasts(app)
@@ -54,7 +58,7 @@ def menu_item(item_name, current_item):
 
 def content_table(current_page):
     global gen_data
-    menu_list = ["Design", "Simulation", "Geometry", "Iterations", "Settings"]
+    menu_list = ["Design", "Simulation", "Geometry", "Iterations", "Fun", "Settings"]
     return Div(*[menu_item(x, current_page) for x in menu_list],
                 Div(F"n = {len(list(gen_data.keys()))}"),  cls="sideMenu")
 
@@ -109,6 +113,11 @@ def make_page(data_obj):
                     Button("Run", hx_ext="ws", ws_connect="/iterRun", ws_send=True, hx_target="#iterate", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
                     Button("Stop", hx_post="/iterStop", hx_target="#iterate", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
                     Div(generate_iterations(data_obj)), style="width:1100px"))
+        case "Fun":
+            return my_frame("Fun", 
+                Div(
+                    Div(generate_fun(data_obj, 1), cls="box", style="background-color: rgb(208 245 254);", id="fun"), style="width:1100px"))
+        
         case _:
             return my_frame(current_tab, Div("not yet"))
     
@@ -398,6 +407,10 @@ def load(id: str, localId: str):
 @app.post("/tabgeo/{tabid}")
 def load(tabid: str, localId: str):
     return generate_canvas(get_Data_obj(localId), int(tabid))
+
+@app.post("/tabfun/{tabid}")
+def load(tabid: str, localId: str):
+    return generate_fun(get_Data_obj(localId), int(tabid))
 
 @app.post("/moveonchart/{offset}")
 def load(offset: int, localId: str):

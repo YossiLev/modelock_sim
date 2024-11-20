@@ -33,3 +33,7 @@ function copyToClipboard(str) {
 function copyFromClipboard(cbf) {
     navigator.clipboard.readText().then(cbf);
 }
+
+function ff() {
+    alert("finally!!!!")
+}

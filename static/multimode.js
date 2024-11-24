@@ -1,5 +1,6 @@
 
 var fronts = [];
+var ranges = [];
 var locations = [];
 var viewOption = 1;
 
@@ -48,22 +49,33 @@ function drawMultiMode() {
     const canvas = document.getElementById("funCanvas");
     const ctx = canvas.getContext("2d");
     const sx = 20, sy = 20;
-    const w = 4, h = 1;
+    const w = 4;
+    ctx.fillStyle = `white`;
+    ctx.fillRect(0, 0, 1000, 1000);
+    ctx.fillStyle = `red`;
+    ctx.fillRect(0, 400, 1000, 2);
+
     for (let f = 0; f < fronts.length; f++) {
-        for (let i = 0; i < fronts[f].length; i++) {
+        let fi = fronts[f];
+        let r = ranges[f];
+        let l = fi.length;       
+        let h = r / l * 50000;
+        for (let i = 0; i < l; i++) {
             if (viewOption == 1) {
-                c = Math.floor(fronts[f][i].toPolar().r * 255.0);
+                c = Math.floor(fi[i].toPolar().r * 255.0);
             } else {
-                c = Math.floor((fronts[f][i].toPolar().phi / (2 * Math.PI) + 0.5) * 255.0);
+                c = Math.floor((fi[i].toPolar().phi / (2 * Math.PI) + 0.5) * 255.0);
             }
             ctx.fillStyle = `rgba(${c}, ${c}, ${c}, 255)`;
-            ctx.fillRect(sx + f * (w + 0), sy + i * h, w, h);
+            //console.log(`h = ${h} p = ${(i - (l / 2)) * h + 400} c  ${c}`)
+            ctx.fillRect(sx + f * w, (i - (l / 2)) * (h) + 400, w, h + 1);
         }
     }
 }
 
 function initMultiMode() {
     fronts = [getInitMultyMode()];
+    ranges = [0.002];
     locations = [0];
     drawMultiMode();
 }
@@ -98,27 +110,34 @@ function dft(inp, ss) {
       let sumImag = 0;
       let nn = 0;
       for (let n = 0; n < N; n++) {
-        sumReal +=  inpReal[n] * cos[nn] + inpImag[n] * sin[nn];
-        sumImag += -inpReal[n] * sin[nn] + inpImag[n] * cos[nn];
+        nm = n;//(n + N / 2) % N;
+        sumReal +=  inpReal[nm] * cos[nn] + inpImag[nm] * sin[nn];
+        sumImag += -inpReal[nm] * sin[nn] + inpImag[nm] * cos[nn];
         nn = (nn + k) % N;
       }
       out.push(math.complex(sumReal * s, sumImag * s));
     }
-    return out;
+    let o = [];
+    for (let k = 0; k < N; k++) {
+        o.push(out[(k + N / 2) % N]);
+    }
+    return o;
 };
 
 function propogateMultiMode() {
     if (fronts.length <= 0) {
         return;
     }
-    let range_i = 0.0035;
-    let dist = 0.005;
-    let lambda = 0.000001;
+    let distS = 0.007;
+    let lambda = 0.00000051;
 
-    fi = math.clone(fronts[fronts.length - 1]);
+    lfs = fronts.length;
+    let dist = distS * lfs;
+    fi = math.clone(fronts[0]);
+    let r = ranges[0];
     let L = fi.length;
-    let dxi = range_i / L;
-    let dxf = lambda * dist / range_i;
+    let dxi = r / L;
+    let dxf = lambda * dist / r;
     // dxf = dxi;
     // lambda = range_i * dxf / dist;
     let factor = math.divide(math.exp(math.complex(0, dist * Math.PI * 2 / lambda)), math.complex(dist));
@@ -140,6 +159,8 @@ function propogateMultiMode() {
     }
 
     fronts.push(ff);
+    ranges.push(L * dxf);
+
     drawMultiMode();
 }
 

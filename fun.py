@@ -73,7 +73,7 @@ def generate_fun(data_obj, tab, offset = 0):
         Div("Align & stretch", hx_post="tabfun/2", hx_target="#fun", cls=f"tab {'tabselected' if tab == 2 else ''}", hx_vals='js:{localId: getLocalId()}'),
         Div("Peak beam", hx_post="tabfun/3", hx_target="#fun", cls=f"tab {'tabselected' if tab == 3 else ''}", hx_vals='js:{localId: getLocalId()}')),
         added,
-        Canvas(id="funCanvas", width=1000, height = 800)
+        Canvas(id="funCanvas", width=1000, height = 1100)
     )
 
     #return Img(src=f'data:image/jpg;base64,{str(my_base64_jpgData, "utf-8")}')

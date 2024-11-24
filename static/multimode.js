@@ -6,13 +6,13 @@ var viewOption = 1;
 function getInitMultyMode() {
     const sel = document.getElementById("incomingFront");
     let vf = [];
-    let n = 1024;
+    let n = 512;
     console.log("Sel ", sel.value)
     switch (sel.value) {
         case "Gaussian Beam":
             z = n / 2 - 0.5;
             for (let i = 0; i < n; i++) {
-                vf.push(math.complex(1 * Math.exp(-(i - z) * (i - z) / 200)))
+                vf.push(math.complex(1 * Math.exp(-(i - z) * (i - z) / 500)))
             }
             break;
         case "Two Slit":
@@ -112,23 +112,23 @@ function propogateMultiMode() {
         return;
     }
     let range_i = 0.0035;
-    let dist = 0.015;
+    let dist = 0.005;
     let lambda = 0.000001;
 
     fi = math.clone(fronts[fronts.length - 1]);
     let L = fi.length;
     let dxi = range_i / L;
     let dxf = lambda * dist / range_i;
-    dxf = dxi;
-    lambda = range_i * dxf / dist;
+    // dxf = dxi;
+    // lambda = range_i * dxf / dist;
     let factor = math.divide(math.exp(math.complex(0, dist * Math.PI * 2 / lambda)), math.complex(dist));
     let ff = Math.sqrt(1 / (dist * lambda * 2));
     factor = math.complex(- ff, ff);
     let coi = Math.PI * dxi * dxi / (dist * lambda);
-    console.log(`factor = ${factor}`)
+    console.log(`factor = ${factor}, lambda = ${lambda}`)
 
     let cof = Math.PI * dxf * dxf / (dist * lambda);
-    console.log(`dxi = ${dxi}, dxf = ${dxf}, coi = ${coi}, dxi = ${cof}, `)
+    console.log(`dxi = ${dxi}, dxf = ${dxf}, coi = ${coi}, cof = ${cof}, `)
 
     for (let i = 0; i < L; i++) {
         fi[i] = math.multiply(fi[i], math.exp(math.complex(0, coi * i * i)))

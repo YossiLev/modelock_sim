@@ -1,4 +1,5 @@
 
+var sfs = -1;
 var fronts = [];
 var ranges = [];
 var locations = [];
@@ -50,16 +51,14 @@ function drawMultiMode() {
     const ctx = canvas.getContext("2d");
     const sx = 20, sy = 20;
     const w = 4;
-    ctx.fillStyle = `white`;
-    ctx.fillRect(0, 0, 1000, 1000);
     ctx.fillStyle = `red`;
-    ctx.fillRect(0, 400, 1000, 2);
+    ctx.fillRect(0, 0, 1000, 1000);
 
     for (let f = 0; f < fronts.length; f++) {
         let fi = fronts[f];
         let r = ranges[f];
         let l = fi.length;       
-        let h = r / l * 50000;
+        let h = r / l * 45000;
         for (let i = 0; i < l; i++) {
             if (viewOption == 1) {
                 c = Math.floor(fi[i].toPolar().r * 255.0);
@@ -75,7 +74,8 @@ function drawMultiMode() {
 
 function initMultiMode() {
     fronts = [getInitMultyMode()];
-    ranges = [0.002];
+    ranges = [0.001];
+    sfs = 0;
     locations = [0];
     drawMultiMode();
 }
@@ -110,7 +110,7 @@ function dft(inp, ss) {
       let sumImag = 0;
       let nn = 0;
       for (let n = 0; n < N; n++) {
-        nm = n;//(n + N / 2) % N;
+        nm = (n + N / 2) % N;
         sumReal +=  inpReal[nm] * cos[nn] + inpImag[nm] * sin[nn];
         sumImag += -inpReal[nm] * sin[nn] + inpImag[nm] * cos[nn];
         nn = (nn + k) % N;
@@ -122,19 +122,18 @@ function dft(inp, ss) {
         o.push(out[(k + N / 2) % N]);
     }
     return o;
-};
+}
 
 function propogateMultiMode() {
     if (fronts.length <= 0) {
         return;
     }
-    let distS = 0.007;
+    let distS = 0.002;
     let lambda = 0.00000051;
-
     lfs = fronts.length;
-    let dist = distS * lfs;
-    fi = math.clone(fronts[0]);
-    let r = ranges[0];
+    let dist = distS * (lfs - sfs);
+    fi = math.clone(fronts[sfs]);
+    let r = ranges[sfs];
     let L = fi.length;
     let dxi = r / L;
     let dxf = lambda * dist / r;
@@ -147,15 +146,17 @@ function propogateMultiMode() {
     console.log(`factor = ${factor}, lambda = ${lambda}`)
 
     let cof = Math.PI * dxf * dxf / (dist * lambda);
-    console.log(`dxi = ${dxi}, dxf = ${dxf}, coi = ${coi}, cof = ${cof}, `)
+    console.log(`dxi = ${dxi}, dxf = ${dxf}, coi = ${coi}, cof = ${cof}, r = ${r}, dist = ${dist}`)
 
     for (let i = 0; i < L; i++) {
-        fi[i] = math.multiply(fi[i], math.exp(math.complex(0, coi * i * i)))
+        let ii = i - L / 2;
+        fi[i] = math.multiply(fi[i], math.exp(math.complex(0, coi * ii * ii)))
     }
     ff = dft(fi, dxi);
 
     for (let i = 0; i < L; i++) {
-        ff[i] = math.multiply(math.multiply(ff[i], factor), math.exp(math.complex(0, cof * i * i)))
+        let ii = i - L / 2;
+        ff[i] = math.multiply(math.multiply(ff[i], factor), math.exp(math.complex(0, cof * ii * ii)))
     }
 
     fronts.push(ff);
@@ -169,15 +170,23 @@ function lensMultiMode() {
         return;
     }
 
-    ff = math.clone(fronts[fronts.length - 1]);
+    fl = fronts.length
+    ff = math.clone(fronts[fl - 1]);
+    let r = ranges[fl - 1];
     let L = fi.length;
+    let dx = r / L;
 
     let z = L / 2.0;
     for (let i = 0; i < L; i++) {
-        ff[i] = math.multiply(ff[i], math.exp(math.complex(0, - (i - z) * (i - z) / 10000)))
+        let factor = (i - z) * (i - z) * dx * dx
+        console.log(`i = ${i}, factor = ${factor}`);
+        ff[i] = math.multiply(ff[i], math.exp(math.complex(- factor * 10000,  - factor * 100000000)))
     }
 
+    sfs = fl;
     fronts.push(ff);
+    ranges.push(ranges[sfs - 1]);
+    console.log(`LENS range = ${ranges[sfs]}`)
     drawMultiMode();
 }
 

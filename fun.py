@@ -2,7 +2,6 @@ from PIL import Image, ImageDraw
 import math
 import io
 import base64
-import numpy as np
 from fasthtml.common import *
 
 def ver_func(l):
@@ -25,21 +24,49 @@ def generate_fun(data_obj, tab, offset = 0):
 
     images = []
     added = Div()
+    added2 = Div()
     match tab:
         case 1:
             images.append(Image.new('RGB', (1024, 512 + 256), (225, 255, 255)))
             draw = ImageDraw.Draw(images[- 1])
             draw_multimode(draw)
-            added = Div(Select(Option("Gaussian Beam"), 
+            added = Div(
+                Div(Select(Option("Gaussian Beam"), 
                                Option("Two Slit"), 
+                               Option("Mode He5"), 
+                               Option("Gaussian shift"), 
                                Option("Delta"), 
                                Option("Zero"),                               
                                id="incomingFront"),
                      Button("Init", onclick="initMultiMode()"),
                      Button("Propogate", onclick="propogateMultiMode()"),
                      Button("Lens", onclick="lensMultiMode()"),
+                     Button("Full", onclick="fullCavityMultiMode()"),
                      Button("Switch view", onclick="switchViewMultiMode()"),
-)
+                ),
+                Div(
+                    Button(
+                        Img(src="static/zoomin.png", alt="Zoom in", width="24", height="24"),
+                        cls="imgButton",
+                        onclick="zoomMultiMode(1);"
+                    ),
+                    Button(
+                        Img(src="static/zoomout.png", alt="Zoom out", width="24", height="24"),
+                        cls="imgButton",
+                        onclick="zoomMultiMode(-1);"
+                    ),
+                )
+            )
+            added2 = Div(
+                Select(Option("A"), 
+                            Option("B"), 
+                            Option("C"), 
+                            Option("D"), 
+                            Option("E(x)"), 
+                            Option("Width(x)"),                               
+                            id="displayOption",
+                            **{'onchange':"drawGraph();"},),
+            )
         # case 2:
         #     images.append(Image.new('RGB', (1024, 512 + 256), (225, 255, 255)))
         #     draw = ImageDraw.Draw(images[- 1])
@@ -73,7 +100,11 @@ def generate_fun(data_obj, tab, offset = 0):
         Div("Align & stretch", hx_post="tabfun/2", hx_target="#fun", cls=f"tab {'tabselected' if tab == 2 else ''}", hx_vals='js:{localId: getLocalId()}'),
         Div("Peak beam", hx_post="tabfun/3", hx_target="#fun", cls=f"tab {'tabselected' if tab == 3 else ''}", hx_vals='js:{localId: getLocalId()}')),
         added,
-        Canvas(id="funCanvas", width=1000, height = 1100)
+        Canvas(id="funCanvas", width=1000, height = 800,
+               **{'onmousemove':"mainCanvasMouseMove(event);"},
+               ),
+        added2,
+        Canvas(id="graphCanvas", width=1000, height = 200)
     )
 
     #return Img(src=f'data:image/jpg;base64,{str(my_base64_jpgData, "utf-8")}')

@@ -4,6 +4,13 @@ var fronts = [];
 var ranges = [];
 var locations = [];
 var viewOption = 1;
+var zoomFactor = 1.0; //45000;
+var vecA = [];
+var vecB = [];
+var vecC = [];
+var vecD = [];
+var vecEt = [];
+var vecWt = [];
 
 function getInitMultyMode() {
     const sel = document.getElementById("incomingFront");
@@ -24,6 +31,20 @@ function getInitMultyMode() {
                 vf.push(math.complex(1 * (Math.exp(-(i - z1) * (i - z1) / 50) + Math.exp(-(i - z2) * (i - z2) / 50))))
             }
             break;
+        case "Gaussian shift":
+            z1 = 2 * n / 5
+            for (let i = 0; i < n; i++) {
+                vf.push(math.complex((Math.exp(-(i - z1) * (i - z1) / 150))))
+            }
+            break;    
+        case "Mode He5":
+            z = n / 2 - 0.5;
+            let f = 50 / Math.sqrt(Math.sqrt(Math.PI) * 32 * 120);
+            for (let i = 0; i < n; i++) {
+                let x = (i - z) / 15;
+                vf.push(math.complex(f * (x * x * x * x * x - 10 * x * x * x + 15 * x) * Math.exp(- x * x / 2)))
+            }
+            break;    
         case "Delta":
             for (let i = 0; i < n; i++) {
                 vf.push(math.complex(0))
@@ -46,11 +67,21 @@ function getInitMultyMode() {
     return vf;
 }
 
+function zoomMultiMode(z) {
+    if (z > 0) {
+        zoomFactor = zoomFactor * 1.5
+    } else {
+        zoomFactor = zoomFactor / 1.5
+    }
+    drawMultiMode();
+}
+const drawSx = 20;
+const drawW = 3;
+const drawMid = 400;
+
 function drawMultiMode() {
     const canvas = document.getElementById("funCanvas");
     const ctx = canvas.getContext("2d");
-    const sx = 20, sy = 20;
-    const w = 4;
     ctx.fillStyle = `red`;
     ctx.fillRect(0, 0, 1000, 1000);
 
@@ -58,17 +89,80 @@ function drawMultiMode() {
         let fi = fronts[f];
         let r = ranges[f];
         let l = fi.length;       
-        let h = r / l * 45000;
+        let h = Math.abs(r) / l * zoomFactor * 45000;
+        if (f == 0) {
+            ctx.fillStyle = `orange`;
+            ctx.fillRect(0, drawMid - l / 2, 1000, l);          
+        }
         for (let i = 0; i < l; i++) {
+            ii = r > 0.0 ? i : l - 1 - i;
             if (viewOption == 1) {
-                c = Math.floor(fi[i].toPolar().r * 255.0);
+                c = Math.floor(fi[ii].toPolar().r * 255.0);
             } else {
-                c = Math.floor((fi[i].toPolar().phi / (2 * Math.PI) + 0.5) * 255.0);
+                c = Math.floor((fi[ii].toPolar().phi / (2 * Math.PI) + 0.5) * 255.0);
             }
             ctx.fillStyle = `rgba(${c}, ${c}, ${c}, 255)`;
-            //console.log(`h = ${h} p = ${(i - (l / 2)) * h + 400} c  ${c}`)
-            ctx.fillRect(sx + f * w, (i - (l / 2)) * (h) + 400, w, h + 1);
+            ctx.fillRect(drawSx + f * drawW, (i - (l / 2)) * (h) + drawMid, drawW, h + 1);
         }
+    }
+
+    drawLenses();
+    drawGraph();
+}
+
+function drawLenses() {
+    const canvas = document.getElementById("funCanvas");
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = `yellow`;
+
+    for (let iLens = 0; iLens < lenses.length; iLens++) {
+        let px = drawSx + lenses[iLens][0] / distStep * drawW;
+        ctx.fillRect(px, drawMid - 20 * zoomFactor, 2, 40 * zoomFactor);          
+    }
+}
+
+function drawVector(v) {
+    const canvas = document.getElementById("graphCanvas");
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = `white`;
+    ctx.fillRect(0, 0, 1000, 200);     
+   
+    let l = v.length;
+    ctx.strokeStyle = `black`;
+    ctx.beginPath();
+    ctx.moveTo(drawSx, 100);
+    ctx.lineTo(drawSx + l * drawW, 100);
+    ctx.stroke(); 
+    let fac = Math.max(Math.abs(Math.max(...v)), Math.abs(Math.min(...v)));
+    console.log(`fac = ${fac}, M = ${Math.max(...v)}, m = ${Math.min(...v)}`)
+    if (fac > 0) {
+        fac = 90 / fac
+    }
+    ctx.strokeStyle = `red`;
+    ctx.beginPath();
+    ctx.moveTo(drawSx, 100 - Math.floor(fac * v[0]));
+    for (let i = 1; i < l; i++) {
+        ctx.lineTo(drawSx + i * drawW, 100 - Math.floor(fac * v[i]));
+    }
+    ctx.stroke();
+}
+function drawGraph() {
+    const sel = document.getElementById("displayOption");
+
+    let v = null;
+    switch (sel.value) {
+        case "A": v = vecA; break;
+        case "B": v = vecB; break;
+        case "C": v = vecC; break;
+        case "D": v = vecD; break;
+        case "E(x)":
+            break;
+        case "Width(x)":
+            break;
+    }
+
+    if (v != null) {
+        drawVector(v);
     }
 }
 
@@ -137,9 +231,7 @@ function propogateMultiMode() {
     let L = fi.length;
     let dxi = r / L;
     let dxf = lambda * dist / r;
-    // dxf = dxi;
-    // lambda = range_i * dxf / dist;
-    let factor = math.divide(math.exp(math.complex(0, dist * Math.PI * 2 / lambda)), math.complex(dist));
+     let factor = math.divide(math.exp(math.complex(0, dist * Math.PI * 2 / lambda)), math.complex(dist));
     let ff = Math.sqrt(1 / (dist * lambda * 2));
     factor = math.complex(- ff, ff);
     let coi = Math.PI * dxi * dxi / (dist * lambda);
@@ -193,4 +285,107 @@ function lensMultiMode() {
 function switchViewMultiMode() {
     viewOption = 1 - viewOption;
     drawMultiMode();
+}
+
+function MDist(d) {
+    return [[1, d], [0, 1]];
+}
+function MLens(f) {
+    return [[1, 0], [- 1/ f, 1]];
+}
+function MMult(m, m2) {
+    a = m[0][0] * m2[0][0] + m[0][1] * m2[1][0];
+    b = m[0][0] * m2[0][1] + m[0][1] * m2[1][1];
+    c = m[1][0] * m2[0][0] + m[1][1] * m2[1][0];
+    d = m[1][0] * m2[0][1] + m[1][1] * m2[1][1];
+
+    return  [[a, b], [c, d]];
+}
+
+let lenses = [[0.1, 0.1], [0.25, 0.1]];
+let distStep = 0.002;
+
+function getMatOnStep(dStep) {
+
+    let iLens = 0;
+    let prevLensPos = 0.0;
+    let M = [[1, 0], [0, 1]];
+    let rdStep = dStep;
+    while (iLens < lenses.length && rdStep > lenses[iLens][0] - prevLensPos) {
+        M = MMult(M, MDist(lenses[iLens][0]));
+        M = MMult(M, MLens(lenses[iLens][1]));
+        rdStep -= lenses[iLens][0] - prevLensPos;
+        prevLensPos = lenses[iLens][0];
+        iLens++;
+    }
+    M = MMult(M, MDist(rdStep));
+    return M;
+};
+function fullCavityMultiMode() {
+    if (fronts.length <= 0) {
+        return;
+    }
+    let lambda = 0.00000051;
+    
+    vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0];
+    for (let iStep = 1; iStep < 300; iStep++) {
+        let f0 = math.clone(fronts[0]);
+        let r0 = ranges[0];
+        let L = f0.length;
+        let dx0 = r0/ L;
+        let dStep = iStep * distStep;
+        let M  = getMatOnStep(dStep);
+        let A = M[0][0];
+        let B = M[0][1];
+        let D = M[1][1];
+        vecA.push(M[0][0]);
+        vecB.push(M[0][1]);
+        vecC.push(M[1][0]);
+        vecD.push(M[1][1]);
+        console.log(`A = ${A}, B = ${B}, D = ${D}`)
+        let dxf = lambda * B / r0;
+        let factor = math.sqrt(math.complex(0, - 1 / (B * lambda)));
+        let co0 = Math.PI * dx0 * dx0 * A / (B * lambda);
+        console.log(`factor = ${factor}, lambda = ${lambda}`)
+
+        let cof = Math.PI * dxf * dxf * D / (B * lambda);
+        console.log(`dx0 = ${dx0}, dxf = ${dxf}, co0 = ${co0}, cof = ${cof}, r0 = ${r0}, dStep = ${dStep}`)
+
+        for (let i = 0; i < L; i++) {
+            let ii = i - L / 2;
+            f0[i] = math.multiply(f0[i], math.exp(math.complex(0, co0 * ii * ii)))
+        }
+        let ff = dft(f0, dx0);
+
+        for (let i = 0; i < L; i++) {
+            let ii = i - L / 2;
+            ff[i] = math.multiply(math.multiply(ff[i], factor), math.exp(math.complex(0, cof * ii * ii)))
+        }
+
+        fronts.push(ff);
+        ranges.push(L * dxf);
+    }
+    drawMultiMode();
+}
+
+function mainCanvasMouseMove(e) {
+    console.log(e);
+    const sel = document.getElementById("displayOption");
+    if (sel.value == "E(x)") {
+        var bounds = e.target.getBoundingClientRect();
+        var x = e.clientX - bounds.left;
+        var y = e.clientY - bounds.top;
+
+        let ix = (x - drawSx) / drawW;
+        if (ix >= 0 && ix < fronts.length) {
+            fi = fronts[ix];
+            fr = [];
+            for (let i = 0; i < fi.length; i++) {
+                fr.push(fi[i].toPolar().r);
+            }
+            drawVector(fr);
+        }
+    }
+
+    console.log(x, y);
 }

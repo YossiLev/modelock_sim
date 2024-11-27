@@ -67,6 +67,11 @@ button:disabled {
     background: gray;
 }
 
+.imgButton {
+  background: white;
+  padding: 2px;
+}
+
 label {
   font-family: Arial;
   background: linear-gradient(180deg, #4B91F7 0%, #367AF6 100%);

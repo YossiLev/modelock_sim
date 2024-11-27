@@ -4,6 +4,8 @@ import io
 import base64
 from fasthtml.common import *
 
+lenses = [[0.1, 0.1], [0.2, 0.1], [0.25, 0.1], [0.31, 0.1]]
+
 def ver_func(l):
     vf = []
     z = l / 2
@@ -19,7 +21,18 @@ def draw_single_front(draw: ImageDraw, px, py, w, h, n, vec):
 
 def draw_multimode(draw: ImageDraw):
     draw_single_front(draw, 30, 30, 10, 2, 256, ver_func(256))
- 
+
+def Lens(lens, s):
+    return Div(
+        Span(f'L{s + 1} P:'),
+        Input(type="number", id=f'lens{s}dist', name="lens", placeholder="0", step="0.01", style="width:40px;", value=f'{lens[0]}'),
+        Span("f:"),
+        Input(type="number", id=f'lens{s}focal', name="lens", placeholder="0", step="0.01", style="width:40px;", value=f'{lens[1]}'),
+        Button(NotStr("X"), escapse=False, hx_post=f'/removeLens/{s}', hx_target="#fun", hx_vals='js:{localId: getLocalId()}'), 
+
+        style="border: 1px solid red; display: inline-block; padding:2px;"
+    )
+
 def generate_fun(data_obj, tab, offset = 0):
 
     images = []
@@ -38,11 +51,16 @@ def generate_fun(data_obj, tab, offset = 0):
                                Option("Delta"), 
                                Option("Zero"),                               
                                id="incomingFront"),
-                     Button("Init", onclick="initMultiMode()"),
-                     Button("Propogate", onclick="propogateMultiMode()"),
-                     Button("Lens", onclick="lensMultiMode()"),
-                     Button("Full", onclick="fullCavityMultiMode()"),
-                     Button("Switch view", onclick="switchViewMultiMode()"),
+                    
+                    Button("Init", onclick="initMultiMode()"),
+                    # Button("Propogate", onclick="propogateMultiMode()"),
+                    # Button("Lens", onclick="lensMultiMode()"),
+                    Button("Full", onclick="fullCavityMultiMode()"),
+                    Button("Switch view", onclick="switchViewMultiMode()"),
+                ),
+                Div(
+                    *[Lens(lens, i) for i, lens in enumerate(lenses)],
+                    Button(NotStr("&#43;"), escapse=False, hx_post="/addLens", hx_target="#fun", hx_vals='js:{localId: getLocalId()}'), 
                 ),
                 Div(
                     Button(

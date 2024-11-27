@@ -440,4 +440,19 @@ def parameter_num(tabid: str, localId: str, beam_x: str, beam_theta: str):
     
     sim.build_beam_geometry()
     return generate_canvas(dataObj, int(tabid))
+
+from fun import lenses
+
+@app.post("/addLens")
+def addlens(localId: str):
+    lenses.append([0.1, 0.1])
+    return generate_fun(get_Data_obj(localId), 1)
+
+
+@app.post("/removeLens/{index}")
+def addlens(index: int, localId: str):
+    lenses.pop(index)
+    return generate_fun(get_Data_obj(localId), 1)
+
+
 # uvicorn app:app --host 0.0.0.0 --port 443 --ssl-keyfile=sim_key.pem --ssl-certfile=sim_cert.pem

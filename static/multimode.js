@@ -10,7 +10,7 @@ var vecB = [];
 var vecC = [];
 var vecD = [];
 var vecEt = [];
-var vecWt = [];
+var vecW = [];
 
 function getInitMultyMode() {
     const sel = document.getElementById("incomingFront");
@@ -21,7 +21,7 @@ function getInitMultyMode() {
         case "Gaussian Beam":
             z = n / 2 - 0.5;
             for (let i = 0; i < n; i++) {
-                vf.push(math.complex(1 * Math.exp(-(i - z) * (i - z) / 500)))
+                vf.push(math.complex(1 * Math.exp(-(i - z) * (i - z) / 12500)))
             }
             break;
         case "Two Slit":
@@ -157,8 +157,7 @@ function drawGraph() {
         case "D": v = vecD; break;
         case "E(x)":
             break;
-        case "Width(x)":
-            break;
+        case "Width(x)": v = vecW; break;
     }
 
     if (v != null) {
@@ -167,6 +166,27 @@ function drawGraph() {
 }
 
 function initMultiMode() {
+    let iLens = 0;
+    lenses = [];
+    do {
+        let lensDist = document.getElementById(`lens${iLens}dist`);
+        let lensFocal = document.getElementById(`lens${iLens}focal`);
+        if (lensDist == null || lensFocal == null) {
+            console.log(`Error ${lensDist}, ${lensFocal}`)
+            break;
+        }
+        valDist = parseFloat(lensDist.value);
+        valFocal = parseFloat(lensFocal.value);
+        console.log(`${lensDist.value} ${valDist}, ${lensFocal.value} ${valFocal}`)
+
+        if (isNaN(valDist) || isNaN(valFocal)) {
+            break;
+        }
+        lenses.push([valDist, valFocal]);
+        console.log(lenses);
+        iLens++;
+    } while(true);
+
     fronts = [getInitMultyMode()];
     ranges = [0.001];
     sfs = 0;
@@ -312,22 +332,44 @@ function getMatOnStep(dStep) {
     let M = [[1, 0], [0, 1]];
     let rdStep = dStep;
     while (iLens < lenses.length && rdStep > lenses[iLens][0] - prevLensPos) {
-        M = MMult(M, MDist(lenses[iLens][0]));
-        M = MMult(M, MLens(lenses[iLens][1]));
+        M = MMult(MDist(lenses[iLens][0] - prevLensPos), M);
+        M = MMult(MLens(lenses[iLens][1]), M);
         rdStep -= lenses[iLens][0] - prevLensPos;
         prevLensPos = lenses[iLens][0];
         iLens++;
     }
-    M = MMult(M, MDist(rdStep));
+    M = MMult(MDist(rdStep), M);
     return M;
-};
+}
+
+function calcWidth(v) {
+    let l = v.length;
+    let N = 0; sumX = 0; sumX2 = 0;
+    for (let i = 0; i < l; i++) {
+        let val = v[i].toPolar().r;
+        N += val;
+        sumX += i * val;
+        sumX2 += i * i * val;
+    }
+    if (isNaN(N)) {
+        return 0.0;
+    }
+    sumX /= N;
+    sumX2 /= N;
+
+    let w = Math.sqrt(sumX2 - sumX * sumX);
+
+    console.log(`N = ${N} sumX = ${sumX} sumX2 = ${sumX2} w = ${w}`)
+
+    return w;
+}
 function fullCavityMultiMode() {
     if (fronts.length <= 0) {
         return;
     }
     let lambda = 0.00000051;
     
-    vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0];
+    vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0]; vecW = [0];
     for (let iStep = 1; iStep < 300; iStep++) {
         let f0 = math.clone(fronts[0]);
         let r0 = ranges[0];
@@ -337,12 +379,13 @@ function fullCavityMultiMode() {
         let M  = getMatOnStep(dStep);
         let A = M[0][0];
         let B = M[0][1];
+        let C = M[1][0];
         let D = M[1][1];
         vecA.push(M[0][0]);
         vecB.push(M[0][1]);
         vecC.push(M[1][0]);
         vecD.push(M[1][1]);
-        console.log(`A = ${A}, B = ${B}, D = ${D}`)
+        console.log(`A = ${A}, B = ${B}, C = ${C}, D = ${D}`)
         let dxf = lambda * B / r0;
         let factor = math.sqrt(math.complex(0, - 1 / (B * lambda)));
         let co0 = Math.PI * dx0 * dx0 * A / (B * lambda);
@@ -362,6 +405,7 @@ function fullCavityMultiMode() {
             ff[i] = math.multiply(math.multiply(ff[i], factor), math.exp(math.complex(0, cof * ii * ii)))
         }
 
+        vecW.push(calcWidth(ff) * Math.abs(dxf));
         fronts.push(ff);
         ranges.push(L * dxf);
     }

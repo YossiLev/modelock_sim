@@ -4,7 +4,7 @@ import io
 import base64
 from fasthtml.common import *
 
-lenses = [[0.1, 0.1], [0.2, 0.1], [0.25, 0.1], [0.31, 0.1]]
+elements = [{"t": "L", "par":[0.3, 0.075]}, {"t": "L", "par":[0.45, 0.075]}, {"t": "X", "par":[0.85]}, ]
 
 def ver_func(l):
     vf = []
@@ -22,16 +22,28 @@ def draw_single_front(draw: ImageDraw, px, py, w, h, n, vec):
 def draw_multimode(draw: ImageDraw):
     draw_single_front(draw, 30, 30, 10, 2, 256, ver_func(256))
 
-def Lens(lens, s):
-    return Div(
-        Span(f'L{s + 1} P:'),
-        Input(type="number", id=f'lens{s}dist', name="lens", placeholder="0", step="0.01", style="width:40px;", value=f'{lens[0]}'),
-        Span("f:"),
-        Input(type="number", id=f'lens{s}focal', name="lens", placeholder="0", step="0.01", style="width:40px;", value=f'{lens[1]}'),
-        Button(NotStr("X"), escapse=False, hx_post=f'/removeLens/{s}', hx_target="#fun", hx_vals='js:{localId: getLocalId()}'), 
+def Element(el, s):
+    match (el["t"]):
+        case "X":
+            pos = el["par"][0]
+            return Div(
+                Span(f'X P:', id=f'type{s}'),
+                Input(type="number", id=f'el{s}dist', placeholder="0", step="0.01", style="width:50px;", value=f'{pos}'),
+                Button(NotStr("X"), escapse=False, hx_post=f'/removeElements/{s}', hx_target="#fun", hx_vals='js:{localId: getLocalId()}'), 
+                style="border: 1px solid red; display: inline-block; padding:2px;"
+            )
+            
+        case "L":
+            par = el["par"]              
+            return Div(
+                Span(f'L{s + 1} P:', id=f'type{s}'),
+                Input(type="number", id=f'el{s}dist', placeholder="0", step="0.01", style="width:50px;", value=f'{par[0]}'),
+                Span("f:"),
+                Input(type="number", id=f'el{s}focal', placeholder="0", step="0.01", style="width:50px;", value=f'{par[1]}'),
+                Button(NotStr("X"), escapse=False, hx_post=f'/removeElements/{s}', hx_target="#fun", hx_vals='js:{localId: getLocalId()}'), 
 
-        style="border: 1px solid red; display: inline-block; padding:2px;"
-    )
+                style="border: 1px solid red; display: inline-block; padding:2px;"
+            )
 
 def generate_fun(data_obj, tab, offset = 0):
 
@@ -51,16 +63,15 @@ def generate_fun(data_obj, tab, offset = 0):
                                Option("Delta"), 
                                Option("Zero"),                               
                                id="incomingFront"),
-                    
+                    Input(type="number", id=f'beamParam', placeholder="beam", step="10", style="width:70px;", value=f'4500'),
                     Button("Init", onclick="initMultiMode()"),
-                    # Button("Propogate", onclick="propogateMultiMode()"),
-                    # Button("Lens", onclick="lensMultiMode()"),
                     Button("Full", onclick="fullCavityMultiMode()"),
+                    Button("Roundtrip", onclick="roundtripMultiMode()"),
                     Button("Switch view", onclick="switchViewMultiMode()"),
                 ),
                 Div(
-                    *[Lens(lens, i) for i, lens in enumerate(lenses)],
-                    Button(NotStr("&#43;"), escapse=False, hx_post="/addLens", hx_target="#fun", hx_vals='js:{localId: getLocalId()}'), 
+                    *[Element(el, i) for i, el in enumerate(elements)],
+                    Button(NotStr("&#43;"), escapse=False, hx_post="/addElement", hx_target="#fun", hx_vals='js:{localId: getLocalId()}'), 
                 ),
                 Div(
                     Button(

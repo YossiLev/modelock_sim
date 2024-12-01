@@ -441,17 +441,17 @@ def parameter_num(tabid: str, localId: str, beam_x: str, beam_theta: str):
     sim.build_beam_geometry()
     return generate_canvas(dataObj, int(tabid))
 
-from fun import lenses
+from fun import elements
 
-@app.post("/addLens")
+@app.post("/addElement")
 def addlens(localId: str):
-    lenses.append([0.1, 0.1])
+    elements.append({"t": "L", "par":[0.2, 0.1]})
     return generate_fun(get_Data_obj(localId), 1)
 
 
-@app.post("/removeLens/{index}")
+@app.post("/removeElements/{index}")
 def addlens(index: int, localId: str):
-    lenses.pop(index)
+    elements.pop(index)
     return generate_fun(get_Data_obj(localId), 1)
 
 

@@ -14,14 +14,16 @@ var vecW = [];
 
 function getInitMultyMode() {
     const sel = document.getElementById("incomingFront");
+    const par = document.getElementById("beamParam");
     let vf = [];
-    let n = 512;
+    let n = 256;
     console.log("Sel ", sel.value)
     switch (sel.value) {
         case "Gaussian Beam":
+            let width = parseFloat(par.value);
             z = n / 2 - 0.5;
             for (let i = 0; i < n; i++) {
-                vf.push(math.complex(1 * Math.exp(-(i - z) * (i - z) / 12500)))
+                vf.push(math.complex(1 * Math.exp(-(i - z) * (i - z) / (2 * width))))
             }
             break;
         case "Two Slit":
@@ -106,18 +108,26 @@ function drawMultiMode() {
         }
     }
 
-    drawLenses();
+    drawElements();
     drawGraph();
 }
 
-function drawLenses() {
+function drawElements() {
     const canvas = document.getElementById("funCanvas");
     const ctx = canvas.getContext("2d");
     ctx.fillStyle = `yellow`;
-
-    for (let iLens = 0; iLens < lenses.length; iLens++) {
-        let px = drawSx + lenses[iLens][0] / distStep * drawW;
-        ctx.fillRect(px, drawMid - 20 * zoomFactor, 2, 40 * zoomFactor);          
+    for (let iEl = 0; iEl < elements.length; iEl++) {
+        switch (elements[iEl].t) {
+            case "L":
+                ctx.fillStyle = `yellow`;
+                break;
+            case "X":
+                ctx.fillStyle = `blue`;
+                break;
+    
+        }
+        let px = drawSx + elements[iEl].par[0] / distStep * drawW;
+        ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);          
     }
 }
 
@@ -166,29 +176,43 @@ function drawGraph() {
 }
 
 function initMultiMode() {
-    let iLens = 0;
-    lenses = [];
+    let iEl = 0;
+    elements = [];
     do {
-        let lensDist = document.getElementById(`lens${iLens}dist`);
-        let lensFocal = document.getElementById(`lens${iLens}focal`);
-        if (lensDist == null || lensFocal == null) {
-            console.log(`Error ${lensDist}, ${lensFocal}`)
+        let elementTypeControl = document.getElementById(`type${iEl}`);
+        if (elementTypeControl == null) {
+            break;
+        }
+        let elementType = elementTypeControl.innerHTML[0];
+        let lensDist = document.getElementById(`el${iEl}dist`);
+        if (lensDist == null) {
+            console.log(`Error ${lensDist}`)
             break;
         }
         valDist = parseFloat(lensDist.value);
-        valFocal = parseFloat(lensFocal.value);
-        console.log(`${lensDist.value} ${valDist}, ${lensFocal.value} ${valFocal}`)
-
-        if (isNaN(valDist) || isNaN(valFocal)) {
-            break;
+        if (elementType == "L") {
+            let lensFocal = document.getElementById(`el${iEl}focal`);
+            if (lensFocal == null) {
+                console.log(`Error ${lensFocal}`)
+                break;
+            }
+            valFocal = parseFloat(lensFocal.value);
+            console.log(`${lensDist.value} ${valDist}, ${lensFocal.value} ${valFocal}`)
+            if (isNaN(valDist) || isNaN(valFocal)) {
+                break;
+            }
+        } else {
+            valFocal = -1;
         }
-        lenses.push([valDist, valFocal]);
-        console.log(lenses);
-        iLens++;
+
+
+        elements.push({t: elementType, par: [valDist, valFocal]});
+        console.log(elements);
+        iEl++;
     } while(true);
 
     fronts = [getInitMultyMode()];
-    ranges = [0.001];
+    ranges = [0.003];
     sfs = 0;
     locations = [0];
     drawMultiMode();
@@ -322,23 +346,63 @@ function MMult(m, m2) {
     return  [[a, b], [c, d]];
 }
 
-let lenses = [[0.1, 0.1], [0.25, 0.1]];
-let distStep = 0.002;
+let elements = [];
+let distStep = 0.003;
 
 function getMatOnStep(dStep) {
 
-    let iLens = 0;
+    let iEl = 0;
     let prevLensPos = 0.0;
     let M = [[1, 0], [0, 1]];
     let rdStep = dStep;
-    while (iLens < lenses.length && rdStep > lenses[iLens][0] - prevLensPos) {
-        M = MMult(MDist(lenses[iLens][0] - prevLensPos), M);
-        M = MMult(MLens(lenses[iLens][1]), M);
-        rdStep -= lenses[iLens][0] - prevLensPos;
-        prevLensPos = lenses[iLens][0];
-        iLens++;
+    while (iEl < elements.length && rdStep > elements[iEl].par[0] - prevLensPos) {
+        switch (elements[iEl].t) {
+        case "L":
+            M = MMult(MDist(elements[iEl].par[0] - prevLensPos), M);
+            M = MMult(MLens(elements[iEl].par[1]), M);
+            rdStep -= elements[iEl].par[0] - prevLensPos;
+            prevLensPos = elements[iEl].par[0];
+        }
+        iEl++;
     }
     M = MMult(MDist(rdStep), M);
+    return M;
+}
+
+function getMatOnRoundTrip(c) {
+    let iEl = 0;
+    let prevLensPos = 0.0;
+    let M = [[1, 0], [0, 1]];
+    while (iEl < elements.length) {
+        switch (elements[iEl].t) {
+        case "L":
+            M = MMult(MDist(elements[iEl].par[0] - prevLensPos), M);
+            M = MMult(MLens(elements[iEl].par[1]), M);
+            prevLensPos = elements[iEl].par[0];
+            break;
+        case "X": // end wall
+            M = MMult(MDist(elements[iEl].par[0] - prevLensPos), M);
+            prevLensPos = elements[iEl].par[0];
+            break;
+        }
+        if (elements[iEl].t == "X") {
+            iEl--;
+            break;
+        }
+        iEl++;
+    }
+    while (iEl >= 0) {
+        switch (elements[iEl].t) {
+        case "L":
+            M = MMult(MDist(prevLensPos - elements[iEl].par[0]), M);
+            M = MMult(MLens(elements[iEl].par[1]), M);
+            prevLensPos = elements[iEl].par[0];
+            break;
+        }
+        iEl--;
+    }    
+    M = MMult(MDist(prevLensPos), M);
+
     return M;
 }
 
@@ -377,10 +441,7 @@ function fullCavityMultiMode() {
         let dx0 = r0/ L;
         let dStep = iStep * distStep;
         let M  = getMatOnStep(dStep);
-        let A = M[0][0];
-        let B = M[0][1];
-        let C = M[1][0];
-        let D = M[1][1];
+        let A = M[0][0], B = M[0][1], C = M[1][0], D = M[1][1];
         vecA.push(M[0][0]);
         vecB.push(M[0][1]);
         vecC.push(M[1][0]);
@@ -412,8 +473,63 @@ function fullCavityMultiMode() {
     drawMultiMode();
 }
 
+function roundtripMultiMode() {
+    if (fronts.length <= 0) {
+        return;
+    }
+    let lambda = 0.00000051;
+    let M  = getMatOnRoundTrip(1);
+    let A = M[0][0], B = M[0][1], C = M[1][0], D = M[1][1];
+    let v = (A + D) / 2;
+    console.log(`A0 = ${A}, B0 = ${B}, C0 = ${C}, D0 = ${D}, v = ${v}`)
+    if (v * v <= 1) {
+        disc = Math.sqrt(1 - v * v);
+        l1 = v + disc;
+        l2 = v - disc;
+        qi = B / disc;
+        w = qi * lambda / Math.PI;
+        console.log(`disc = ${disc}, w = ${w}, l1 = ${l1}, l2 = ${l2}`)
+    }
+    
+    // vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0]; vecW = [0];
+    // for (let iStep = 1; iStep < 10; iStep++) {
+    //     let f0 = math.clone(fronts[0]);
+    //     let r0 = ranges[0];
+    //     let L = f0.length;
+    //     let dx0 = r0 / L;
+    //     let A = M[0][0], B = M[0][1], C = M[1][0], D = M[1][1];
+    //     vecA.push(M[0][0]);
+    //     vecB.push(M[0][1]);
+    //     vecC.push(M[1][0]);
+    //     vecD.push(M[1][1]);
+    //     console.log(`A = ${A}, B = ${B}, C = ${C}, D = ${D}`)
+    //     let dxf = lambda * B / r0;
+    //     let factor = math.sqrt(math.complex(0, - 1 / (B * lambda)));
+    //     let co0 = Math.PI * dx0 * dx0 * A / (B * lambda);
+    //     console.log(`factor = ${factor}, lambda = ${lambda}`)
+
+    //     let cof = Math.PI * dxf * dxf * D / (B * lambda);
+    //     console.log(`dx0 = ${dx0}, dxf = ${dxf}, co0 = ${co0}, cof = ${cof}, r0 = ${r0}, dStep = ${dStep}`)
+
+    //     for (let i = 0; i < L; i++) {
+    //         let ii = i - L / 2;
+    //         f0[i] = math.multiply(f0[i], math.exp(math.complex(0, co0 * ii * ii)))
+    //     }
+    //     let ff = dft(f0, dx0);
+
+    //     for (let i = 0; i < L; i++) {
+    //         let ii = i - L / 2;
+    //         ff[i] = math.multiply(math.multiply(ff[i], factor), math.exp(math.complex(0, cof * ii * ii)))
+    //     }
+
+    //     vecW.push(calcWidth(ff) * Math.abs(dxf));
+    //     fronts.push(ff);
+    //     ranges.push(L * dxf);
+    // }
+    drawMultiMode();
+}
+
 function mainCanvasMouseMove(e) {
-    console.log(e);
     const sel = document.getElementById("displayOption");
     if (sel.value == "E(x)") {
         var bounds = e.target.getBoundingClientRect();
@@ -431,5 +547,5 @@ function mainCanvasMouseMove(e) {
         }
     }
 
-    console.log(x, y);
+    //console.log(x, y);
 }

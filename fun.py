@@ -63,11 +63,14 @@ def generate_fun(data_obj, tab, offset = 0):
                                Option("Delta"), 
                                Option("Zero"),                               
                                id="incomingFront"),
-                    Input(type="number", id=f'beamParam', placeholder="beam", step="10", style="width:70px;", value=f'4500'),
+                    Input(type="number", id=f'beamParam', placeholder="beam", step="0.0001", style="width:80px;", value=f'0.0005'),
                     Button("Init", onclick="initMultiMode()"),
                     Button("Full", onclick="fullCavityMultiMode()"),
                     Button("Roundtrip", onclick="roundtripMultiMode()"),
                     Button("Switch view", onclick="switchViewMultiMode()"),
+                    Input(type="number", id=f'initialRange', placeholder="range(m)", step="0.001", style="width:80px;", value=f'0.005'),
+                    Input(type="number", id=f'nSamplesPower', placeholder="power", step="1", style="width:80px;", value=f'8'),
+
                 ),
                 Div(
                     *[Element(el, i) for i, el in enumerate(elements)],

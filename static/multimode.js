@@ -1,10 +1,14 @@
 
 var sfs = -1;
 var fronts = [];
+const lambda = 0.000000780;
+var initialRange = 0.01047;
 var ranges = [];
+var nSamples = 256;
 var locations = [];
 var viewOption = 1;
-var zoomFactor = 1.0; //45000;
+var zoomFactor = 1.0; 45000;
+var basicZoomFactor = 50000.0; // pixels per meter
 var vecA = [];
 var vecB = [];
 var vecC = [];
@@ -15,46 +19,50 @@ var vecW = [];
 function getInitMultyMode() {
     const sel = document.getElementById("incomingFront");
     const par = document.getElementById("beamParam");
+    const rng = document.getElementById("initialRange");
+    initialRange = parseFloat(rng.value);
     let vf = [];
-    let n = 256;
     console.log("Sel ", sel.value)
     switch (sel.value) {
         case "Gaussian Beam":
             let width = parseFloat(par.value);
-            z = n / 2 - 0.5;
-            for (let i = 0; i < n; i++) {
-                vf.push(math.complex(1 * Math.exp(-(i - z) * (i - z) / (2 * width))))
+            let dx = initialRange / nSamples;
+            x0 = nSamples / 2 * dx;
+            for (let i = 0; i < nSamples; i++) {
+                px = i * dx;
+                x = (px - x0) / width;
+                vf.push(math.complex(1 * Math.exp(- 0.5 * x * x)))
             }
             break;
         case "Two Slit":
-            z1 = 2 * n / 5
-            z2 = 3 * n / 5
-            for (let i = 0; i < n; i++) {
+            z1 = 2 * nSamples / 5
+            z2 = 3 * nSamples / 5
+            for (let i = 0; i < nSamples; i++) {
                 vf.push(math.complex(1 * (Math.exp(-(i - z1) * (i - z1) / 50) + Math.exp(-(i - z2) * (i - z2) / 50))))
             }
             break;
         case "Gaussian shift":
-            z1 = 2 * n / 5
-            for (let i = 0; i < n; i++) {
+            z1 = 2 * nSamples / 5
+            for (let i = 0; i < nSamples; i++) {
                 vf.push(math.complex((Math.exp(-(i - z1) * (i - z1) / 150))))
             }
             break;    
         case "Mode He5":
-            z = n / 2 - 0.5;
+            z = nSamples / 2 - 0.5;
             let f = 50 / Math.sqrt(Math.sqrt(Math.PI) * 32 * 120);
-            for (let i = 0; i < n; i++) {
+            for (let i = 0; i < nSamples; i++) {
                 let x = (i - z) / 15;
                 vf.push(math.complex(f * (x * x * x * x * x - 10 * x * x * x + 15 * x) * Math.exp(- x * x / 2)))
             }
             break;    
         case "Delta":
-            for (let i = 0; i < n; i++) {
+            for (let i = 0; i < nSamples; i++) {
                 vf.push(math.complex(0))
             }
-            vf[n / 2] = math.complex(1);
+            vf[nSamples / 2] = math.complex(1);
             break;
         case "Zero":
-            for (let i = 0; i < n; i++) {
+            for (let i = 0; i < nSamples; i++) {
                 vf.push(math.complex(0))
             }
             break;    
@@ -62,7 +70,7 @@ function getInitMultyMode() {
 
     // for (let i = 0; i < 20; i++) {
     //     vf[i] = math.complex(0);
-    //     vf[n - 1 - i] = math.complex(0);
+    //     vf[nSamples - 1 - i] = math.complex(0);
     // }
 
     console.log(vf);
@@ -77,7 +85,7 @@ function zoomMultiMode(z) {
     }
     drawMultiMode();
 }
-const drawSx = 20;
+const drawSx = 50;
 const drawW = 3;
 const drawMid = 400;
 
@@ -87,11 +95,17 @@ function drawMultiMode() {
     ctx.fillStyle = `red`;
     ctx.fillRect(0, 0, 1000, 1000);
 
+    const canvasHeight = canvas.height;
+    const heightM = (canvasHeight / 2) / (zoomFactor * basicZoomFactor);
+    const powHeight = Math.log10(heightM);
+    const markHeight = Math.pow(10, Math.floor(powHeight));
+    const markHeightPixel = markHeight * (zoomFactor * basicZoomFactor);
+
     for (let f = 0; f < fronts.length; f++) {
         let fi = fronts[f];
         let r = ranges[f];
         let l = fi.length;       
-        let h = Math.abs(r) / l * zoomFactor * 45000;
+        let h = Math.abs(r) / l * (zoomFactor * basicZoomFactor);
         if (f == 0) {
             ctx.fillStyle = `orange`;
             ctx.fillRect(0, drawMid - l / 2, 1000, l);          
@@ -106,6 +120,24 @@ function drawMultiMode() {
             ctx.fillStyle = `rgba(${c}, ${c}, ${c}, 255)`;
             ctx.fillRect(drawSx + f * drawW, (i - (l / 2)) * (h) + drawMid, drawW, h + 1);
         }
+    }
+
+    ctx.beginPath();
+    ctx.strokeStyle = "black";
+    for (it = 0; it * markHeightPixel < canvasHeight / 2; it++) {
+        let t = canvasHeight / 2 - it * markHeightPixel;
+        ctx.moveTo(0, t);
+        ctx.lineTo(8, t);
+        t = canvasHeight / 2 + it * markHeightPixel;
+        ctx.moveTo(0,  t);
+        ctx.lineTo(8, t);
+    }
+    ctx.stroke();
+    for (it = 0; it * markHeightPixel < canvasHeight / 2; it++) {
+        t = canvasHeight / 2 - it * markHeightPixel;
+        ctx.fillText(String(it * markHeight), 10, t + 4);
+        t = canvasHeight / 2 + it * markHeightPixel;
+        ctx.fillText(String(- it * markHeight), 10, t + 4);
     }
 
     drawElements();
@@ -212,7 +244,7 @@ function initMultiMode() {
     } while(true);
 
     fronts = [getInitMultyMode()];
-    ranges = [0.003];
+    ranges = [initialRange];
     sfs = 0;
     locations = [0];
     drawMultiMode();
@@ -247,8 +279,8 @@ function dft(inp, ss) {
       let sumReal = 0;
       let sumImag = 0;
       let nn = 0;
-      for (let n = 0; n < N; n++) {
-        nm = (n + N / 2) % N;
+      for (let iN = 0; iN < N; iN++) {
+        nm = (iN + N / 2) % N;
         sumReal +=  inpReal[nm] * cos[nn] + inpImag[nm] * sin[nn];
         sumImag += -inpReal[nm] * sin[nn] + inpImag[nm] * cos[nn];
         nn = (nn + k) % N;
@@ -267,7 +299,6 @@ function propogateMultiMode() {
         return;
     }
     let distS = 0.002;
-    let lambda = 0.00000051;
     lfs = fronts.length;
     let dist = distS * (lfs - sfs);
     fi = math.clone(fronts[sfs]);
@@ -431,7 +462,6 @@ function fullCavityMultiMode() {
     if (fronts.length <= 0) {
         return;
     }
-    let lambda = 0.00000051;
     
     vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0]; vecW = [0];
     for (let iStep = 1; iStep < 300; iStep++) {
@@ -477,7 +507,6 @@ function roundtripMultiMode() {
     if (fronts.length <= 0) {
         return;
     }
-    let lambda = 0.00000051;
     let M  = getMatOnRoundTrip(1);
     let A = M[0][0], B = M[0][1], C = M[1][0], D = M[1][1];
     let v = (A + D) / 2;
@@ -491,41 +520,42 @@ function roundtripMultiMode() {
         console.log(`disc = ${disc}, w = ${w}, l1 = ${l1}, l2 = ${l2}`)
     }
     
-    // vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0]; vecW = [0];
-    // for (let iStep = 1; iStep < 10; iStep++) {
-    //     let f0 = math.clone(fronts[0]);
-    //     let r0 = ranges[0];
-    //     let L = f0.length;
-    //     let dx0 = r0 / L;
-    //     let A = M[0][0], B = M[0][1], C = M[1][0], D = M[1][1];
-    //     vecA.push(M[0][0]);
-    //     vecB.push(M[0][1]);
-    //     vecC.push(M[1][0]);
-    //     vecD.push(M[1][1]);
-    //     console.log(`A = ${A}, B = ${B}, C = ${C}, D = ${D}`)
-    //     let dxf = lambda * B / r0;
-    //     let factor = math.sqrt(math.complex(0, - 1 / (B * lambda)));
-    //     let co0 = Math.PI * dx0 * dx0 * A / (B * lambda);
-    //     console.log(`factor = ${factor}, lambda = ${lambda}`)
+    vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0]; vecW = [0];
+    for (let iStep = 1; iStep < 300; iStep++) {
+        let f0 = math.clone(fronts[iStep - 1]);
+        let r0 = ranges[iStep - 1];
+        let L = f0.length;
+        let dx0 = r0 / L;
+        let A = M[0][0], B = M[0][1], C = M[1][0], D = M[1][1];
+        vecA.push(M[0][0]);
+        vecB.push(M[0][1]);
+        vecC.push(M[1][0]);
+        vecD.push(M[1][1]);
+        console.log(`A = ${A}, B = ${B}, C = ${C}, D = ${D}`)
+        let dxf = lambda * B / r0;
+        let factor = math.sqrt(math.complex(0, - 1 / (B * lambda)));
+        console.log(`factor = ${factor}, lambda = ${lambda}`)
+        console.log(`dxf = lambda * B / r0   ==> ${dxf} = ${lambda} * ${B} / ${r0}`);
 
-    //     let cof = Math.PI * dxf * dxf * D / (B * lambda);
-    //     console.log(`dx0 = ${dx0}, dxf = ${dxf}, co0 = ${co0}, cof = ${cof}, r0 = ${r0}, dStep = ${dStep}`)
+        let co0 = Math.PI * dx0 * dx0 * A / (B * lambda);
+        let cof = Math.PI * dxf * dxf * D / (B * lambda);
+        console.log(`dx0 = ${dx0}, dxf = ${dxf}, co0 = ${co0}, cof = ${cof}, r0 = ${r0}`)
 
-    //     for (let i = 0; i < L; i++) {
-    //         let ii = i - L / 2;
-    //         f0[i] = math.multiply(f0[i], math.exp(math.complex(0, co0 * ii * ii)))
-    //     }
-    //     let ff = dft(f0, dx0);
+        for (let i = 0; i < L; i++) {
+            let ii = i - L / 2;
+            f0[i] = math.multiply(f0[i], math.exp(math.complex(0, co0 * ii * ii)))
+        }
+        let ff = dft(f0, dx0);
 
-    //     for (let i = 0; i < L; i++) {
-    //         let ii = i - L / 2;
-    //         ff[i] = math.multiply(math.multiply(ff[i], factor), math.exp(math.complex(0, cof * ii * ii)))
-    //     }
+        for (let i = 0; i < L; i++) {
+            let ii = i - L / 2;
+            ff[i] = math.multiply(math.multiply(ff[i], factor), math.exp(math.complex(0, cof * ii * ii)))
+        }
 
-    //     vecW.push(calcWidth(ff) * Math.abs(dxf));
-    //     fronts.push(ff);
-    //     ranges.push(L * dxf);
-    // }
+        vecW.push(calcWidth(ff) * Math.abs(dxf));
+        fronts.push(ff);
+        ranges.push(L * dxf);
+    }
     drawMultiMode();
 }
 

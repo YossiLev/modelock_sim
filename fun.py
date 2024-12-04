@@ -96,6 +96,8 @@ def generate_fun(data_obj, tab, offset = 0):
                             Option("D"), 
                             Option("E(x)"), 
                             Option("Width(x)"),                               
+                            Option("Waist(x)"),                               
+                            Option("QWaist(x)"),                               
                             id="displayOption",
                             **{'onchange':"drawGraph();"},),
             )
@@ -136,7 +138,10 @@ def generate_fun(data_obj, tab, offset = 0):
                **{'onmousemove':"mainCanvasMouseMove(event);"},
                ),
         added2,
-        Canvas(id="graphCanvas", width=1000, height = 200)
+        Canvas(id="graphCanvas", width=1000, height = 200,
+               **{'onmousemove':"graphCanvasMouseMove(event);",
+                  'onmousedown':"graphCanvasMouseDown(event);",
+                  'onmouseup':"graphCanvasMouseUp(event);",},)
     )
 
     #return Img(src=f'data:image/jpg;base64,{str(my_base64_jpgData, "utf-8")}')

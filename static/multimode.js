@@ -15,6 +15,13 @@ var vecC = [];
 var vecD = [];
 var vecEt = [];
 var vecW = [];
+var vecWaist = [];
+var vecQ = [];
+var RayleighRange;
+var graphData = [];
+var isMouseDownOnGraph = false;
+var mouseOnGraphStart = 0;
+var mouseOnGraphEnd = 0;
 
 function getInitMultyMode() {
     const sel = document.getElementById("incomingFront");
@@ -25,14 +32,16 @@ function getInitMultyMode() {
     console.log("Sel ", sel.value)
     switch (sel.value) {
         case "Gaussian Beam":
-            let width = parseFloat(par.value);
+            let waist = parseFloat(par.value);
             let dx = initialRange / nSamples;
             x0 = nSamples / 2 * dx;
             for (let i = 0; i < nSamples; i++) {
                 px = i * dx;
-                x = (px - x0) / width;
-                vf.push(math.complex(1 * Math.exp(- 0.5 * x * x)))
+                x = (px - x0) / waist;
+                vf.push(math.complex(1 * Math.exp(- x * x)))
             }
+            RayleighRange = Math.PI * waist * waist * 1.0 / lambda;
+
             break;
         case "Two Slit":
             z1 = 2 * nSamples / 5
@@ -92,14 +101,22 @@ const drawMid = 400;
 function drawMultiMode() {
     const canvas = document.getElementById("funCanvas");
     const ctx = canvas.getContext("2d");
-    ctx.fillStyle = `red`;
+    ctx.fillStyle = "#ffb0e0";
     ctx.fillRect(0, 0, 1000, 1000);
 
     const canvasHeight = canvas.height;
     const heightM = (canvasHeight / 2) / (zoomFactor * basicZoomFactor);
     const powHeight = Math.log10(heightM);
+    const markHeightFixed = Math.max(0, - Math.floor(powHeight));
     const markHeight = Math.pow(10, Math.floor(powHeight));
     const markHeightPixel = markHeight * (zoomFactor * basicZoomFactor);
+
+    const canvasWidth = canvas.width;
+    const widthM = (canvasWidth - 200) * (distStep / drawW);
+    const powWidth = Math.log10(widthM);
+    const markWidthFixed = Math.max(0, - Math.floor(powWidth));
+    const markWidth = Math.pow(10, Math.floor(powWidth));
+    const markWidthPixel = markWidth / (distStep / drawW);
 
     for (let f = 0; f < fronts.length; f++) {
         let fi = fronts[f];
@@ -107,7 +124,7 @@ function drawMultiMode() {
         let l = fi.length;       
         let h = Math.abs(r) / l * (zoomFactor * basicZoomFactor);
         if (f == 0) {
-            ctx.fillStyle = `orange`;
+            ctx.fillStyle = `#ffddaa`;
             ctx.fillRect(0, drawMid - l / 2, 1000, l);          
         }
         for (let i = 0; i < l; i++) {
@@ -121,9 +138,14 @@ function drawMultiMode() {
             ctx.fillRect(drawSx + f * drawW, (i - (l / 2)) * (h) + drawMid, drawW, h + 1);
         }
     }
+    drawElements();
 
     ctx.beginPath();
-    ctx.strokeStyle = "black";
+    ctx.strokeStyle = "white";
+    ctx.globalCompositeOperation = "difference";
+    ctx.fillStyle = "white";
+    //ctx.font = "bold 10pt Courier";
+
     for (it = 0; it * markHeightPixel < canvasHeight / 2; it++) {
         let t = canvasHeight / 2 - it * markHeightPixel;
         ctx.moveTo(0, t);
@@ -135,13 +157,26 @@ function drawMultiMode() {
     ctx.stroke();
     for (it = 0; it * markHeightPixel < canvasHeight / 2; it++) {
         t = canvasHeight / 2 - it * markHeightPixel;
-        ctx.fillText(String(it * markHeight), 10, t + 4);
+        ctx.fillText((it * markHeight).toFixed(markHeightFixed), 10, t + 4);
         t = canvasHeight / 2 + it * markHeightPixel;
-        ctx.fillText(String(- it * markHeight), 10, t + 4);
+        ctx.fillText((- it * markHeight).toFixed(markHeightFixed), 10, t + 4);
     }
 
-    drawElements();
+    ctx.beginPath();
+    for (it = 0; it * markWidthPixel < canvasWidth; it++) {
+        let t = it * markWidthPixel + drawSx;
+        ctx.moveTo(t, canvasHeight);
+        ctx.lineTo(t,canvasHeight - 10);
+    }
+    ctx.stroke();
+    for (it = 0; it * markWidthPixel < canvasWidth; it++) {
+        let t = it * markWidthPixel + drawSx;
+        ctx.fillText((it * markWidth).toFixed(markWidthFixed), t, canvasHeight - 20);
+    }
+    ctx.globalCompositeOperation = "source-over";
+
     drawGraph();
+
 }
 
 function drawElements() {
@@ -163,24 +198,55 @@ function drawElements() {
     }
 }
 
-function drawVector(v) {
+function vecDeriv(v, dx = 1) {
+    let vd = math.clone(v);
+    vd[0] = 0;
+    for (let i = 1; i < v.length; i++) {
+        vd[i] = (v[i] - v[i - 1]) / dx;
+    }
+    return vd;
+}
+
+function vecWaistFromQ(v) {
+    let vw = math.clone(v);
+    for (let i = 0; i < v.length; i++) {
+        console.log(`i = ${i}`);
+        console.log(v[i]);
+        console.log(math.divide(1, v[i]));
+        console.log(math.divide(1, v[i]).im);
+        vw[i] = Math.sqrt(- lambda / (Math.PI * (math.divide(1, v[i]).im)));
+        console.log(- lambda / (Math.PI * (math.divide(1, v[i]).im)));
+        console.log(math.divide(1, v[i]).im);
+
+    }
+    return vw;
+}
+
+function drawVector(v, clear = true, color = "red") {
     const canvas = document.getElementById("graphCanvas");
     const ctx = canvas.getContext("2d");
-    ctx.fillStyle = `white`;
-    ctx.fillRect(0, 0, 1000, 200);     
-   
     let l = v.length;
-    ctx.strokeStyle = `black`;
-    ctx.beginPath();
-    ctx.moveTo(drawSx, 100);
-    ctx.lineTo(drawSx + l * drawW, 100);
-    ctx.stroke(); 
+    if (clear) {
+        ctx.fillStyle = `white`;
+        ctx.fillRect(0, 0, 1000, 200);     
+        if (isMouseDownOnGraph) {
+            const canvas = document.getElementById("graphCanvas");
+            const ctx = canvas.getContext("2d");
+            ctx.fillStyle = "#ddd";
+            ctx.fillRect(drawSx + mouseOnGraphStart * drawW, 0, (mouseOnGraphEnd - mouseOnGraphStart) * drawW, 200)
+        }
+        ctx.strokeStyle = `black`;
+        ctx.beginPath();
+        ctx.moveTo(drawSx, 100);
+        ctx.lineTo(drawSx + l * drawW, 100);
+        ctx.stroke();
+    }
+
     let fac = Math.max(Math.abs(Math.max(...v)), Math.abs(Math.min(...v)));
-    console.log(`fac = ${fac}, M = ${Math.max(...v)}, m = ${Math.min(...v)}`)
     if (fac > 0) {
         fac = 90 / fac
     }
-    ctx.strokeStyle = `red`;
+    ctx.strokeStyle = color;
     ctx.beginPath();
     ctx.moveTo(drawSx, 100 - Math.floor(fac * v[0]));
     for (let i = 1; i < l; i++) {
@@ -191,19 +257,32 @@ function drawVector(v) {
 function drawGraph() {
     const sel = document.getElementById("displayOption");
 
-    let v = null;
+    graphData = [];
     switch (sel.value) {
-        case "A": v = vecA; break;
-        case "B": v = vecB; break;
-        case "C": v = vecC; break;
-        case "D": v = vecD; break;
+        case "A": graphData.push(vecA); break;
+        case "B": graphData.push(vecB); break;
+        case "C": graphData.push(vecC); break;
+        case "D": graphData.push(vecD); break;
         case "E(x)":
             break;
-        case "Width(x)": v = vecW; break;
+        case "Width(x)": 
+            graphData.push(vecW);
+            graphData.push(vecDeriv(vecW, distStep));
+            break
+        case "Waist(x)": 
+            graphData.push(vecWaist);
+            graphData.push(vecDeriv(vecWaist, distStep));
+            break;
+        case "QWaist(x)": 
+            graphData.push(vecWaistFromQ(vecQ));
+            break;
     }
 
-    if (v != null) {
-        drawVector(v);
+    if (graphData.length > 0) {
+        drawVector(graphData[0]);
+        if (graphData.length > 1) {
+            drawVector(graphData[1], false, "purple");
+        }
     }
 }
 
@@ -463,7 +542,7 @@ function fullCavityMultiMode() {
         return;
     }
     
-    vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0]; vecW = [0];
+    vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0]; vecW = [0], vecWaist = [0], vecQ[0] = math.complex(0, RayleighRange);
     for (let iStep = 1; iStep < 300; iStep++) {
         let f0 = math.clone(fronts[0]);
         let r0 = ranges[0];
@@ -476,7 +555,8 @@ function fullCavityMultiMode() {
         vecB.push(M[0][1]);
         vecC.push(M[1][0]);
         vecD.push(M[1][1]);
-        console.log(`A = ${A}, B = ${B}, C = ${C}, D = ${D}`)
+        console.log(`A = ${A}, B = ${B}, C = ${C}, D = ${D}`);
+        let newQ = math.chain(vecQ[0]).multiply(A).add(B).divide(math.chain(vecQ[0]).multiply(C).add(D).done()).done();
         let dxf = lambda * B / r0;
         let factor = math.sqrt(math.complex(0, - 1 / (B * lambda)));
         let co0 = Math.PI * dx0 * dx0 * A / (B * lambda);
@@ -496,7 +576,9 @@ function fullCavityMultiMode() {
             ff[i] = math.multiply(math.multiply(ff[i], factor), math.exp(math.complex(0, cof * ii * ii)))
         }
 
+        vecQ.push(newQ);
         vecW.push(calcWidth(ff) * Math.abs(dxf));
+        vecWaist.push(calcWidth(ff) * Math.abs(dxf) * 1.41421356237);
         fronts.push(ff);
         ranges.push(L * dxf);
     }
@@ -519,8 +601,7 @@ function roundtripMultiMode() {
         w = qi * lambda / Math.PI;
         console.log(`disc = ${disc}, w = ${w}, l1 = ${l1}, l2 = ${l2}`)
     }
-    
-    vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0]; vecW = [0];
+    vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0]; vecW = [0], vecWaist = [0], vecQ[0] = math.complex(0, RayleighRange);
     for (let iStep = 1; iStep < 300; iStep++) {
         let f0 = math.clone(fronts[iStep - 1]);
         let r0 = ranges[iStep - 1];
@@ -553,6 +634,8 @@ function roundtripMultiMode() {
         }
 
         vecW.push(calcWidth(ff) * Math.abs(dxf));
+        vecWaist.push(calcWidth(ff) * Math.abs(dxf) * 1.41421356237);
+
         fronts.push(ff);
         ranges.push(L * dxf);
     }
@@ -577,5 +660,75 @@ function mainCanvasMouseMove(e) {
         }
     }
 
-    //console.log(x, y);
+}
+
+function graphCanvasMouseMove(e) {
+    var bounds = e.target.getBoundingClientRect();
+    var x = e.clientX - bounds.left;
+    var y = e.clientY - bounds.top;
+
+    let ix = Math.floor((x - drawSx) / drawW);
+
+    const canvas = document.getElementById("graphCanvas");
+    const ctx = canvas.getContext("2d");
+    if (isMouseDownOnGraph) {
+        mouseOnGraphEnd = ix;
+        drawGraph();
+        if (graphData.length >= 1 &&
+            mouseOnGraphEnd > 0 && mouseOnGraphEnd < graphData[0].length &&
+            mouseOnGraphStart > 0 && mouseOnGraphStart < graphData[0].length &&
+            mouseOnGraphStart < mouseOnGraphEnd) {
+            let count = mouseOnGraphEnd - mouseOnGraphStart + 1
+            let part = graphData[0].slice(mouseOnGraphStart, mouseOnGraphEnd + 1);
+            let logPart  = math.map(part, Math.log)
+            let partMax = Math.max(...part);
+            let partMin = Math.min(...part);
+            drawTextBG(ctx, `Count ${count}`, 160, 120 + 0 * 16, "orange");
+            drawTextBG(ctx, `Max ${partMax}`, 160, 120 + 1 * 16, "orange");
+            drawTextBG(ctx, `Min ${partMin}`, 160, 120 + 2 * 16, "orange");
+            drawTextBG(ctx, `Avg ${part.reduce((a, b) => a + b, 0) / count}`, 160, 120 + 3 * 16, "orange");
+            drawTextBG(ctx, `AvgGeo ${Math.exp(logPart.reduce((a, b) => a + b, 0) / count)} [${Math.sqrt(partMax * partMin)}]`, 160, 120 + 4 * 16, "orange");
+        }
+    }
+
+    if (ix >= 0) {
+        ctx.fillStyle = "black";
+        
+        drawTextBG(ctx, (ix * distStep).toFixed(6), 20, 120);
+        for (let iVec = 0; iVec < graphData.length; iVec++) {
+            if (graphData[iVec].length > ix) {
+                let val = graphData[iVec][ix];
+                drawTextBG(ctx, val.toFixed(8), 20, 120 + (iVec + 1) * 16, iVec == 0 ? "red" : "purple");
+            }
+        }
+    }
+
+}
+
+function graphCanvasMouseDown(e) {
+    var bounds = e.target.getBoundingClientRect();
+    var x = e.clientX - bounds.left;
+    var y = e.clientY - bounds.top;
+
+    let ix = Math.floor((x - drawSx) / drawW);
+    isMouseDownOnGraph = true;
+    mouseOnGraphStart = ix;
+
+}
+
+function graphCanvasMouseUp(e) {
+    console.log("up ", e);
+    isMouseDownOnGraph = false;
+}
+
+function drawTextBG(ctx, txt, x, y, color = '#000', font = "10pt Courier") {
+    ctx.save();
+    ctx.font = font;
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = '#fff';
+    var width = ctx.measureText(txt).width;
+    ctx.fillRect(x, y, width, parseInt(font, 10));
+    ctx.fillStyle = color;
+    ctx.fillText(txt, x, y);
+    ctx.restore();
 }

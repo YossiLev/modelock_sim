@@ -686,7 +686,7 @@ function graphCanvasMouseMove(e) {
             drawTextBG(ctx, `Count ${count}`, 160, 120 + 0 * 16, "orange");
             drawTextBG(ctx, `Max ${partMax}`, 160, 120 + 1 * 16, "orange");
             drawTextBG(ctx, `Min ${partMin}`, 160, 120 + 2 * 16, "orange");
-            drawTextBG(ctx, `Avg ${part.reduce((a, b) => a + b, 0) / count}`, 160, 120 + 3 * 16, "orange");
+            drawTextBG(ctx, `Avg ${part.reduce((a, b) => a + b, 0) / count} [${0.5 * (partMax + partMin)}]`, 160, 120 + 3 * 16, "orange");
             drawTextBG(ctx, `AvgGeo ${Math.exp(logPart.reduce((a, b) => a + b, 0) / count)} [${Math.sqrt(partMax * partMin)}]`, 160, 120 + 4 * 16, "orange");
         }
     }

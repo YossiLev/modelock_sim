@@ -22,17 +22,17 @@ var graphData = [];
 var isMouseDownOnGraph = false;
 var mouseOnGraphStart = 0;
 var mouseOnGraphEnd = 0;
+var drawOption = true;
 
-function getInitMultyMode() {
+function getInitMultyMode(pPar = - 1) {
     const sel = document.getElementById("incomingFront");
     const par = document.getElementById("beamParam");
     const rng = document.getElementById("initialRange");
     initialRange = parseFloat(rng.value);
     let vf = [];
-    console.log("Sel ", sel.value)
     switch (sel.value) {
         case "Gaussian Beam":
-            let waist = parseFloat(par.value);
+            let waist = pPar > 0 ? pPar : parseFloat(par.value);
             let dx = initialRange / nSamples;
             x0 = nSamples / 2 * dx;
             for (let i = 0; i < nSamples; i++) {
@@ -82,7 +82,7 @@ function getInitMultyMode() {
     //     vf[nSamples - 1 - i] = math.complex(0);
     // }
 
-    console.log(vf);
+    //console.log(vf);
     return vf;
 }
 
@@ -99,6 +99,9 @@ const drawW = 3;
 const drawMid = 400;
 
 function drawMultiMode() {
+    if (!drawOption) {
+        return
+    }
     const canvas = document.getElementById("funCanvas");
     const ctx = canvas.getContext("2d");
     ctx.fillStyle = "#ffb0e0";
@@ -180,6 +183,9 @@ function drawMultiMode() {
 }
 
 function drawElements() {
+    if (!drawOption) {
+        return
+    }
     const canvas = document.getElementById("funCanvas");
     const ctx = canvas.getContext("2d");
     ctx.fillStyle = `yellow`;
@@ -223,6 +229,9 @@ function vecWaistFromQ(v) {
 }
 
 function drawVector(v, clear = true, color = "red") {
+    if (!drawOption) {
+        return
+    }
     const canvas = document.getElementById("graphCanvas");
     const ctx = canvas.getContext("2d");
     let l = v.length;
@@ -255,6 +264,9 @@ function drawVector(v, clear = true, color = "red") {
     ctx.stroke();
 }
 function drawGraph() {
+    if (!drawOption) {
+        return
+    }
     const sel = document.getElementById("displayOption");
 
     graphData = [];
@@ -286,7 +298,7 @@ function drawGraph() {
     }
 }
 
-function initMultiMode() {
+function initElementsMultiMode() {
     let iEl = 0;
     elements = [];
     do {
@@ -308,7 +320,7 @@ function initMultiMode() {
                 break;
             }
             valFocal = parseFloat(lensFocal.value);
-            console.log(`${lensDist.value} ${valDist}, ${lensFocal.value} ${valFocal}`)
+            //console.log(`${lensDist.value} ${valDist}, ${lensFocal.value} ${valFocal}`)
             if (isNaN(valDist) || isNaN(valFocal)) {
                 break;
             }
@@ -318,11 +330,12 @@ function initMultiMode() {
 
 
         elements.push({t: elementType, par: [valDist, valFocal]});
-        console.log(elements);
+        //console.log(elements);
         iEl++;
     } while(true);
-
-    fronts = [getInitMultyMode()];
+}
+function initMultiMode(par = - 1) {
+    fronts = [getInitMultyMode(par)];
     ranges = [initialRange];
     sfs = 0;
     locations = [0];
@@ -479,7 +492,7 @@ function getMatOnStep(dStep) {
     return M;
 }
 
-function getMatOnRoundTrip(c) {
+function getMatOnRoundTrip() {
     let iEl = 0;
     let prevLensPos = 0.0;
     let M = [[1, 0], [0, 1]];
@@ -526,14 +539,13 @@ function calcWidth(v) {
         sumX2 += i * i * val;
     }
     if (isNaN(N)) {
+        console.log(`calcWidth error l = ${l} `);
         return 0.0;
     }
     sumX /= N;
     sumX2 /= N;
 
     let w = Math.sqrt(sumX2 - sumX * sumX);
-
-    console.log(`N = ${N} sumX = ${sumX} sumX2 = ${sumX2} w = ${w}`)
 
     return w;
 }
@@ -577,32 +589,39 @@ function fullCavityMultiMode() {
         }
 
         vecQ.push(newQ);
-        vecW.push(calcWidth(ff) * Math.abs(dxf));
-        vecWaist.push(calcWidth(ff) * Math.abs(dxf) * 1.41421356237);
+        let width = calcWidth(ff);
+        if (width < 0.0000001) {
+            break;
+        }
+        vecW.push(width * Math.abs(dxf));
+        vecWaist.push(width * Math.abs(dxf) * 1.41421356237);
         fronts.push(ff);
         ranges.push(L * dxf);
     }
     drawMultiMode();
 }
 
-function roundtripMultiMode() {
+function roundtripMultiMode(waist = - 1) {
     if (fronts.length <= 0) {
+        console.log(`Fronts length ${fronts.length}`);
         return;
     }
-    let M  = getMatOnRoundTrip(1);
+
+    let M  = getMatOnRoundTrip();
     let A = M[0][0], B = M[0][1], C = M[1][0], D = M[1][1];
     let v = (A + D) / 2;
-    console.log(`A0 = ${A}, B0 = ${B}, C0 = ${C}, D0 = ${D}, v = ${v}`)
+    //console.log(`A0 = ${A}, B0 = ${B}, C0 = ${C}, D0 = ${D}, v = ${v}`)
     if (v * v <= 1) {
         disc = Math.sqrt(1 - v * v);
         l1 = v + disc;
         l2 = v - disc;
         qi = B / disc;
         w = qi * lambda / Math.PI;
-        console.log(`disc = ${disc}, w = ${w}, l1 = ${l1}, l2 = ${l2}`)
+        //console.log(`disc = ${disc}, w = ${w}, l1 = ${l1}, l2 = ${l2}`)
     }
     vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0]; vecW = [0], vecWaist = [0], vecQ[0] = math.complex(0, RayleighRange);
     for (let iStep = 1; iStep < 300; iStep++) {
+
         let f0 = math.clone(fronts[iStep - 1]);
         let r0 = ranges[iStep - 1];
         let L = f0.length;
@@ -612,15 +631,15 @@ function roundtripMultiMode() {
         vecB.push(M[0][1]);
         vecC.push(M[1][0]);
         vecD.push(M[1][1]);
-        console.log(`A = ${A}, B = ${B}, C = ${C}, D = ${D}`)
+        //console.log(`A = ${A}, B = ${B}, C = ${C}, D = ${D}`)
         let dxf = lambda * B / r0;
         let factor = math.sqrt(math.complex(0, - 1 / (B * lambda)));
-        console.log(`factor = ${factor}, lambda = ${lambda}`)
-        console.log(`dxf = lambda * B / r0   ==> ${dxf} = ${lambda} * ${B} / ${r0}`);
+        //console.log(`factor = ${factor}, lambda = ${lambda}`)
+        //console.log(`dxf = lambda * B / r0   ==> ${dxf} = ${lambda} * ${B} / ${r0}`);
 
         let co0 = Math.PI * dx0 * dx0 * A / (B * lambda);
         let cof = Math.PI * dxf * dxf * D / (B * lambda);
-        console.log(`dx0 = ${dx0}, dxf = ${dxf}, co0 = ${co0}, cof = ${cof}, r0 = ${r0}`)
+        //console.log(`dx0 = ${dx0}, dxf = ${dxf}, co0 = ${co0}, cof = ${cof}, r0 = ${r0}`)
 
         for (let i = 0; i < L; i++) {
             let ii = i - L / 2;
@@ -633,8 +652,12 @@ function roundtripMultiMode() {
             ff[i] = math.multiply(math.multiply(ff[i], factor), math.exp(math.complex(0, cof * ii * ii)))
         }
 
-        vecW.push(calcWidth(ff) * Math.abs(dxf));
-        vecWaist.push(calcWidth(ff) * Math.abs(dxf) * 1.41421356237);
+        let width = calcWidth(ff);
+        if (width < 0.0000001) {
+            break;
+        }
+        vecW.push(width * Math.abs(dxf));
+        vecWaist.push(width * Math.abs(dxf) * 1.41421356237);
 
         fronts.push(ff);
         ranges.push(L * dxf);
@@ -642,8 +665,73 @@ function roundtripMultiMode() {
     drawMultiMode();
 }
 
+function autoRangeMultiMode() {
+    initMultiMode();
+    let M  = getMatOnRoundTrip();
+    let B = M[0][1];
+    let dxSquare = lambda * Math.abs(B) / nSamples;
+
+    let newRange = Math.sqrt(dxSquare) * nSamples;
+
+    const rng = document.getElementById("initialRange");
+    rng.value = newRange.toFixed(6);
+}
+
+function deltaGraphMultiMode() {
+    drawOption = false;
+
+    let waist = 0.0005;
+    initMultiMode(waist);
+    // get last lens in order to play with its position
+    for (let delta = 0.001; delta < 0.045; delta += 0.0002) {
+        const origValue = elements[1].par[0];
+        elements[1].par[0] += delta;
+        //console.log(`delta = ${delta} dist = ${elements[1].par[0]} waist = ${waist} `)
+        autoRangeMultiMode();
+
+        let M  = getMatOnRoundTrip();
+        let A = M[0][0];
+        let B = M[0][1];
+        let D = M[1][1];
+
+        console.log(`A = ${A} D = ${D} B = ${B}`);
+        if (Math.abs(A + D) > 2.0) {
+            elements[1].par[0] = origValue;
+            continue;
+        }
+        let ad = 0.5 * (A + D);
+        let imQ = Math.sqrt(1.0 - ad * ad) / Math.abs(B);
+        let waistCalc = Math.sqrt(lambda / imQ / Math.PI);
+
+
+        for (let iter = 0; iter < 10; iter++) {
+            initMultiMode(waist);
+
+            roundtripMultiMode(waist);
+
+            let part = vecWaist.slice(50, 250);
+            let partMax = Math.max(...part);
+            let partMin = Math.min(...part);
+
+            let avg = Math.sqrt(partMax * partMin);
+            let rel = (partMax - partMin) / avg;
+            waist = avg;
+            //console.log(`I = ${iter}, (${partMin} - ${partMax}), rel = ${rel}, waist = ${waist}`);
+
+            if (rel < 0.0001) {
+                console.log(`===== delta = ${delta.toFixed(4)} waist = ${waist} iter = ${iter} calculated  = ${waistCalc} rel = ${Math.abs(waist - waistCalc) / waist}`)
+                break;
+            }
+        }
+
+        elements[1].par[0] = origValue;
+    }
+
+    drawOption = true;
+}
+
 function mainCanvasMouseMove(e) {
-    const sel = document.getElementById("displayOption");
+        const sel = document.getElementById("displayOption");
     if (sel.value == "E(x)") {
         var bounds = e.target.getBoundingClientRect();
         var x = e.clientX - bounds.left;

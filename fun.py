@@ -37,7 +37,7 @@ def Element(el, s):
             par = el["par"]              
             return Div(
                 Span(f'L{s + 1} P:', id=f'type{s}'),
-                Input(type="number", id=f'el{s}dist', placeholder="0", step="0.01", style="width:50px;", value=f'{par[0]}'),
+                Input(type="number", id=f'el{s}dist', placeholder="0", step="0.01", style="width:70px;", value=f'{par[0]}'),
                 Span("f:"),
                 Input(type="number", id=f'el{s}focal', placeholder="0", step="0.01", style="width:50px;", value=f'{par[1]}'),
                 Button(NotStr("X"), escapse=False, hx_post=f'/removeElements/{s}', hx_target="#fun", hx_vals='js:{localId: getLocalId()}'), 
@@ -64,11 +64,13 @@ def generate_fun(data_obj, tab, offset = 0):
                                Option("Zero"),                               
                                id="incomingFront"),
                     Input(type="number", id=f'beamParam', placeholder="beam", step="0.0001", style="width:80px;", value=f'0.0005'),
-                    Button("Init", onclick="initMultiMode()"),
+                    Button("Init", onclick="initElementsMultiMode(); initMultiMode();"),
                     Button("Full", onclick="fullCavityMultiMode()"),
                     Button("Roundtrip", onclick="roundtripMultiMode()"),
+                    Button("Delta graph", onclick="deltaGraphMultiMode()"),
                     Button("Switch view", onclick="switchViewMultiMode()"),
                     Input(type="number", id=f'initialRange', placeholder="range(m)", step="0.001", style="width:80px;", value=f'0.005'),
+                    Button("Auto range", onclick="initElementsMultiMode(); autoRangeMultiMode();"),
                     Input(type="number", id=f'nSamplesPower', placeholder="power", step="1", style="width:80px;", value=f'8'),
 
                 ),

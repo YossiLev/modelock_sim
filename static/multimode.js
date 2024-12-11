@@ -5,9 +5,8 @@ const lambda = 0.000000780;
 var initialRange = 0.01047;
 var ranges = [];
 var nSamples = 256;
-var locations = [];
 var viewOption = 1;
-var zoomFactor = 1.0; 45000;
+var zoomFactor = 1.0;
 var basicZoomFactor = 50000.0; // pixels per meter
 var vecA = [];
 var vecB = [];
@@ -23,6 +22,8 @@ var isMouseDownOnGraph = false;
 var mouseOnGraphStart = 0;
 var mouseOnGraphEnd = 0;
 var drawOption = true;
+var drawMode = 1;
+var deltaGraphX, deltaGraphY,  deltaGraphYHalf, deltaGraphYCalc;
 
 function getInitMultyMode(pPar = - 1) {
     const sel = document.getElementById("incomingFront");
@@ -77,12 +78,6 @@ function getInitMultyMode(pPar = - 1) {
             break;    
     }
 
-    // for (let i = 0; i < 20; i++) {
-    //     vf[i] = math.complex(0);
-    //     vf[nSamples - 1 - i] = math.complex(0);
-    // }
-
-    //console.log(vf);
     return vf;
 }
 
@@ -98,6 +93,111 @@ const drawSx = 50;
 const drawW = 3;
 const drawMid = 400;
 
+function drowShenets(ctx, dType, valPerPixel, startVal = 0) {
+    let canvasSize;
+    let canvasHeight = ctx.canvas.height;
+
+    switch (dType) {
+        case "V":
+            canvasSize = ctx.canvas.height;
+            break;
+        case "V0":
+            canvasSize = ctx.canvas.height / 2;
+            break;
+        case "H":
+            canvasSize = ctx.canvas.width - drawSx - 10;
+            break;
+    }
+    const sizeM = canvasSize / valPerPixel + startVal;
+    const powSize = Math.log10(sizeM);
+    const markSizeFixed = Math.max(0, - Math.floor(powSize));
+    const markSize = Math.pow(10, Math.floor(powSize));
+    const markSizePixel = markSize * valPerPixel;
+
+    ctx.beginPath();
+    ctx.strokeStyle = "white";
+    ctx.globalCompositeOperation = "difference";
+    ctx.fillStyle = "white";
+
+    if (dType == "V0") {
+        for (it = 0; it * markSizePixel < canvasSize; it++) {
+            let t = canvasSize - it * markSizePixel;
+            ctx.moveTo(0, t);
+            ctx.lineTo(8, t);
+            t = canvasSize + it * markSizePixel;
+            ctx.moveTo(0,  t);
+            ctx.lineTo(8, t);
+        }
+        ctx.stroke();
+        for (it = 0; it * markSizePixel < canvasSize; it++) {
+            t = canvasSize - it * markSizePixel;
+            ctx.fillText((it * markSize).toFixed(markSizeFixed), 10, t + 4);
+            t = canvasSize + it * markSizePixel;
+            ctx.fillText((- it * markSize).toFixed(markSizeFixed), 10, t + 4);
+        }
+    }
+
+    if (dType == "H") {
+        ctx.beginPath();
+        for (it = 0; it * markSizePixel < canvasSize; it++) {
+            let t = (it - startVal / markSize) * markSizePixel + drawSx;
+            ctx.moveTo(t, canvasHeight);
+            ctx.lineTo(t, canvasHeight - 10);
+        }
+        ctx.stroke();
+        for (it = 0; it * markSizePixel < canvasSize; it++) {
+            let t = (it - startVal / markSize) * markSizePixel + drawSx;
+            ctx.fillText((it * markSize).toFixed(markSizeFixed), t, canvasHeight - 20);
+        }
+    }
+
+    if (dType == "V") {
+        ctx.beginPath();
+        for (it = 0; it * markSizePixel < canvasSize; it++) {
+            let t = canvasHeight - 1 - (it - startVal / markSize) * markSizePixel;
+            ctx.moveTo(0, t);
+            ctx.lineTo(8, t);
+        }
+        ctx.stroke();
+        for (it = 0; it * markSizePixel < canvasSize; it++) {
+            let t = canvasHeight - 1 - (it - startVal / markSize) * markSizePixel;
+            ctx.fillText((it * markSize).toFixed(markSizeFixed), 10, t + 4);
+        }
+    }
+
+    ctx.globalCompositeOperation = "source-over";
+}
+
+function drawDeltaGraph(ctx) {
+    if (deltaGraphX.length < 5) {
+        return;
+    }
+    const deltaMinX = Math.min(...deltaGraphX);
+    const deltaMaxX = Math.max(...deltaGraphX);
+    const deltaMinY = Math.min(...deltaGraphY, ...deltaGraphYHalf);
+    const deltaMaxY = Math.max(...deltaGraphY, ...deltaGraphYHalf);
+
+    const height = ctx.canvas.height;
+    const gWidth = ctx.canvas.width - 200;
+    const gHeight = ctx.canvas.height - 200;
+
+    const zoomY = gHeight / (deltaMaxY - deltaMinY);
+    const zoomX = gWidth / (deltaMaxX - deltaMinX);
+
+    ctx.fillStyle = "red";
+    for (let i = 0; i < deltaGraphX.length; i++) {
+        ctx.fillRect((deltaGraphX[i] - deltaMinX) * zoomX + drawSx - 3, - (deltaGraphY[i] - deltaMinY) * zoomY + height - 4, 6, 6);
+    }
+    ctx.fillStyle = "blue";
+    for (let i = 0; i < deltaGraphX.length; i++) {
+        ctx.fillRect((deltaGraphX[i] - deltaMinX) * zoomX + drawSx - 3, - (deltaGraphYHalf[i] - deltaMinY) * zoomY + height - 4, 6, 6);
+    }
+
+    drowShenets(ctx, "V", zoomY, deltaMinY);
+    drowShenets(ctx, "H", zoomX, deltaMinX);
+
+}
+
 function drawMultiMode() {
     if (!drawOption) {
         return
@@ -107,26 +207,17 @@ function drawMultiMode() {
     ctx.fillStyle = "#ffb0e0";
     ctx.fillRect(0, 0, 1000, 1000);
 
-    const canvasHeight = canvas.height;
-    const heightM = (canvasHeight / 2) / (zoomFactor * basicZoomFactor);
-    const powHeight = Math.log10(heightM);
-    const markHeightFixed = Math.max(0, - Math.floor(powHeight));
-    const markHeight = Math.pow(10, Math.floor(powHeight));
-    const markHeightPixel = markHeight * (zoomFactor * basicZoomFactor);
-
-    const canvasWidth = canvas.width;
-    const widthM = (canvasWidth - 200) * (distStep / drawW);
-    const powWidth = Math.log10(widthM);
-    const markWidthFixed = Math.max(0, - Math.floor(powWidth));
-    const markWidth = Math.pow(10, Math.floor(powWidth));
-    const markWidthPixel = markWidth / (distStep / drawW);
+    if (drawMode == 3) {
+        drawDeltaGraph(ctx);
+        return;
+    }
 
     for (let f = 0; f < fronts.length; f++) {
         let fi = fronts[f];
         let r = ranges[f];
         let l = fi.length;       
         let h = Math.abs(r) / l * (zoomFactor * basicZoomFactor);
-        if (f == 0) {
+        if (f == 0 && drawMode <= 2) {
             ctx.fillStyle = `#ffddaa`;
             ctx.fillRect(0, drawMid - l / 2, 1000, l);          
         }
@@ -141,42 +232,17 @@ function drawMultiMode() {
             ctx.fillRect(drawSx + f * drawW, (i - (l / 2)) * (h) + drawMid, drawW, h + 1);
         }
     }
-    drawElements();
-
-    ctx.beginPath();
-    ctx.strokeStyle = "white";
-    ctx.globalCompositeOperation = "difference";
-    ctx.fillStyle = "white";
-    //ctx.font = "bold 10pt Courier";
-
-    for (it = 0; it * markHeightPixel < canvasHeight / 2; it++) {
-        let t = canvasHeight / 2 - it * markHeightPixel;
-        ctx.moveTo(0, t);
-        ctx.lineTo(8, t);
-        t = canvasHeight / 2 + it * markHeightPixel;
-        ctx.moveTo(0,  t);
-        ctx.lineTo(8, t);
-    }
-    ctx.stroke();
-    for (it = 0; it * markHeightPixel < canvasHeight / 2; it++) {
-        t = canvasHeight / 2 - it * markHeightPixel;
-        ctx.fillText((it * markHeight).toFixed(markHeightFixed), 10, t + 4);
-        t = canvasHeight / 2 + it * markHeightPixel;
-        ctx.fillText((- it * markHeight).toFixed(markHeightFixed), 10, t + 4);
+    if (drawMode == 1) {
+        drawElements();
     }
 
-    ctx.beginPath();
-    for (it = 0; it * markWidthPixel < canvasWidth; it++) {
-        let t = it * markWidthPixel + drawSx;
-        ctx.moveTo(t, canvasHeight);
-        ctx.lineTo(t,canvasHeight - 10);
+
+    drowShenets(ctx, "V0", zoomFactor * basicZoomFactor);
+    if (drawMode == 2) {
+        drowShenets(ctx, "H",  drawW);
+    } else {
+        drowShenets(ctx, "H",  drawW / distStep);
     }
-    ctx.stroke();
-    for (it = 0; it * markWidthPixel < canvasWidth; it++) {
-        let t = it * markWidthPixel + drawSx;
-        ctx.fillText((it * markWidth).toFixed(markWidthFixed), t, canvasHeight - 20);
-    }
-    ctx.globalCompositeOperation = "source-over";
 
     drawGraph();
 
@@ -338,7 +404,7 @@ function initMultiMode(par = - 1) {
     fronts = [getInitMultyMode(par)];
     ranges = [initialRange];
     sfs = 0;
-    locations = [0];
+    drawMode = 1;
     drawMultiMode();
 }
 
@@ -445,7 +511,7 @@ function lensMultiMode() {
     sfs = fl;
     fronts.push(ff);
     ranges.push(ranges[sfs - 1]);
-    console.log(`LENS range = ${ranges[sfs]}`)
+
     drawMultiMode();
 }
 
@@ -492,7 +558,7 @@ function getMatOnStep(dStep) {
     return M;
 }
 
-function getMatOnRoundTrip() {
+function getMatOnRoundTrip(oneWay = false) {
     let iEl = 0;
     let prevLensPos = 0.0;
     let M = [[1, 0], [0, 1]];
@@ -514,6 +580,11 @@ function getMatOnRoundTrip() {
         }
         iEl++;
     }
+
+    if (oneWay) {
+        return M;
+    }
+
     while (iEl >= 0) {
         switch (elements[iEl].t) {
         case "L":
@@ -550,6 +621,7 @@ function calcWidth(v) {
     return w;
 }
 function fullCavityMultiMode() {
+    drawMode = 1;
     if (fronts.length <= 0) {
         return;
     }
@@ -559,7 +631,7 @@ function fullCavityMultiMode() {
         let f0 = math.clone(fronts[0]);
         let r0 = ranges[0];
         let L = f0.length;
-        let dx0 = r0/ L;
+        let dx0 = r0 / L;
         let dStep = iStep * distStep;
         let M  = getMatOnStep(dStep);
         let A = M[0][0], B = M[0][1], C = M[1][0], D = M[1][1];
@@ -567,26 +639,89 @@ function fullCavityMultiMode() {
         vecB.push(M[0][1]);
         vecC.push(M[1][0]);
         vecD.push(M[1][1]);
-        console.log(`A = ${A}, B = ${B}, C = ${C}, D = ${D}`);
         let newQ = math.chain(vecQ[0]).multiply(A).add(B).divide(math.chain(vecQ[0]).multiply(C).add(D).done()).done();
         let dxf = lambda * B / r0;
         let factor = math.sqrt(math.complex(0, - 1 / (B * lambda)));
-        let co0 = Math.PI * dx0 * dx0 * A / (B * lambda);
-        console.log(`factor = ${factor}, lambda = ${lambda}`)
 
-        let cof = Math.PI * dxf * dxf * D / (B * lambda);
-        console.log(`dx0 = ${dx0}, dxf = ${dxf}, co0 = ${co0}, cof = ${cof}, r0 = ${r0}, dStep = ${dStep}`)
+        let M1, M2, dxMid, ff;
+        if (A > 0) {
+            console.log(`AA dStep = ${dStep} A = ${A}, B = ${B}, C = ${C}, D = ${D} B1 = ${B / (A + 1)} Rdxf = ${lambda * B / (A + 1) / r0} RR${L * lambda * B / (A + 1) / r0}`);
+            M2 = [[A, B / (A + 1)], [C, D - C * B / (A + 1)]];
+            dxMid = lambda * B / (A + 1) / r0;
+            M1 = [[1, B / (A + 1)], [0, 1]];
+            if (Math.abs(dxMid) < Math.abs(dx0)) {
+                console.log(`BAD M1 ${M1[0][0]} ${M1[0][1]} ${M1[1][0]} ${M1[1][1]} `)
+                console.log(`BAD M2 ${M2[0][0]} ${M2[0][1]} ${M2[1][0]} ${M2[1][1]} `)
+                let decr = Math.abs(dxMid) / Math.abs(dx0);
+                console.log(`decr ${decr}`);
+                M1[0][0] /= decr;
+                M1[0][1] /= decr;
+                M1[1][0] *= decr;
+                M1[1][1] *= decr;
+                M2[0][1] /= decr;
+                M2[1][1] /= decr;
+                M2[0][0] *= decr;
+                M2[1][0] *= decr;
+                dxMid = lambda * M2[0][1] / r0;
+                console.log(`AAFIX dStep = ${dStep} B1 = ${M2[0][1]} Rdxf = ${lambda * M2[0][1] / r0} RR${L * lambda * M2[0][1] / r0}`);
+                console.log(`M1 ${M1[0][0]} ${M1[0][1]} ${M1[1][0]} ${M1[1][1]} `)
+                console.log(`M2 ${M2[0][0]} ${M2[0][1]} ${M2[1][0]} ${M2[1][1]} `)
+            }
+        } else {
 
-        for (let i = 0; i < L; i++) {
-            let ii = i - L / 2;
-            f0[i] = math.multiply(f0[i], math.exp(math.complex(0, co0 * ii * ii)))
+            console.log(`BB dStep = ${dStep} A = ${A}, B = ${B}, C = ${C}, D = ${D} B1 = ${B / (- A + 1)} Rdxf = ${lambda * B / (- A + 1) / r0} RR${L * lambda * B / (- A + 1) / r0}`);
+            M2 = [[A, B / (- A + 1)], [C, D + C * B / (- A + 1)]];
+            dxMid = lambda * B / (- A + 1) / r0;
+            M1 = [[1, B / (- A + 1)], [0, 1]];
+            if (Math.abs(dxMid) < Math.abs(dx0)) {
+                console.log(`BAD M1 ${M1[0][0]} ${M1[0][1]} ${M1[1][0]} ${M1[1][1]} `)
+                console.log(`BAD M2 ${M2[0][0]} ${M2[0][1]} ${M2[1][0]} ${M2[1][1]} `)
+                let decr = Math.abs(dxMid) / Math.abs(dx0);
+                console.log(`decr ${decr}`);
+                M1[0][0] /= decr;
+                M1[0][1] /= decr;
+                M1[1][0] *= decr;
+                M1[1][1] *= decr;
+                M2[0][1] /= decr;
+                M2[1][1] /= decr;
+                M2[0][0] *= decr;
+                M2[1][0] *= decr;
+                dxMid = lambda * M2[0][1] / r0;
+                console.log(`BBFIX dStep = ${dStep} B1 = ${M2[0][1]} Rdxf = ${lambda * M2[0][1] / r0} RR${L * lambda * M2[0][1] / r0}`);
+                console.log(`M1 ${M1[0][0]} ${M1[0][1]} ${M1[1][0]} ${M1[1][1]} `)
+                console.log(`M2 ${M2[0][0]} ${M2[0][1]} ${M2[1][0]} ${M2[1][1]} `)
+            }
         }
-        let ff = dft(f0, dx0);
+        if (Math.abs(L * dxMid) < 0.0015) {
+            console.log(`OVERRIDE  ==== dStep = ${dStep}, L * dxMid = ${L * dxMid}`)
+            ff = CalcNextFrontOfM(f0, L, M, dx0, dxf);
+        } else {
+            let fMid = CalcNextFrontOfM(f0, L, M1, dx0, dxMid);
+            ff = CalcNextFrontOfM(fMid, L, M2, dxMid, dx0);
+            dxf = dx0;
 
-        for (let i = 0; i < L; i++) {
-            let ii = i - L / 2;
-            ff[i] = math.multiply(math.multiply(ff[i], factor), math.exp(math.complex(0, cof * ii * ii)))
+            // ff = CalcNextFrontOfM(f0, L, M1, dx0, dxMid);
+            // dxf = dxMid;
         }
+
+        //let ff = CalcNextFrontOfM(f0, L, M, dx0, dxf);
+
+        // let co0 = Math.PI * dx0 * dx0 * A / (B * lambda);
+        // console.log(`factor = ${factor}, lambda = ${lambda}`)
+
+        // let cof = Math.PI * dxf * dxf * D / (B * lambda);
+        // console.log(`dx0 = ${dx0}, dxf = ${dxf}, co0 = ${co0}, cof = ${cof}, r0 = ${r0}, dStep = ${dStep}`)
+
+        // for (let i = 0; i < L; i++) {
+        //     let ii = i - L / 2;
+        //     f0[i] = math.multiply(f0[i], math.exp(math.complex(0, co0 * ii * ii)))
+        // }
+        // let ff = dft(f0, dx0);
+
+        // for (let i = 0; i < L; i++) {
+        //     let ii = i - L / 2;
+        //     ff[i] = math.multiply(math.multiply(ff[i], factor), math.exp(math.complex(0, cof * ii * ii)))
+        // }
 
         vecQ.push(newQ);
         let width = calcWidth(ff);
@@ -601,13 +736,37 @@ function fullCavityMultiMode() {
     drawMultiMode();
 }
 
+function CalcNextFrontOfM(f0, L, M, dx0, dxf) {
+    let A = M[0][0];
+    let B = M[0][1];
+    let D = M[1][1];
+    let factor = math.sqrt(math.complex(0, - 1 / (B * lambda)));
+
+    let co0 = Math.PI * dx0 * dx0 * A / (B * lambda);
+    let cof = Math.PI * dxf * dxf * D / (B * lambda);
+
+    for (let i = 0; i < L; i++) {
+        let ii = i - L / 2;
+        f0[i] = math.multiply(f0[i], math.exp(math.complex(0, co0 * ii * ii)))
+    }
+    let ff = dft(f0, dx0);
+
+    for (let i = 0; i < L; i++) {
+        let ii = i - L / 2;
+        ff[i] = math.multiply(math.multiply(ff[i], factor), math.exp(math.complex(0, cof * ii * ii)))
+    }
+
+    return ff;
+}
+
 function roundtripMultiMode(waist = - 1) {
+    drawMode = 2;
     if (fronts.length <= 0) {
         console.log(`Fronts length ${fronts.length}`);
         return;
     }
 
-    let M  = getMatOnRoundTrip();
+    let M  = getMatOnRoundTrip(false);
     let A = M[0][0], B = M[0][1], C = M[1][0], D = M[1][1];
     let v = (A + D) / 2;
     //console.log(`A0 = ${A}, B0 = ${B}, C0 = ${C}, D0 = ${D}, v = ${v}`)
@@ -620,37 +779,21 @@ function roundtripMultiMode(waist = - 1) {
         //console.log(`disc = ${disc}, w = ${w}, l1 = ${l1}, l2 = ${l2}`)
     }
     vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0]; vecW = [0], vecWaist = [0], vecQ[0] = math.complex(0, RayleighRange);
-    for (let iStep = 1; iStep < 300; iStep++) {
+    for (let iStep = 1; iStep < 50; iStep++) {
 
         let f0 = math.clone(fronts[iStep - 1]);
         let r0 = ranges[iStep - 1];
         let L = f0.length;
         let dx0 = r0 / L;
-        let A = M[0][0], B = M[0][1], C = M[1][0], D = M[1][1];
+        let B = M[0][1];
         vecA.push(M[0][0]);
         vecB.push(M[0][1]);
         vecC.push(M[1][0]);
         vecD.push(M[1][1]);
-        //console.log(`A = ${A}, B = ${B}, C = ${C}, D = ${D}`)
+
         let dxf = lambda * B / r0;
-        let factor = math.sqrt(math.complex(0, - 1 / (B * lambda)));
-        //console.log(`factor = ${factor}, lambda = ${lambda}`)
-        //console.log(`dxf = lambda * B / r0   ==> ${dxf} = ${lambda} * ${B} / ${r0}`);
 
-        let co0 = Math.PI * dx0 * dx0 * A / (B * lambda);
-        let cof = Math.PI * dxf * dxf * D / (B * lambda);
-        //console.log(`dx0 = ${dx0}, dxf = ${dxf}, co0 = ${co0}, cof = ${cof}, r0 = ${r0}`)
-
-        for (let i = 0; i < L; i++) {
-            let ii = i - L / 2;
-            f0[i] = math.multiply(f0[i], math.exp(math.complex(0, co0 * ii * ii)))
-        }
-        let ff = dft(f0, dx0);
-
-        for (let i = 0; i < L; i++) {
-            let ii = i - L / 2;
-            ff[i] = math.multiply(math.multiply(ff[i], factor), math.exp(math.complex(0, cof * ii * ii)))
-        }
+        let ff = CalcNextFrontOfM(f0, L, M, dx0, dxf);
 
         let width = calcWidth(ff);
         if (width < 0.0000001) {
@@ -665,9 +808,11 @@ function roundtripMultiMode(waist = - 1) {
     drawMultiMode();
 }
 
-function autoRangeMultiMode() {
-    initMultiMode();
-    let M  = getMatOnRoundTrip();
+function autoRangeMultiMode(M = null) {
+    if (M == null) {
+        initMultiMode();
+        M = getMatOnRoundTrip(false);
+    }
     let B = M[0][1];
     let dxSquare = lambda * Math.abs(B) / nSamples;
 
@@ -677,61 +822,108 @@ function autoRangeMultiMode() {
     rng.value = newRange.toFixed(6);
 }
 
+function doDeltaStep(delta, waist) {
+    const origValue = elements[1].par[0];
+    elements[1].par[0] += delta;
+    
+    initMultiMode();
+
+    let M = getMatOnRoundTrip(false);
+    let A = M[0][0];
+    let B = M[0][1];
+    let D = M[1][1];
+
+    autoRangeMultiMode(M);
+
+    if (Math.abs(A + D) > 2.0) {
+        elements[1].par[0] = origValue;
+        return (waist);
+    }
+    let ad = 0.5 * (A + D);
+    let imQ = Math.sqrt(1.0 - ad * ad) / Math.abs(B);
+    let waistCalc = Math.sqrt(lambda / imQ / Math.PI);
+
+    for (let iter = 0; iter < 10; iter++) {
+        initMultiMode(waist);
+
+        roundtripMultiMode(waist);
+
+        let lvw = vecWaist.length;
+        let part = vecWaist.slice(10, lvw - 10);
+        let partMax = Math.max(...part);
+        let partMin = Math.min(...part);
+
+        let avg = Math.sqrt(partMax * partMin);
+        let rel = (partMax - partMin) / avg;
+        waist = avg;
+        //console.log(`I = ${iter}, (${partMin} - ${partMax}), rel = ${rel}, waist = ${waist}`);
+
+        if (rel < 0.0001) {
+            console.log(`===== delta = ${delta.toFixed(4)} waist = ${waist} iter = ${iter} rel = ${Math.abs(waist - waistCalc) / waist}`)
+            deltaGraphX.push(delta);
+            deltaGraphY.push(waist);
+            deltaGraphYCalc.push(waistCalc);
+
+            let M = getMatOnRoundTrip(true);
+            let f0 = math.clone(fronts[0]);
+            let r0 = ranges[0];
+            let L = f0.length;
+            let dx0 = r0 / L;
+            let B = M[0][1];
+            let dxf = lambda * B / r0;
+            let ff = CalcNextFrontOfM(f0, L, M, dx0, dxf);
+            let width = calcWidth(ff);
+            deltaGraphYHalf.push(width * Math.abs(dxf) * 1.41421356237);
+
+            elements[1].par[0] = origValue;
+            return (waist);
+        }
+
+    }
+
+    elements[1].par[0] = origValue;
+    return (waist);
+}
+
+var coverWaist;
+function doDeltaStepCover(delta) {
+    drawOption = false;
+    coverWaist = doDeltaStep(delta, coverWaist);
+
+    delta += 0.0002;
+    if (delta < 0.045) {
+        setTimeout(doDeltaStepCover, 1, delta);
+    } else {
+        drawOption = true;
+        return;
+    }
+    drawMode = 3;
+    drawOption = true;
+    drawMultiMode();
+}
+
 function deltaGraphMultiMode() {
     drawOption = false;
 
-    let waist = 0.0005;
-    initMultiMode(waist);
-    // get last lens in order to play with its position
-    for (let delta = 0.001; delta < 0.045; delta += 0.0002) {
-        const origValue = elements[1].par[0];
-        elements[1].par[0] += delta;
-        //console.log(`delta = ${delta} dist = ${elements[1].par[0]} waist = ${waist} `)
-        autoRangeMultiMode();
+    coverWaist = 0.0005;
+    deltaGraphX = [];
+    deltaGraphY = [];
+    deltaGraphYHalf = [];
+    deltaGraphYCalc = [];
 
-        let M  = getMatOnRoundTrip();
-        let A = M[0][0];
-        let B = M[0][1];
-        let D = M[1][1];
+    initMultiMode(coverWaist);
 
-        console.log(`A = ${A} D = ${D} B = ${B}`);
-        if (Math.abs(A + D) > 2.0) {
-            elements[1].par[0] = origValue;
-            continue;
-        }
-        let ad = 0.5 * (A + D);
-        let imQ = Math.sqrt(1.0 - ad * ad) / Math.abs(B);
-        let waistCalc = Math.sqrt(lambda / imQ / Math.PI);
+    let delta = 0.001;
 
+    doDeltaStepCover(delta);
 
-        for (let iter = 0; iter < 10; iter++) {
-            initMultiMode(waist);
-
-            roundtripMultiMode(waist);
-
-            let part = vecWaist.slice(50, 250);
-            let partMax = Math.max(...part);
-            let partMin = Math.min(...part);
-
-            let avg = Math.sqrt(partMax * partMin);
-            let rel = (partMax - partMin) / avg;
-            waist = avg;
-            //console.log(`I = ${iter}, (${partMin} - ${partMax}), rel = ${rel}, waist = ${waist}`);
-
-            if (rel < 0.0001) {
-                console.log(`===== delta = ${delta.toFixed(4)} waist = ${waist} iter = ${iter} calculated  = ${waistCalc} rel = ${Math.abs(waist - waistCalc) / waist}`)
-                break;
-            }
-        }
-
-        elements[1].par[0] = origValue;
-    }
-
+    drawMode = 3;
     drawOption = true;
+    drawMultiMode();
 }
 
 function mainCanvasMouseMove(e) {
-        const sel = document.getElementById("displayOption");
+    const sel = document.getElementById("displayOption");
     if (sel.value == "E(x)") {
         var bounds = e.target.getBoundingClientRect();
         var x = e.clientX - bounds.left;
@@ -801,11 +993,9 @@ function graphCanvasMouseDown(e) {
     let ix = Math.floor((x - drawSx) / drawW);
     isMouseDownOnGraph = true;
     mouseOnGraphStart = ix;
-
 }
 
 function graphCanvasMouseUp(e) {
-    console.log("up ", e);
     isMouseDownOnGraph = false;
 }
 

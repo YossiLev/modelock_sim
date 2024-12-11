@@ -75,6 +75,9 @@ def MLSpatial_gain(sim):
             distance(sim.L1) @ distance(sim.L1) @ Mcur(sim.RM) @ distance(sim.RMD + sim.deltaPlane - 1e-10 - sim.L / 2)
     MLeft = distance(fullStep * edgeFactor) @ distance(sim.FMD + deltaPoint - sim.L / 2) @ lens(sim.FM) @ distance(sim.L2) @ \
             distance(sim.L2) @ lens(sim.FM) @ distance(sim.FMD + deltaPoint - sim.L / 2)
+    
+    # print("MRight", MRight)
+    # print("MLeft", MLeft)
 
     def thinKerr(q, w, e, Ikl, dist, M = None):
         p = np.abs(e) ** 2

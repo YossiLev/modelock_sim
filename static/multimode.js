@@ -4,7 +4,7 @@ var fronts = [];
 const lambda = 0.000000780;
 var initialRange = 0.01047;
 var ranges = [];
-var nSamples = 256;
+var nSamples = 512;
 var viewOption = 1;
 var zoomFactor = 1.0;
 var basicZoomFactor = 50000.0; // pixels per meter
@@ -16,6 +16,7 @@ var vecEt = [];
 var vecW = [];
 var vecWaist = [];
 var vecQ = [];
+var vecMats = [];
 var RayleighRange;
 var graphData = [];
 var isMouseDownOnGraph = false;
@@ -132,8 +133,10 @@ function drowShenets(ctx, dType, valPerPixel, startVal = 0) {
         for (it = 0; it * markSizePixel < canvasSize; it++) {
             t = canvasSize - it * markSizePixel;
             ctx.fillText((it * markSize).toFixed(markSizeFixed), 10, t + 4);
-            t = canvasSize + it * markSizePixel;
-            ctx.fillText((- it * markSize).toFixed(markSizeFixed), 10, t + 4);
+            if (it > 0) {
+                t = canvasSize + it * markSizePixel;
+                ctx.fillText((- it * markSize).toFixed(markSizeFixed), 10, t + 4);
+            }
         }
     }
 
@@ -329,6 +332,47 @@ function drawVector(v, clear = true, color = "red") {
     }
     ctx.stroke();
 }
+
+function calcNewRange(B, lambda, L, r0) {
+    return (B * lambda / r0) * L;
+}
+function drawMatDecomposition(ix, clear = true, color = "red") {
+    if (!drawOption) {
+        return
+    }
+    const canvas = document.getElementById("graphCanvas");
+    const ctx = canvas.getContext("2d");
+
+    if (clear) {
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, 1000, 200);    
+
+        ctx.fillStyle = 'black';
+        ctx.fillText(ix.toFixed(0), 10, 120);
+
+        ctx.fillStyle = color;
+ 
+        let mats = vecMats[ix];
+        let px = 10, dx = 60;
+
+        let newRange = ranges[0];
+        for (let iMat = 0; iMat < mats.length; iMat++) {
+            let [A, B, C, D] = [mats[iMat][0][0], mats[iMat][0][1], mats[iMat][1][0], mats[iMat][1][1]];
+            ctx.fillText(math.re(A).toFixed(6), px, 20);
+            ctx.fillText(math.re(B).toFixed(6), px + dx, 20);
+            ctx.fillText(math.re(C).toFixed(6), px, 40);
+            ctx.fillText(math.re(D).toFixed(6), px + dx, 40);
+            newRange = calcNewRange(B, lambda, nSamples, newRange);
+            ctx.fillText(newRange.toFixed(6), px, 70);
+            if (iMat == 0) {
+                ctx.fillStyle = 'blue';
+                newRange = ranges[0];
+            }
+            px += 200;
+        }
+
+    }
+}
 function drawGraph() {
     if (!drawOption) {
         return
@@ -342,6 +386,8 @@ function drawGraph() {
         case "C": graphData.push(vecC); break;
         case "D": graphData.push(vecD); break;
         case "E(x)":
+            break;
+        case "M(x)":
             break;
         case "Width(x)": 
             graphData.push(vecW);
@@ -620,20 +666,108 @@ function calcWidth(v) {
 
     return w;
 }
+
+function decomposeMat(M, dStep, r0, L) {
+    let [A, B, C, D] = [M[0][0], M[0][1], M[1][0], M[1][1]];
+    let M1, M2, M3, M4;
+
+    if (Math.abs(A + 1) > 0.1) {
+        console.log(`AA dStep = ${dStep} A = ${A}, B = ${B}, C = ${C}, D = ${D} B1 = ${B / (A + 1)} Rdxf = ${lambda * B / (A + 1) / r0} RR${L * lambda * B / (A + 1) / r0}`);
+        M2 = [[A, B / (A + 1)], [C, D - C * B / (A + 1)]];
+        dxMid = lambda * B / (A + 1) / r0;
+        M1 = [[1, B / (A + 1)], [0, 1]];
+    } else {
+
+        console.log(`BB dStep = ${dStep} A = ${A}, B = ${B}, C = ${C}, D = ${D} B1 = ${B / (- A + 1)} Rdxf = ${lambda * B / (- A + 1) / r0} RR${L * lambda * B / (- A + 1) / r0}`);
+        M2 = [[-A, -B / (-A + 1)], [-C, -D + C * B / (-A + 1)]];
+        dxMid = lambda * B / (- A + 1) / r0;
+        M1 = [[-1, B / (-A + 1)], [0, -1]];
+    }
+
+    return [M1, M2];
+}
+function getMatricesAtDistFromStart(dStep, r0) {
+    let L = nSamples;
+    let mats = [];
+    let spDist = r0 * r0 / (L * lambda);
+
+    let M  = getMatOnStep(dStep);
+    mats.push(math.clone(M));
+
+    let A = M[0][0], B = M[0][1], C = M[1][0], D = M[1][1];
+    let dxf = lambda * B / r0;
+
+    let MD, useDistFix = 0;
+    if (Math.abs(B) < 1.8 * spDist) {
+        console.log("Fix C");
+        if (dStep > 2 * spDist) {
+            let mPush = [[1, - spDist], [0, 1]];
+            M = MMult(mPush, M);
+            //M  = getMatOnStep(dStep - spDist);
+            MD = [[1.0, spDist], [0, 1]];
+            useDistFix = 1;
+        } else {
+            let mPush = [[1, 2 * spDist], [0, 1]];
+            M = MMult(mPush, M);
+            //M  = getMatOnStep(dStep + 2 * spDist);
+            MD = [[1.0, - spDist], [0, 1]];
+            useDistFix = 2;
+        }
+    }
+    A = M[0][0], B = M[0][1], C = M[1][0], D = M[1][1];
+
+    let M1, M2, dxMid, ff;
+    console.log(`===== StartM XNew ${M[0][0]},${M[0][1]},${M[1][0]},${M[1][1]},`);
+
+    [M1, M2] = decomposeMat(M, dStep, r0, L);
+
+    if (Math.abs(A + 1) > 0.1) {
+        console.log(`AANew dStep = ${dStep} A = ${A}, B = ${B}, C = ${C}, D = ${D} B1 = ${B / (A + 1)} Rdxf = ${lambda * B / (A + 1) / r0} RR${L * lambda * B / (A + 1) / r0}`);
+        M2 = [[A, B / (A + 1)], [C, D - C * B / (A + 1)]];
+        dxMid = lambda * B / (A + 1) / r0;
+        M1 = [[1, B / (A + 1)], [0, 1]];
+    } else {
+        console.log(`BBNew dStep = ${dStep} A = ${A}, B = ${B}, C = ${C}, D = ${D} B1 = ${B / (- A + 1)} Rdxf = ${lambda * B / (- A + 1) / r0} RR${L * lambda * B / (- A + 1) / r0}`);
+        M2 = [[-A, -B / (-A + 1)], [-C, -D + C * B / (-A + 1)]];
+        dxMid = lambda * B / (- A + 1) / r0;
+        M1 = [[-1, B / (-A + 1)], [0, -1]];
+    }
+
+    dxMid = lambda * M2[0][1] / r0;
+
+    // if (Math.abs(L * dxMid) < 0.0045 || Math.abs(M2[0][1]) < 0.001 + r0 * r0 / (L * lambda)) {
+    //     console.log(`OVERRIDE  ==== dStep = ${dStep}, L * dxMid = ${L * dxMid} Math.abs(M2[0][1]) = ${Math.abs(M2[0][1])}`)
+    //     mats.push(math.clone(M));
+    // } else {
+        mats.push(math.clone(M1));
+        mats.push(math.clone(M2));
+    // }
+
+    for (let iDistFix = 0; iDistFix < useDistFix; iDistFix++) {
+        mats.push(math.clone(MD));
+    }
+
+    return mats;
+}
+
 function fullCavityMultiMode() {
     drawMode = 1;
     if (fronts.length <= 0) {
         return;
     }
     
-    vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0]; vecW = [0], vecWaist = [0], vecQ[0] = math.complex(0, RayleighRange);
+    vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0]; vecW = [0], vecWaist = [0], vecQ[0] = math.complex(0, RayleighRange), vecMats = [];
     for (let iStep = 1; iStep < 300; iStep++) {
         let f0 = math.clone(fronts[0]);
         let r0 = ranges[0];
         let L = f0.length;
         let dx0 = r0 / L;
         let dStep = iStep * distStep;
-        let M  = getMatOnStep(dStep);
+
+        let mats = getMatricesAtDistFromStart(dStep, r0);
+
+        //let M  = getMatOnStep(dStep);
+        let M  = math.clone(mats[0]);
         let A = M[0][0], B = M[0][1], C = M[1][0], D = M[1][1];
         vecA.push(M[0][0]);
         vecB.push(M[0][1]);
@@ -641,87 +775,63 @@ function fullCavityMultiMode() {
         vecD.push(M[1][1]);
         let newQ = math.chain(vecQ[0]).multiply(A).add(B).divide(math.chain(vecQ[0]).multiply(C).add(D).done()).done();
         let dxf = lambda * B / r0;
-        let factor = math.sqrt(math.complex(0, - 1 / (B * lambda)));
 
-        let M1, M2, dxMid, ff;
-        if (A > 0) {
-            console.log(`AA dStep = ${dStep} A = ${A}, B = ${B}, C = ${C}, D = ${D} B1 = ${B / (A + 1)} Rdxf = ${lambda * B / (A + 1) / r0} RR${L * lambda * B / (A + 1) / r0}`);
-            M2 = [[A, B / (A + 1)], [C, D - C * B / (A + 1)]];
-            dxMid = lambda * B / (A + 1) / r0;
-            M1 = [[1, B / (A + 1)], [0, 1]];
-            if (Math.abs(dxMid) < Math.abs(dx0)) {
-                console.log(`BAD M1 ${M1[0][0]} ${M1[0][1]} ${M1[1][0]} ${M1[1][1]} `)
-                console.log(`BAD M2 ${M2[0][0]} ${M2[0][1]} ${M2[1][0]} ${M2[1][1]} `)
-                let decr = Math.abs(dxMid) / Math.abs(dx0);
-                console.log(`decr ${decr}`);
-                M1[0][0] /= decr;
-                M1[0][1] /= decr;
-                M1[1][0] *= decr;
-                M1[1][1] *= decr;
-                M2[0][1] /= decr;
-                M2[1][1] /= decr;
-                M2[0][0] *= decr;
-                M2[1][0] *= decr;
-                dxMid = lambda * M2[0][1] / r0;
-                console.log(`AAFIX dStep = ${dStep} B1 = ${M2[0][1]} Rdxf = ${lambda * M2[0][1] / r0} RR${L * lambda * M2[0][1] / r0}`);
-                console.log(`M1 ${M1[0][0]} ${M1[0][1]} ${M1[1][0]} ${M1[1][1]} `)
-                console.log(`M2 ${M2[0][0]} ${M2[0][1]} ${M2[1][0]} ${M2[1][1]} `)
-            }
-        } else {
+        // //console.log(`ORIGINAL  dStep = ${dStep} A = ${A}, B = ${B}, C = ${C}, D = ${D} `);
 
-            console.log(`BB dStep = ${dStep} A = ${A}, B = ${B}, C = ${C}, D = ${D} B1 = ${B / (- A + 1)} Rdxf = ${lambda * B / (- A + 1) / r0} RR${L * lambda * B / (- A + 1) / r0}`);
-            M2 = [[A, B / (- A + 1)], [C, D + C * B / (- A + 1)]];
-            dxMid = lambda * B / (- A + 1) / r0;
-            M1 = [[1, B / (- A + 1)], [0, 1]];
-            if (Math.abs(dxMid) < Math.abs(dx0)) {
-                console.log(`BAD M1 ${M1[0][0]} ${M1[0][1]} ${M1[1][0]} ${M1[1][1]} `)
-                console.log(`BAD M2 ${M2[0][0]} ${M2[0][1]} ${M2[1][0]} ${M2[1][1]} `)
-                let decr = Math.abs(dxMid) / Math.abs(dx0);
-                console.log(`decr ${decr}`);
-                M1[0][0] /= decr;
-                M1[0][1] /= decr;
-                M1[1][0] *= decr;
-                M1[1][1] *= decr;
-                M2[0][1] /= decr;
-                M2[1][1] /= decr;
-                M2[0][0] *= decr;
-                M2[1][0] *= decr;
-                dxMid = lambda * M2[0][1] / r0;
-                console.log(`BBFIX dStep = ${dStep} B1 = ${M2[0][1]} Rdxf = ${lambda * M2[0][1] / r0} RR${L * lambda * M2[0][1] / r0}`);
-                console.log(`M1 ${M1[0][0]} ${M1[0][1]} ${M1[1][0]} ${M1[1][1]} `)
-                console.log(`M2 ${M2[0][0]} ${M2[0][1]} ${M2[1][0]} ${M2[1][1]} `)
-            }
-        }
-        if (Math.abs(L * dxMid) < 0.0015) {
-            console.log(`OVERRIDE  ==== dStep = ${dStep}, L * dxMid = ${L * dxMid}`)
-            ff = CalcNextFrontOfM(f0, L, M, dx0, dxf);
-        } else {
-            let fMid = CalcNextFrontOfM(f0, L, M1, dx0, dxMid);
-            ff = CalcNextFrontOfM(fMid, L, M2, dxMid, dx0);
-            dxf = dx0;
-
-            // ff = CalcNextFrontOfM(f0, L, M1, dx0, dxMid);
-            // dxf = dxMid;
-        }
-
-        //let ff = CalcNextFrontOfM(f0, L, M, dx0, dxf);
-
-        // let co0 = Math.PI * dx0 * dx0 * A / (B * lambda);
-        // console.log(`factor = ${factor}, lambda = ${lambda}`)
-
-        // let cof = Math.PI * dxf * dxf * D / (B * lambda);
-        // console.log(`dx0 = ${dx0}, dxf = ${dxf}, co0 = ${co0}, cof = ${cof}, r0 = ${r0}, dStep = ${dStep}`)
-
-        // for (let i = 0; i < L; i++) {
-        //     let ii = i - L / 2;
-        //     f0[i] = math.multiply(f0[i], math.exp(math.complex(0, co0 * ii * ii)))
+        // let MD, useDistFix = 0;
+        // console.log(`r0 * r0 / L * lambda = `)
+        // if (Math.abs(B) < r0 * r0 / (L * lambda)) {
+        //     console.log("Fix C");
+        //     if (dStep > 2 * r0 * r0 / (L * lambda)) {
+        //         M  = getMatOnStep(dStep - r0 * r0 / (L * lambda));
+        //         MD = [[1.0, r0 * r0 / (L * lambda)], [0, 1]];
+        //         useDistFix = 1;
+        //     } else {
+        //         M  = getMatOnStep(dStep + 2 * r0 * r0 / (L * lambda));
+        //         MD = [[1.0, - r0 * r0 / (L * lambda)], [0, 1]];
+        //         useDistFix = 2;
+        //     }
         // }
-        // let ff = dft(f0, dx0);
+        // // let factor = math.sqrt(math.complex(0, - 1 / (B * lambda)));
+        // console.log(`===== StartM A ${M[0][0]},${M[0][1]},${M[1][0]},${M[1][1]},`);
 
-        // for (let i = 0; i < L; i++) {
-        //     let ii = i - L / 2;
-        //     ff[i] = math.multiply(math.multiply(ff[i], factor), math.exp(math.complex(0, cof * ii * ii)))
+        // let M1, M2, dxMid, ff;
+
+        // [M1, M2] = decomposeMat(M, dStep, r0, L);
+        // dxMid = lambda * M2[0][1] / r0;
+        
+        // if (Math.abs(L * dxMid) < 0.0045 || Math.abs(M2[0][1]) < 0.001 + r0 * r0 / (L * lambda)) {
+        //     console.log(`OVERRIDE 1  ==== dStep = ${dStep}, L * dxMid = ${L * dxMid} Math.abs(M2[0][1]) = ${Math.abs(M2[0][1])}`)
+        //     console.log(`===== M ${M[0][0]},${M[0][1]},${M[1][0]},${M[1][1]},`);
+        //     ff = CalcNextFrontOfM(f0, L, M, dx0);
+        // } else {
+        //     console.log(`No OVERRIDE 1  ==== dStep = ${dStep}, L * dxMid = ${L * dxMid} Math.abs(M2[0][1]) = ${Math.abs(M2[0][1])}`)
+
+        //     console.log(`===== M1 ${M1[0][0]},${M1[0][1]},${M1[1][0]},${M1[1][1]}, dx = ${dx0}`);
+        //     let fMid = CalcNextFrontOfM(f0, L, M1, dx0);
+        //     console.log(`===== M2 ${M2[0][0]},${M2[0][1]},${M2[1][0]},${M2[1][1]}, dx = ${dxMid}`);
+        //     ff = CalcNextFrontOfM(fMid, L, M2, dxMid);
+        //     dxf = dx0;
         // }
+
+        // for (let iDistFix = 0; iDistFix < useDistFix; iDistFix++) {
+        //     let fx = math.clone(ff);
+        //     console.log(`===== MD ${MD[0][0]},${MD[0][1]},${MD[1][0]},${MD[1][1]}, dx = ${dx0}`);
+        //     ff = CalcNextFrontOfM(fx, L, MD, dx0);
+        // }
+
+        let dx = dx0;
+        let fx = math.clone(fronts[0]);
+        for (let iMat = 1; iMat < mats.length; iMat++) {
+            console.log(`===== MM ${mats[iMat][0][0]},${mats[iMat][0][1]},${mats[iMat][1][0]},${mats[iMat][1][1]}, dx = ${dx}`);
+            ff = CalcNextFrontOfM(fx, L, mats[iMat], dx);
+            dx = lambda * mats[iMat][0][1] / (L * dx);
+            fx = math.clone(ff);
+
+        }
+        ff = math.clone(fx);    
+        vecMats.push(mats);
+        dxf = dx;
 
         vecQ.push(newQ);
         let width = calcWidth(ff);
@@ -736,10 +846,12 @@ function fullCavityMultiMode() {
     drawMultiMode();
 }
 
-function CalcNextFrontOfM(f0, L, M, dx0, dxf) {
+function CalcNextFrontOfM(f0, L, M, dx0) {
     let A = M[0][0];
     let B = M[0][1];
     let D = M[1][1];
+
+    let dxf = B * lambda / (L * dx0); 
     let factor = math.sqrt(math.complex(0, - 1 / (B * lambda)));
 
     let co0 = Math.PI * dx0 * dx0 * A / (B * lambda);
@@ -778,7 +890,7 @@ function roundtripMultiMode(waist = - 1) {
         w = qi * lambda / Math.PI;
         //console.log(`disc = ${disc}, w = ${w}, l1 = ${l1}, l2 = ${l2}`)
     }
-    vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0]; vecW = [0], vecWaist = [0], vecQ[0] = math.complex(0, RayleighRange);
+    vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0]; vecW = [0], vecWaist = [0], vecQ[0] = math.complex(0, RayleighRange), vecMats = [];
     for (let iStep = 1; iStep < 50; iStep++) {
 
         let f0 = math.clone(fronts[iStep - 1]);
@@ -793,7 +905,7 @@ function roundtripMultiMode(waist = - 1) {
 
         let dxf = lambda * B / r0;
 
-        let ff = CalcNextFrontOfM(f0, L, M, dx0, dxf);
+        let ff = CalcNextFrontOfM(f0, L, M, dx0);
 
         let width = calcWidth(ff);
         if (width < 0.0000001) {
@@ -871,7 +983,7 @@ function doDeltaStep(delta, waist) {
             let dx0 = r0 / L;
             let B = M[0][1];
             let dxf = lambda * B / r0;
-            let ff = CalcNextFrontOfM(f0, L, M, dx0, dxf);
+            let ff = CalcNextFrontOfM(f0, L, M, dx0);
             let width = calcWidth(ff);
             deltaGraphYHalf.push(width * Math.abs(dxf) * 1.41421356237);
 
@@ -924,19 +1036,21 @@ function deltaGraphMultiMode() {
 
 function mainCanvasMouseMove(e) {
     const sel = document.getElementById("displayOption");
-    if (sel.value == "E(x)") {
-        var bounds = e.target.getBoundingClientRect();
-        var x = e.clientX - bounds.left;
-        var y = e.clientY - bounds.top;
+    var bounds = e.target.getBoundingClientRect();
+    var x = e.clientX - bounds.left;
+    var y = e.clientY - bounds.top;
 
-        let ix = (x - drawSx) / drawW;
-        if (ix >= 0 && ix < fronts.length) {
+    let ix = Math.floor((x - drawSx) / drawW);
+    if (ix >= 0 && ix < fronts.length) {
+        if (sel.value == "E(x)") {
             fi = fronts[ix];
             fr = [];
             for (let i = 0; i < fi.length; i++) {
                 fr.push(fi[i].toPolar().r);
             }
             drawVector(fr);
+        } else if (sel.value == "M(x)") {
+            drawMatDecomposition(ix);
         }
     }
 

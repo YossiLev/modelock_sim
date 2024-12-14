@@ -97,6 +97,7 @@ def generate_fun(data_obj, tab, offset = 0):
                             Option("C"), 
                             Option("D"), 
                             Option("E(x)"), 
+                            Option("M(x)"), 
                             Option("Width(x)"),                               
                             Option("Waist(x)"),                               
                             Option("QWaist(x)"),                               

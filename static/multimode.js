@@ -355,6 +355,7 @@ function drawMatDecomposition(ix, clear = true, color = "red") {
         let mats = vecMats[ix];
         let px = 10, dx = 60;
 
+        let mMat = [[1, 0], [0, 1]];
         let newRange = ranges[0];
         for (let iMat = 0; iMat < mats.length; iMat++) {
             let [A, B, C, D] = [mats[iMat][0][0], mats[iMat][0][1], mats[iMat][1][0], mats[iMat][1][1]];
@@ -367,8 +368,16 @@ function drawMatDecomposition(ix, clear = true, color = "red") {
             if (iMat == 0) {
                 ctx.fillStyle = 'blue';
                 newRange = ranges[0];
+                px += 200 * (mats.length - 1)
+            } else {
+                mMat = MMult(mats[iMat], mMat);
+                let [A, B, C, D] = [mMat[0][0], mMat[0][1], mMat[1][0], mMat[1][1]];
+                ctx.fillText(math.re(A).toFixed(6), px, 120);
+                ctx.fillText(math.re(B).toFixed(6), px + dx, 120);
+                ctx.fillText(math.re(C).toFixed(6), px, 140);
+                ctx.fillText(math.re(D).toFixed(6), px + dx, 140);
+                px -= 200;
             }
-            px += 200;
         }
 
     }
@@ -679,7 +688,7 @@ function decomposeMat(M, dStep, r0, L) {
     } else {
 
         console.log(`BB dStep = ${dStep} A = ${A}, B = ${B}, C = ${C}, D = ${D} B1 = ${B / (- A + 1)} Rdxf = ${lambda * B / (- A + 1) / r0} RR${L * lambda * B / (- A + 1) / r0}`);
-        M2 = [[-A, -B / (-A + 1)], [-C, -D + C * B / (-A + 1)]];
+        M2 = [[-A, -B / (-A + 1)], [-C, -D - C * B / (-A + 1)]];
         dxMid = lambda * B / (- A + 1) / r0;
         M1 = [[-1, B / (-A + 1)], [0, -1]];
     }
@@ -728,7 +737,7 @@ function getMatricesAtDistFromStart(dStep, r0) {
         M1 = [[1, B / (A + 1)], [0, 1]];
     } else {
         console.log(`BBNew dStep = ${dStep} A = ${A}, B = ${B}, C = ${C}, D = ${D} B1 = ${B / (- A + 1)} Rdxf = ${lambda * B / (- A + 1) / r0} RR${L * lambda * B / (- A + 1) / r0}`);
-        M2 = [[-A, -B / (-A + 1)], [-C, -D + C * B / (-A + 1)]];
+        M2 = [[-A, -B / (-A + 1)], [-C, -D - C * B / (-A + 1)]];
         dxMid = lambda * B / (- A + 1) / r0;
         M1 = [[-1, B / (-A + 1)], [0, -1]];
     }

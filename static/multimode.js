@@ -705,11 +705,15 @@ function getMatricesAtDistFromStart(M, dStep, r0) {
 
     let MS, MD, useDistFix = 0;
     if (Math.abs(M[0][1]) < 1.8 * spDist) {
-        if (dStep > 2 * spDist && M[0][1] > 0) {
-            let mPush = [[1, - spDist], [0, 1]];
-            MS = MMult(mPush, M);
+        if (dStep > 2 * spDist) {
             MD = [[1.0, spDist], [0, 1]];
             useDistFix = 1;
+            let mPush = [[1, - spDist], [0, 1]];
+            MS = MMult(mPush, M);
+            while (Math.abs(MS[0][1]) < spDist) {
+                MS = MMult(mPush, MS);
+                useDistFix++;
+            }
         } else {
             let mPush = [[1, 2 * spDist], [0, 1]];
             MS = MMult(mPush, M);

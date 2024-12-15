@@ -676,81 +676,75 @@ function calcWidth(v) {
     return w;
 }
 
-function decomposeMat(M, dStep, r0, L) {
-    let [A, B, C, D] = [M[0][0], M[0][1], M[1][0], M[1][1]];
-    let M1, M2, M3, M4;
+// function decomposeMat(M, dStep, r0, L) {
+//     let [A, B, C, D] = [M[0][0], M[0][1], M[1][0], M[1][1]];
+//     let M1, M2, M3, M4;
 
-    if (Math.abs(A + 1) > 0.1) {
-        console.log(`AA dStep = ${dStep} A = ${A}, B = ${B}, C = ${C}, D = ${D} B1 = ${B / (A + 1)} Rdxf = ${lambda * B / (A + 1) / r0} RR${L * lambda * B / (A + 1) / r0}`);
-        M2 = [[A, B / (A + 1)], [C, D - C * B / (A + 1)]];
-        dxMid = lambda * B / (A + 1) / r0;
-        M1 = [[1, B / (A + 1)], [0, 1]];
-    } else {
+//     if (Math.abs(A + 1) > 0.1) {
+//         console.log(`AA dStep = ${dStep} A = ${A}, B = ${B}, C = ${C}, D = ${D} B1 = ${B / (A + 1)} Rdxf = ${lambda * B / (A + 1) / r0} RR${L * lambda * B / (A + 1) / r0}`);
+//         M2 = [[A, B / (A + 1)], [C, D - C * B / (A + 1)]];
+//         dxMid = lambda * B / (A + 1) / r0;
+//         M1 = [[1, B / (A + 1)], [0, 1]];
+//     } else {
 
-        console.log(`BB dStep = ${dStep} A = ${A}, B = ${B}, C = ${C}, D = ${D} B1 = ${B / (- A + 1)} Rdxf = ${lambda * B / (- A + 1) / r0} RR${L * lambda * B / (- A + 1) / r0}`);
-        M2 = [[-A, -B / (-A + 1)], [-C, -D - C * B / (-A + 1)]];
-        dxMid = lambda * B / (- A + 1) / r0;
-        M1 = [[-1, B / (-A + 1)], [0, -1]];
-    }
+//         console.log(`BB dStep = ${dStep} A = ${A}, B = ${B}, C = ${C}, D = ${D} B1 = ${B / (- A + 1)} Rdxf = ${lambda * B / (- A + 1) / r0} RR${L * lambda * B / (- A + 1) / r0}`);
+//         M2 = [[-A, -B / (-A + 1)], [-C, -D - C * B / (-A + 1)]];
+//         dxMid = lambda * B / (- A + 1) / r0;
+//         M1 = [[-1, B / (-A + 1)], [0, -1]];
+//     }
 
-    return [M1, M2];
-}
-function getMatricesAtDistFromStart(dStep, r0) {
+//     return [M1, M2];
+// }
+
+function getMatricesAtDistFromStart(M, dStep, r0) {
     let L = nSamples;
     let mats = [];
     let spDist = r0 * r0 / (L * lambda);
 
-    let M  = getMatOnStep(dStep);
     mats.push(math.clone(M));
 
-    let A = M[0][0], B = M[0][1], C = M[1][0], D = M[1][1];
-    let dxf = lambda * B / r0;
-
-    let MD, useDistFix = 0;
-    if (Math.abs(B) < 1.8 * spDist) {
-        console.log("Fix C");
-        if (dStep > 2 * spDist) {
+    let MS, MD, useDistFix = 0;
+    if (Math.abs(M[0][1]) < 1.8 * spDist) {
+        if (dStep > 2 * spDist && M[0][1] > 0) {
             let mPush = [[1, - spDist], [0, 1]];
-            M = MMult(mPush, M);
-            //M  = getMatOnStep(dStep - spDist);
+            MS = MMult(mPush, M);
             MD = [[1.0, spDist], [0, 1]];
             useDistFix = 1;
         } else {
             let mPush = [[1, 2 * spDist], [0, 1]];
-            M = MMult(mPush, M);
-            //M  = getMatOnStep(dStep + 2 * spDist);
+            MS = MMult(mPush, M);
             MD = [[1.0, - spDist], [0, 1]];
             useDistFix = 2;
         }
+    } else {
+        MS = math.clone(M);
     }
-    A = M[0][0], B = M[0][1], C = M[1][0], D = M[1][1];
+    let A = MS[0][0], B = MS[0][1], C = MS[1][0], D = MS[1][1];
 
-    let M1, M2, dxMid, ff;
-    console.log(`===== StartM XNew ${M[0][0]},${M[0][1]},${M[1][0]},${M[1][1]},`);
+    let M1, M2;//, dxMid, ff;
+    //console.log(`===== StartM XNew ${M[0][0]},${M[0][1]},${M[1][0]},${M[1][1]},`);
 
-    [M1, M2] = decomposeMat(M, dStep, r0, L);
+    //[M1, M2] = decomposeMat(M, dStep, r0, L);
 
+    // decompose into two matrices
     if (Math.abs(A + 1) > 0.1) {
-        console.log(`AANew dStep = ${dStep} A = ${A}, B = ${B}, C = ${C}, D = ${D} B1 = ${B / (A + 1)} Rdxf = ${lambda * B / (A + 1) / r0} RR${L * lambda * B / (A + 1) / r0}`);
+        // A not close to -1
+        //console.log(`AAN dStep = ${dStep} A = ${A}, B = ${B}, C = ${C}, D = ${D} B1 = ${B / (A + 1)} Rdxf = ${lambda * B / (A + 1) / r0} RR${L * lambda * B / (A + 1) / r0}`);
         M2 = [[A, B / (A + 1)], [C, D - C * B / (A + 1)]];
-        dxMid = lambda * B / (A + 1) / r0;
+        //dxMid = lambda * B / (A + 1) / r0;
         M1 = [[1, B / (A + 1)], [0, 1]];
     } else {
-        console.log(`BBNew dStep = ${dStep} A = ${A}, B = ${B}, C = ${C}, D = ${D} B1 = ${B / (- A + 1)} Rdxf = ${lambda * B / (- A + 1) / r0} RR${L * lambda * B / (- A + 1) / r0}`);
+        // A close to -1, so negate matrix and then decompose
+        //console.log(`BBN dStep = ${dStep} A = ${A}, B = ${B}, C = ${C}, D = ${D} B1 = ${B / (- A + 1)} Rdxf = ${lambda * B / (- A + 1) / r0} RR${L * lambda * B / (- A + 1) / r0}`);
         M2 = [[-A, -B / (-A + 1)], [-C, -D - C * B / (-A + 1)]];
-        dxMid = lambda * B / (- A + 1) / r0;
+        //dxMid = lambda * B / (- A + 1) / r0;
         M1 = [[-1, B / (-A + 1)], [0, -1]];
     }
 
-    dxMid = lambda * M2[0][1] / r0;
+    // dxMid = lambda * M2[0][1] / r0;
 
-    // if (Math.abs(L * dxMid) < 0.0045 || Math.abs(M2[0][1]) < 0.001 + r0 * r0 / (L * lambda)) {
-    //     console.log(`OVERRIDE  ==== dStep = ${dStep}, L * dxMid = ${L * dxMid} Math.abs(M2[0][1]) = ${Math.abs(M2[0][1])}`)
-    //     mats.push(math.clone(M));
-    // } else {
-        mats.push(math.clone(M1));
-        mats.push(math.clone(M2));
-    // }
+    mats.push(math.clone(M1));
+    mats.push(math.clone(M2));
 
     for (let iDistFix = 0; iDistFix < useDistFix; iDistFix++) {
         mats.push(math.clone(MD));
@@ -773,74 +767,29 @@ function fullCavityMultiMode() {
         let dx0 = r0 / L;
         let dStep = iStep * distStep;
 
-        let mats = getMatricesAtDistFromStart(dStep, r0);
+        let MS = getMatOnStep(dStep);
 
-        //let M  = getMatOnStep(dStep);
-        let M  = math.clone(mats[0]);
+        let mats = getMatricesAtDistFromStart(MS, dStep, r0);
+
+        let M  = mats[0];
         let A = M[0][0], B = M[0][1], C = M[1][0], D = M[1][1];
         vecA.push(M[0][0]);
         vecB.push(M[0][1]);
         vecC.push(M[1][0]);
         vecD.push(M[1][1]);
         let newQ = math.chain(vecQ[0]).multiply(A).add(B).divide(math.chain(vecQ[0]).multiply(C).add(D).done()).done();
-        let dxf = lambda * B / r0;
-
-        // //console.log(`ORIGINAL  dStep = ${dStep} A = ${A}, B = ${B}, C = ${C}, D = ${D} `);
-
-        // let MD, useDistFix = 0;
-        // console.log(`r0 * r0 / L * lambda = `)
-        // if (Math.abs(B) < r0 * r0 / (L * lambda)) {
-        //     console.log("Fix C");
-        //     if (dStep > 2 * r0 * r0 / (L * lambda)) {
-        //         M  = getMatOnStep(dStep - r0 * r0 / (L * lambda));
-        //         MD = [[1.0, r0 * r0 / (L * lambda)], [0, 1]];
-        //         useDistFix = 1;
-        //     } else {
-        //         M  = getMatOnStep(dStep + 2 * r0 * r0 / (L * lambda));
-        //         MD = [[1.0, - r0 * r0 / (L * lambda)], [0, 1]];
-        //         useDistFix = 2;
-        //     }
-        // }
-        // // let factor = math.sqrt(math.complex(0, - 1 / (B * lambda)));
-        // console.log(`===== StartM A ${M[0][0]},${M[0][1]},${M[1][0]},${M[1][1]},`);
-
-        // let M1, M2, dxMid, ff;
-
-        // [M1, M2] = decomposeMat(M, dStep, r0, L);
-        // dxMid = lambda * M2[0][1] / r0;
-        
-        // if (Math.abs(L * dxMid) < 0.0045 || Math.abs(M2[0][1]) < 0.001 + r0 * r0 / (L * lambda)) {
-        //     console.log(`OVERRIDE 1  ==== dStep = ${dStep}, L * dxMid = ${L * dxMid} Math.abs(M2[0][1]) = ${Math.abs(M2[0][1])}`)
-        //     console.log(`===== M ${M[0][0]},${M[0][1]},${M[1][0]},${M[1][1]},`);
-        //     ff = CalcNextFrontOfM(f0, L, M, dx0);
-        // } else {
-        //     console.log(`No OVERRIDE 1  ==== dStep = ${dStep}, L * dxMid = ${L * dxMid} Math.abs(M2[0][1]) = ${Math.abs(M2[0][1])}`)
-
-        //     console.log(`===== M1 ${M1[0][0]},${M1[0][1]},${M1[1][0]},${M1[1][1]}, dx = ${dx0}`);
-        //     let fMid = CalcNextFrontOfM(f0, L, M1, dx0);
-        //     console.log(`===== M2 ${M2[0][0]},${M2[0][1]},${M2[1][0]},${M2[1][1]}, dx = ${dxMid}`);
-        //     ff = CalcNextFrontOfM(fMid, L, M2, dxMid);
-        //     dxf = dx0;
-        // }
-
-        // for (let iDistFix = 0; iDistFix < useDistFix; iDistFix++) {
-        //     let fx = math.clone(ff);
-        //     console.log(`===== MD ${MD[0][0]},${MD[0][1]},${MD[1][0]},${MD[1][1]}, dx = ${dx0}`);
-        //     ff = CalcNextFrontOfM(fx, L, MD, dx0);
-        // }
 
         let dx = dx0;
         let fx = math.clone(fronts[0]);
         for (let iMat = 1; iMat < mats.length; iMat++) {
-            console.log(`===== MM ${mats[iMat][0][0]},${mats[iMat][0][1]},${mats[iMat][1][0]},${mats[iMat][1][1]}, dx = ${dx}`);
+            //console.log(`===== MM ${mats[iMat][0][0]},${mats[iMat][0][1]},${mats[iMat][1][0]},${mats[iMat][1][1]}, dx = ${dx}`);
             ff = CalcNextFrontOfM(fx, L, mats[iMat], dx);
             dx = lambda * mats[iMat][0][1] / (L * dx);
             fx = math.clone(ff);
-
         }
         ff = math.clone(fx);    
         vecMats.push(mats);
-        dxf = dx;
+        let dxf = dx;
 
         vecQ.push(newQ);
         let width = calcWidth(ff);

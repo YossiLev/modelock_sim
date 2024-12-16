@@ -702,7 +702,7 @@ function getMatricesAtDistFromStart(M, dStep, r0) {
     let mats = [];
     let spDist = r0 * r0 / (L * lambda);
 
-    mats.push(math.clone(M));
+   mats.push(math.clone(M));
 
     let MS, MD, useDistFix = 0;
     if (Math.abs(M[0][1]) < 1.8 * spDist) {
@@ -716,10 +716,14 @@ function getMatricesAtDistFromStart(M, dStep, r0) {
                 useDistFix++;
             }
         } else {
-            let mPush = [[1, 2 * spDist], [0, 1]];
-            MS = MMult(mPush, M);
             MD = [[1.0, - spDist], [0, 1]];
             useDistFix = 2;
+            let mPush = [[1, 2 * spDist], [0, 1]];
+            MS = MMult(mPush, M);
+            while (Math.abs(MS[0][1]) < spDist) {
+                MS = MMult(mPush, MS);
+                useDistFix++;
+            }
         }
     } else {
         MS = math.clone(M);
@@ -732,8 +736,9 @@ function getMatricesAtDistFromStart(M, dStep, r0) {
     //[M1, M2] = decomposeMat(M, dStep, r0, L);
 
     // decompose into two matrices
-    if (Math.abs(A + 1) > 0.1) {
-        // A not close to -1
+    //if (Math.abs(A + 1) > 0.1) {
+    if (A > 0) {
+            // A not close to -1
         //console.log(`AAN dStep = ${dStep} A = ${A}, B = ${B}, C = ${C}, D = ${D} B1 = ${B / (A + 1)} Rdxf = ${lambda * B / (A + 1) / r0} RR${L * lambda * B / (A + 1) / r0}`);
         M2 = [[A, B / (A + 1)], [C, D - C * B / (A + 1)]];
         //dxMid = lambda * B / (A + 1) / r0;

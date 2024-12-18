@@ -443,16 +443,16 @@ def parameter_num(tabid: str, localId: str, beam_x: str, beam_theta: str):
 
 from fun import elements
 
-@app.post("/addElement")
-def addlens(localId: str):
-    elements.append({"t": "L", "par":[0.2, 0.1]})
-    return generate_fun(get_Data_obj(localId), 1)
+@app.post("/addElement/{tab}")
+def addlens(localId: str, tab: int):
+    elements[tab - 1].append({"t": "L", "par":[0.2, 0.1]})
+    return generate_fun(get_Data_obj(localId), tab)
 
 
-@app.post("/removeElements/{index}")
-def addlens(index: int, localId: str):
-    elements.pop(index)
-    return generate_fun(get_Data_obj(localId), 1)
+@app.post("/removeElements/{tab}/{index}")
+def addlens(index: int, localId: str, tab: int):
+    elements[tab - 1].pop(index)
+    return generate_fun(get_Data_obj(localId), tab)
 
 
 # uvicorn app:app --host 0.0.0.0 --port 443 --ssl-keyfile=sim_key.pem --ssl-certfile=sim_cert.pem

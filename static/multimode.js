@@ -272,41 +272,42 @@ function drawElements() {
     if (!drawOption) {
         return
     }
-    const canvas = document.querySelectorAll('[id^="funCanvas"]')[0];
-    const ctx = canvas.getContext("2d");
-    ctx.fillStyle = `yellow`;
-    for (let iEl = 0; iEl < elements.length; iEl++) {
-        switch (elements[iEl].t) {
-            case "L":
-                ctx.fillStyle = `yellow`;
-                px = drawSx + (elements[iEl].par[0] - distStart) / distStep * drawW ;
-                ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);          
-                break;
-            case "C":
-                ctx.fillStyle = `purple`;
-                px = drawSx + (elements[iEl].par[0] - distStart) / distStep * drawW ;
-                ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);          
-                px = drawSx + (elements[iEl].par[0] + elements[iEl].par[1] - distStart) / distStep * drawW ;
-                ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);
-                let spx = (elements[iEl].par[1] / 10);
-                ctx.strokeStyle = `purple`;
-                ctx.setLineDash([5, 3]);
-                ctx.beginPath();
-                for (let iL = 0; iL < 5; iL++) {
-                    px = drawSx + (elements[iEl].par[0] + (1 + 2 * iL) * spx - distStart) / distStep * drawW ;
-                    ctx.moveTo(px, drawMid - 80 * zoomFactor);
-                    ctx.lineTo(px, drawMid + 80 * zoomFactor);
-                }
-                ctx.stroke();
-                break;
-            case "X":
-                ctx.fillStyle = `blue`;
-                px = drawSx + (elements[iEl].par[0] - distStart) / distStep * drawW ;
-                ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);          
-                break;
-                
+    document.querySelectorAll('[id^="funCanvas"]').forEach((canvas) => {
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = `yellow`;
+        for (let iEl = 0; iEl < elements.length; iEl++) {
+            switch (elements[iEl].t) {
+                case "L":
+                    ctx.fillStyle = `yellow`;
+                    px = drawSx + (elements[iEl].par[0] - distStart) / distStep * drawW ;
+                    ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);          
+                    break;
+                case "C":
+                    ctx.fillStyle = `purple`;
+                    px = drawSx + (elements[iEl].par[0] - distStart) / distStep * drawW ;
+                    ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);          
+                    px = drawSx + (elements[iEl].par[0] + elements[iEl].par[1] - distStart) / distStep * drawW ;
+                    ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);
+                    let spx = (elements[iEl].par[1] / 10);
+                    ctx.strokeStyle = `purple`;
+                    ctx.setLineDash([5, 3]);
+                    ctx.beginPath();
+                    for (let iL = 0; iL < 5; iL++) {
+                        px = drawSx + (elements[iEl].par[0] + (1 + 2 * iL) * spx - distStart) / distStep * drawW ;
+                        ctx.moveTo(px, drawMid - 80 * zoomFactor);
+                        ctx.lineTo(px, drawMid + 80 * zoomFactor);
+                    }
+                    ctx.stroke();
+                    break;
+                case "X":
+                    ctx.fillStyle = `blue`;
+                    px = drawSx + (elements[iEl].par[0] - distStart) / distStep * drawW ;
+                    ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);          
+                    break;
+                    
+            }
         }
-    }
+    });
 }
 
 function vecDeriv(v, dx = 1) {
@@ -1010,62 +1011,121 @@ function fullCavityMultiMode() {
 
 function fullCavityCrystal() {
     drawMode = 1;
+
+    vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0]; vecW = [], vecWaist = [], vecQ[0] = math.complex(0, RayleighRange), vecMats = [];
+
+    let power = 30000000;
+    let lens_aperture = 56e-6;
+    //let fa = ((2 * Math.PI * lens_aperture ** 2) / lambda);
+    let fa = ((2 * lens_aperture ** 2));
+    let n2 = 3e-20; // n2 of sapphire m^2/W
+    let crystalLength = 3e-3;
+    let kerrPar =  4 * crystalLength * n2;
+    let Ikl = kerrPar / 5 / 50;
+    let M, imagA;
+    let MatSide = [[[-1.2947E+00, 4.8630E-03], [1.5111E+02, -1.3400E+00]],  // right
+                 [[1.1589E+00, 8.2207E-04], [1.5111E+02, -1.3400E+00]]];   // left
+    let MatsSide = [];
+
+    for (let tt = 0; tt < 1; tt++) {
+    MatSide.forEach((m, index) => {
+        let [[A, B], [C, D]] = m;
+
+        let M1, M2;
+        if (A > 0) {
+            // A not close to -1
+            M2 = [[A, B / (A + 1)], [C, D - C * B / (A + 1)]];
+            M1 = [[1, B / (A + 1)], [0, 1]];
+        } else {
+            // A close to -1, so negate matrix and then decompose
+            M2 = [[-A, -B / (-A + 1)], [-C, -D - C * B / (-A + 1)]];
+            M1 = [[-1, B / (-A + 1)], [0, -1]];
+        }
+        console.log(`M1 ${M1}`);
+        console.log(`M2 ${M2}`);
+
+        MatsSide.push([M1, M2]);
+    });
+
+    let gain = 1.030;
+    let L = nSamples;
+
+    for (let iDir = 0; iDir < 2; iDir++) {
+        let fronts = multiFronts[iDir];
+        let ranges = multiRanges[iDir];
+        let frontsO = multiFronts[1 - iDir];
+        let rangesO = multiRanges[1 - iDir];
+
+        if (fronts.length <= 0) {
+            return;
+        }
     
-    let fronts = multiFronts[0];
-    let ranges = multiRanges[0];
+        for (let iStep = 1; iStep < 12; iStep++) {
+            let fx = math.clone(fronts[iStep - 1]);
+            for (let ii = 0; ii < fx.length; ii++) {
+                fx[ii] = math.multiply(fx[ii], 1.031);
+            }
+            let rx = ranges[iStep - 1];
 
-    if (fronts.length <= 0) {
-        return;
-    }
-    
-    vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0]; vecW = [0], vecWaist = [0], vecQ[0] = math.complex(0, RayleighRange), vecMats = [];
-    
-    for (let iStep = 1; iStep < 12; iStep++) {
-        let fx = math.clone(fronts[iStep - 1]);
-        let rx = ranges[iStep - 1];
-        let L = fx.length;
-        let dx0 = rx / L;
-        let dStep = distStep;
+            let dx0 = rx / L;
 
-        let M;
-        if (iStep % 2 == 0) {
-
-            let n2 = 3e-20; // n2 of sapphire m^2/W
-            crystalLength = 3e-3;
-            kerrPar =  4 * crystalLength * n2;
-            Ikl = kerrPar / 5 / 50;
-
+            imagA = - dx0 * dx0 / fa;
             let width = calcWidth(fx);
             let waist = width * dx0 * 1.41421356237;
-            let power = 30000000;
+            vecW.push(width);
+            vecWaist.push(waist);
+            if (iStep % 2 == 0) {
+                let focal = Math.pow(waist, 4) / (Ikl * power);
+                console.log(`waist ${waist}, focal ${focal}`);
+                M = [[1 - distStep / focal, distStep], [- 1 / focal, 1]];
+            } else {
+                M = [[1, distStep], [0, 1]];
+            }
+            let gainFactor = Math.min(1.0, fa / (2 * waist * waist));
+            ff = CalcNextFrontOfM(fx, L, M, dx0, false, imagA, gain * gainFactor);
 
-            let focal = Math.pow(waist, 4) / (Ikl * power);
-            console.log(`waist ${waist}, focal ${focal}`);
-            M = [[1 - dStep / focal, dStep], [- 1 / focal, 1]];
-        } else {
-            M = [[1, dStep], [0, 1]];
+            let dxf = lambda * M[0][1] / (L * dx0);
+            console.log(`lambda ${lambda}, B = ${M[0][1]}, L = ${L}, dx = ${dx0}, dxf = ${dxf}`)
+
+            if (fronts.length <= iStep) {
+                fronts.push(ff);
+                ranges.push(L * dxf);
+            } else {
+                fronts[iStep] = ff;                
+                ranges[iStep] = L * dxf;                
+            }
         }
 
-        ff = CalcNextFrontOfM(fx, L, M, dx0);
+        [M1, M2] = MatsSide[iDir];
+        let fx = math.clone(fronts[fronts.length - 1]);
+        let dx0 = ranges[ranges.length - 1] / L;
+        fx = CalcNextFrontOfM(fx, L, M2, dx0, iDir == 1);
+        let dxf = lambda * M2[0][1] / (L * dx0);
+        fx = CalcNextFrontOfM(fx, L, M1, dxf, iDir == 1);
+        dxf = lambda * M1[0][1] / (L * dxf);
+        
+        frontsO[0] = fx;
+        rangesO[0] = L * dxf;
 
-        let dxf = lambda * M[0][1] / (L * dx0);
-        console.log(`lambda ${lambda}, B = ${M[0][1]}, L = ${L}, dx = ${dx0}, dxf = ${dxf}`)
-
-        fronts.push(ff);
-        ranges.push(L * dxf);
+        if (iDir == 1) {
+            fronts.reverse();
+            ranges.reverse();
+        }
     }
+    }
+
     drawMultiMode();
 }
 
-function CalcNextFrontOfM(f0, L, M, dx0, isBack = false) {
+function CalcNextFrontOfM(f0, L, M, dx0, isBack = false, imagA = 0, gain = 1) {
     let A = M[0][0];
     let B = M[0][1];
     let D = M[1][1];
 
     let dxf = B * lambda / (L * dx0); 
-    let factor = math.multiply(math.complex(0, 1), math.sqrt(math.complex(0, - 1 / (B * lambda))));
+    let factor = math.multiply(math.complex(0, gain), math.sqrt(math.complex(0, - 1 / (B * lambda))));
     if (isBack) {
-        factor = math.multiply(factor, math.complex(0, 1));
+        factor = math.multiply(factor, math.complex(0, gain));
     }
 
     let co0 = - Math.PI * dx0 * dx0 * A / (B * lambda);
@@ -1079,7 +1139,7 @@ function CalcNextFrontOfM(f0, L, M, dx0, isBack = false) {
 
     for (let i = 0; i < L; i++) {
         let ii = i - L / 2;
-        ff[i] = math.multiply(math.multiply(ff[i], factor), math.exp(math.complex(0, cof * ii * ii)))
+        ff[i] = math.multiply(math.multiply(ff[i], factor), math.exp(math.complex(imagA * ii * ii, cof * ii * ii)))
     }
 
     return ff;

@@ -21,12 +21,34 @@ var vecQ = [];
 var vecMats = [];
 var RayleighRange;
 var graphData = [];
+var vecApper = [];
 var isMouseDownOnGraph = false;
 var mouseOnGraphStart = 0;
 var mouseOnGraphEnd = 0;
 var drawOption = true;
 var drawMode = 1;
 var deltaGraphX, deltaGraphY,  deltaGraphYHalf, deltaGraphYCalc;
+
+
+function getFieldFloat(id, defaultValue) {
+    const cont = document.getElementById(id);
+    if (cont != null) {
+        const value = cont.value;
+        const numVal = parseFloat(value);
+        if (!isNaN(numVal)) {
+            return numVal;
+        }
+    }
+
+    return defaultValue;
+}
+
+function setFieldFloat(id, newValue) {
+    const cont = document.getElementById(id);
+    if (cont != null) {
+        cont.value = `${newValue}`;
+    }
+}
 
 function getInitFront(pPar = - 1) {
     const sel = document.getElementById("incomingFront");
@@ -80,6 +102,15 @@ function getInitFront(pPar = - 1) {
                 vf.push(math.complex(0))
             }
             break;    
+    }
+
+    vecApper  = [];
+    let dx = initialRange / nSamples;
+    x0 = nSamples / 2 * dx;
+    for (let i = 0; i < nSamples; i++) {
+        px = i * dx;
+        x = (px - x0) / 0.000050;
+        vecApper.push(math.complex(1 * Math.exp(- x * x)))
     }
 
     return vf;
@@ -925,13 +956,12 @@ function getMatricesAtDistFromStart(M, dStep, r0) {
     // decompose into two matrices
     //if (Math.abs(A + 1) > 0.1) {
     if (A > 0) {
-            // A not close to -1
         //console.log(`AAN dStep = ${dStep} A = ${A}, B = ${B}, C = ${C}, D = ${D} B1 = ${B / (A + 1)} Rdxf = ${lambda * B / (A + 1) / r0} RR${L * lambda * B / (A + 1) / r0}`);
         M2 = [[A, B / (A + 1)], [C, D - C * B / (A + 1)]];
         //dxMid = lambda * B / (A + 1) / r0;
         M1 = [[1, B / (A + 1)], [0, 1]];
     } else {
-        // A close to -1, so negate matrix and then decompose
+        // negate matrix and then decompose
         //console.log(`BBN dStep = ${dStep} A = ${A}, B = ${B}, C = ${C}, D = ${D} B1 = ${B / (- A + 1)} Rdxf = ${lambda * B / (- A + 1) / r0} RR${L * lambda * B / (- A + 1) / r0}`);
         M2 = [[-A, -B / (-A + 1)], [-C, -D - C * B / (-A + 1)]];
         //dxMid = lambda * B / (- A + 1) / r0;
@@ -1006,7 +1036,12 @@ function fullCavityMultiMode() {
         fronts.push(ff);
         ranges.push(L * dxf);
     }
+
     drawMultiMode();
+}
+
+function calcPower(f) {
+    return math.sum(math.dotMultiply(f, math.conj(f)))
 }
 
 function fullCavityCrystal() {
@@ -1014,7 +1049,7 @@ function fullCavityCrystal() {
 
     vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0]; vecW = [], vecWaist = [], vecQ[0] = math.complex(0, RayleighRange), vecMats = [];
 
-    let power = 30000000;
+    let power = getFieldFloat('power', 30000000);
     let lens_aperture = 56e-6;
     //let fa = ((2 * Math.PI * lens_aperture ** 2) / lambda);
     let fa = ((2 * lens_aperture ** 2));
@@ -1026,6 +1061,7 @@ function fullCavityCrystal() {
     let MatSide = [[[-1.2947E+00, 4.8630E-03], [1.5111E+02, -1.3400E+00]],  // right
                  [[1.1589E+00, 8.2207E-04], [1.5111E+02, -1.3400E+00]]];   // left
     let MatsSide = [];
+    let MatTotal = [[1, 0], [0, 1]];
 
     for (let tt = 0; tt < 1; tt++) {
     MatSide.forEach((m, index) => {
@@ -1062,12 +1098,32 @@ function fullCavityCrystal() {
     
         for (let iStep = 1; iStep < 12; iStep++) {
             let fx = math.clone(fronts[iStep - 1]);
-            for (let ii = 0; ii < fx.length; ii++) {
-                fx[ii] = math.multiply(fx[ii], 1.031);
-            }
+            // for (let ii = 0; ii < fx.length; ii++) {
+            //     fx[ii] = math.multiply(fx[ii], 1.031);
+            // }
+
             let rx = ranges[iStep - 1];
 
             let dx0 = rx / L;
+
+            if (iStep == 1) {
+                let width = calcWidth(fx);
+                let waist = width * dx0 * 1.41421356237;
+                console.log(`------ waist ${waist}`);
+
+                let pi = calcPower(fx);
+                for (let ii = 0; ii < fx.length; ii++) {
+                    fx[ii] = math.multiply(fx[ii], vecApper[ii]);
+                }
+                let pf = calcPower(fx);
+                let fff = Math.sqrt(pi / pf);
+                for (let ii = 0; ii < fx.length; ii++) {
+                    fx[ii] = math.multiply(fx[ii], fff);
+                }
+                let pt = calcPower(fx);
+
+                console.log(`pi = ${pi}, pf = ${pf}, pt = ${pt}, `)
+            }
 
             imagA = - dx0 * dx0 / fa;
             let width = calcWidth(fx);
@@ -1076,16 +1132,18 @@ function fullCavityCrystal() {
             vecWaist.push(waist);
             if (iStep % 2 == 0) {
                 let focal = Math.pow(waist, 4) / (Ikl * power);
-                console.log(`waist ${waist}, focal ${focal}`);
+                console.log(`waist ${waist}, focal ${focal} power ${math.sum(math.dotMultiply(fx, math.conj(fx)))}, IKL = ${Ikl}`);
                 M = [[1 - distStep / focal, distStep], [- 1 / focal, 1]];
             } else {
+                console.log(`waist ${waist} power ${math.sum(math.dotMultiply(fx, math.conj(fx)))}`);
                 M = [[1, distStep], [0, 1]];
             }
             let gainFactor = Math.min(1.0, fa / (2 * waist * waist));
             ff = CalcNextFrontOfM(fx, L, M, dx0, false, imagA, gain * gainFactor);
+            MatTotal = math.multiply(M, MatTotal);
 
             let dxf = lambda * M[0][1] / (L * dx0);
-            console.log(`lambda ${lambda}, B = ${M[0][1]}, L = ${L}, dx = ${dx0}, dxf = ${dxf}`)
+            // console.log(`lambda ${lambda}, B = ${M[0][1]}, L = ${L}, dx = ${dx0}, dxf = ${dxf}`)
 
             if (fronts.length <= iStep) {
                 fronts.push(ff);
@@ -1096,14 +1154,30 @@ function fullCavityCrystal() {
             }
         }
 
+
         [M1, M2] = MatsSide[iDir];
         let fx = math.clone(fronts[fronts.length - 1]);
         let dx0 = ranges[ranges.length - 1] / L;
+        let waist = calcWidth(fx) * dx0 * 1.41421356237;
+        console.log(`waist before M2 ${waist}`);
+
         fx = CalcNextFrontOfM(fx, L, M2, dx0, iDir == 1);
+        MatTotal = math.multiply(M2, MatTotal);
+
         let dxf = lambda * M2[0][1] / (L * dx0);
+        waist = calcWidth(fx) * dxf * 1.41421356237;
+        console.log(`waist before M1 ${waist} power ${math.sum(math.dotMultiply(fx, math.conj(fx)))}`);
         fx = CalcNextFrontOfM(fx, L, M1, dxf, iDir == 1);
+        MatTotal = math.multiply(M1, MatTotal);
+
         dxf = lambda * M1[0][1] / (L * dxf);
+        waist = calcWidth(fx) * dxf * 1.41421356237;
+        console.log(`======= waist after M1 ${waist} power ${math.sum(math.dotMultiply(fx, math.conj(fx)))}`);
         
+        console.log(`Before ${power} `, fx)
+        // power = normalizePower(fx, power, dxf);
+        // console.log(`After ${power} `, fx)
+
         frontsO[0] = fx;
         rangesO[0] = L * dxf;
 
@@ -1114,7 +1188,24 @@ function fullCavityCrystal() {
     }
     }
 
+    console.log(`|A+D| = ${Math.abs(MatTotal[0][0] + MatTotal[1][1])}, ABCD = ${MatTotal[0][0]} ${MatTotal[0][1]} ${MatTotal[1][0]} ${MatTotal[1][1]}`);
+    if (Math.abs(MatTotal[0][0] + MatTotal[1][1]) < 2.0) {
+        let [[A, B], [C, D]] = MatTotal;
+        let oneOverQ = math.complex((D - A) / B * 0.5, Math.sqrt(1 - 0.25 * (A + D) * (A + D)) / B);
+        beamDist = 2.0 * B / (D - A);
+        beamWaist = Math.sqrt(lambda * Math.abs(B) / (Math.PI * Math.sqrt(1 - 0.25 * (A + D) * (A + D))))
+        console.log(`beamDist = ${beamDist}, beamWaist = ${beamWaist}`);
+    }
+    //setFieldFloat('power', power);
+
     drawMultiMode();
+}
+
+function  normalizePower(fx, power, dxf) {
+    const p = math.sum(math.dotMultiply(fx, math.conj(fx))) / 512;
+    console.log(`dot ${p}`)
+    fx = math.multiply(fx, 1 /  Math.sqrt(p));
+    return power * p; 
 }
 
 function CalcNextFrontOfM(f0, L, M, dx0, isBack = false, imagA = 0, gain = 1) {
@@ -1123,6 +1214,7 @@ function CalcNextFrontOfM(f0, L, M, dx0, isBack = false, imagA = 0, gain = 1) {
     let D = M[1][1];
 
     let dxf = B * lambda / (L * dx0); 
+    gain = 1;
     let factor = math.multiply(math.complex(0, gain), math.sqrt(math.complex(0, - 1 / (B * lambda))));
     if (isBack) {
         factor = math.multiply(factor, math.complex(0, gain));
@@ -1139,7 +1231,7 @@ function CalcNextFrontOfM(f0, L, M, dx0, isBack = false, imagA = 0, gain = 1) {
 
     for (let i = 0; i < L; i++) {
         let ii = i - L / 2;
-        ff[i] = math.multiply(math.multiply(ff[i], factor), math.exp(math.complex(imagA * ii * ii, cof * ii * ii)))
+        ff[i] = math.multiply(math.multiply(ff[i], factor), math.exp(math.complex(0/*imagA * ii * ii*/, cof * ii * ii)))
     }
 
     return ff;

@@ -102,13 +102,14 @@ def graphCanvas():
         )
     )    
 
-def initBeamType(beamParamInit = 0.0005):
+def initBeamType(beamParamInit = 0.0005, beamDistInit = 0.0):
     return Div(
         Select(Option("Gaussian Beam"), Option("Two Slit"), Option("Mode He5"), 
             Option("Gaussian shift"), Option("Delta"), Option("Zero"),                               
             id="incomingFront"
         ),
         Input(type="number", id=f'beamParam', placeholder="beam", step="0.0001", style="width:80px;", value=f'{beamParamInit}'),
+        Input(type="number", id=f'beamDist', placeholder="dist", step="0.0001", style="width:80px;", value=f'{beamDistInit}'),
         style="display:inline-block;"
     )
 
@@ -140,12 +141,12 @@ def generate_fun(data_obj, tab, offset = 0):
             )
         case 2:
             added = Div(
-                Div(initBeamType(beamParamInit = 0.00003), 
+                Div(initBeamType(beamParamInit = 0.00003, beamDistInit = 0.0), 
                     Button("Init", onclick="initElementsMultiMode(); initMultiMode(2);"),
                     Button("Full", onclick="fullCavityCrystal()"),
                     Button("Switch view", onclick="switchViewMultiMode()"),
                     Input(type="number", id=f'initialRange', placeholder="range(m)", step="0.0001", style="width:120px;", value=f'0.00034613292'),
-                    Input(type="number", id=f'power', placeholder="power", step="1000000", style="width:120px;", value=f'10000000'),
+                    Input(type="number", id=f'power', placeholder="power", step="1000000", style="width:120px;", value=f'30000000'),
                 ),
                 Div(
                     *[Element(el, i, tab) for i, el in enumerate(elements[tab - 1])],

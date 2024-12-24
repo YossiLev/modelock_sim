@@ -1286,7 +1286,7 @@ function roundtripMultiMode(waist = - 1) {
 function autoRangeMultiMode(M = null) {
     //test();
     if (M == null) {
-        initMultiMode();
+        initMultiMode(1);
         M = getMatOnRoundTrip(false);
     }
     let B = M[0][1];
@@ -1305,7 +1305,7 @@ function doDeltaStep(delta, waist) {
     const origValue = elements[1].par[0];
     elements[1].par[0] += delta;
     
-    initMultiMode();
+    initMultiMode(1, waist);
 
     let M = getMatOnRoundTrip(false);
     let A = M[0][0];
@@ -1323,7 +1323,7 @@ function doDeltaStep(delta, waist) {
     let waistCalc = Math.sqrt(lambda / imQ / Math.PI);
 
     for (let iter = 0; iter < 10; iter++) {
-        initMultiMode(waist);
+        initMultiMode(1, waist);
 
         roundtripMultiMode(waist);
 
@@ -1389,7 +1389,7 @@ function deltaGraphMultiMode() {
     deltaGraphYHalf = [];
     deltaGraphYCalc = [];
 
-    initMultiMode(coverWaist);
+    initMultiMode(1, coverWaist);
 
     let delta = 0.001;
 

@@ -92,8 +92,6 @@ def graphCanvas():
                         Option("QWaist(x)"),                               
                         id="displayOption",
                         **{'onchange':"drawGraph();"},),
-                                Canvas(id="graphCanvas", width=1000, height = 200,
-            ),
             Canvas(id="graphCanvas", width=1000, height = 200,
                 **{'onmousemove':"graphCanvasMouseMove(event);",
                 'onmousedown':"graphCanvasMouseDown(event);",

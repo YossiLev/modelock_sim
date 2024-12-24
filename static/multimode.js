@@ -1018,8 +1018,7 @@ function fullCavityMultiMode() {
         let fx = math.clone(fronts[0]);
         for (let iMat = 1; iMat < mats.length; iMat++) {
             //console.log(`===== MM ${mats[iMat][0][0]},${mats[iMat][0][1]},${mats[iMat][1][0]},${mats[iMat][1][1]}, dx = ${dx}`);
-            ff = CalcNextFrontOfM(fx, L, mats[iMat], dx, isBack[iMat]);
-            dx = lambda * mats[iMat][0][1] / (L * dx);
+            [ff, dx] = CalcNextFrontOfM(fx, L, mats[iMat], dx, isBack[iMat]);
             fx = math.clone(ff);
         }
         ff = math.clone(fx);    
@@ -1104,7 +1103,7 @@ function fullCavityCrystal() {
 
             let rx = ranges[iStep - 1];
 
-            let dx0 = rx / L;
+            let dxf, dx0 = rx / L;
 
             if (iStep == 1) {
                 let width = calcWidth(fx);
@@ -1139,10 +1138,9 @@ function fullCavityCrystal() {
                 M = [[1, distStep], [0, 1]];
             }
             let gainFactor = Math.min(1.0, fa / (2 * waist * waist));
-            ff = CalcNextFrontOfM(fx, L, M, dx0, false, imagA, gain * gainFactor);
+            [ff, dxf] = CalcNextFrontOfM(fx, L, M, dx0, false, imagA, gain * gainFactor);
             MatTotal = math.multiply(M, MatTotal);
 
-            let dxf = lambda * M[0][1] / (L * dx0);
             // console.log(`lambda ${lambda}, B = ${M[0][1]}, L = ${L}, dx = ${dx0}, dxf = ${dxf}`)
 
             if (fronts.length <= iStep) {
@@ -1157,20 +1155,18 @@ function fullCavityCrystal() {
 
         [M1, M2] = MatsSide[iDir];
         let fx = math.clone(fronts[fronts.length - 1]);
-        let dx0 = ranges[ranges.length - 1] / L;
+        let dxf, dx0 = ranges[ranges.length - 1] / L;
         let waist = calcWidth(fx) * dx0 * 1.41421356237;
         console.log(`waist before M2 ${waist}`);
 
-        fx = CalcNextFrontOfM(fx, L, M2, dx0, iDir == 1);
+        [fx, dxf] = CalcNextFrontOfM(fx, L, M2, dx0, iDir == 1);
         MatTotal = math.multiply(M2, MatTotal);
 
-        let dxf = lambda * M2[0][1] / (L * dx0);
         waist = calcWidth(fx) * dxf * 1.41421356237;
         console.log(`waist before M1 ${waist} power ${math.sum(math.dotMultiply(fx, math.conj(fx)))}`);
-        fx = CalcNextFrontOfM(fx, L, M1, dxf, iDir == 1);
+        [fx, dxf] = CalcNextFrontOfM(fx, L, M1, dxf, iDir == 1);
         MatTotal = math.multiply(M1, MatTotal);
 
-        dxf = lambda * M1[0][1] / (L * dxf);
         waist = calcWidth(fx) * dxf * 1.41421356237;
         console.log(`======= waist after M1 ${waist} power ${math.sum(math.dotMultiply(fx, math.conj(fx)))}`);
         
@@ -1234,7 +1230,7 @@ function CalcNextFrontOfM(f0, L, M, dx0, isBack = false, imagA = 0, gain = 1) {
         ff[i] = math.multiply(math.multiply(ff[i], factor), math.exp(math.complex(0/*imagA * ii * ii*/, cof * ii * ii)))
     }
 
-    return ff;
+    return [ff, dxf];
 }
 
 function roundtripMultiMode(waist = - 1) {
@@ -1272,9 +1268,7 @@ function roundtripMultiMode(waist = - 1) {
         vecC.push(M[1][0]);
         vecD.push(M[1][1]);
 
-        let dxf = lambda * B / r0;
-
-        let ff = CalcNextFrontOfM(f0, L, M, dx0);
+        let [ff, dxf] = CalcNextFrontOfM(f0, L, M, dx0);
 
         let width = calcWidth(ff);
         if (width < 0.0000001) {
@@ -1355,8 +1349,7 @@ function doDeltaStep(delta, waist) {
             let L = f0.length;
             let dx0 = r0 / L;
             let B = M[0][1];
-            let dxf = lambda * B / r0;
-            let ff = CalcNextFrontOfM(f0, L, M, dx0);
+            let [ff, dxf] = CalcNextFrontOfM(f0, L, M, dx0);
             let width = calcWidth(ff);
             deltaGraphYHalf.push(width * Math.abs(dxf) * 1.41421356237);
 

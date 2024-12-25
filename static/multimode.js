@@ -52,20 +52,25 @@ function setFieldFloat(id, newValue) {
 
 function getInitFront(pPar = - 1) {
     const sel = document.getElementById("incomingFront");
-    const par = document.getElementById("beamParam");
+    //const par = document.getElementById("beamParam");
     const rng = document.getElementById("initialRange");
     initialRange = parseFloat(rng.value);
     let vf = [];
     RayleighRange = 0.0;
     switch (sel.value) {
         case "Gaussian Beam":
-            let waist = pPar > 0 ? pPar : parseFloat(par.value);
+            let waist = pPar > 0 ? pPar : getFieldFloat("beamParam", 0.0005);
+            let beamDist = getFieldFloat("beamDist", 0.0);
             let dx = initialRange / nSamples;
             x0 = nSamples / 2 * dx;
             for (let i = 0; i < nSamples; i++) {
-                px = i * dx;
-                x = (px - x0) / waist;
-                vf.push(math.complex(1 * Math.exp(- x * x)))
+                let px = i * dx;
+                let x = (px - x0);
+                xw = x / waist;
+                //vf.push(math.complex(1 * Math.exp(- xw * xw)))
+                let theta = Math.abs(beamDist) < 0.000001 ? 0 : - x * x  / (Math.PI * lambda * beamDist);
+                let fVal = math.exp(math.complex(- xw * xw, theta))
+                vf.push(fVal);
             }
             RayleighRange = Math.PI * waist * waist * 1.0 / lambda;
 
@@ -109,7 +114,7 @@ function getInitFront(pPar = - 1) {
     x0 = nSamples / 2 * dx;
     for (let i = 0; i < nSamples; i++) {
         px = i * dx;
-        x = (px - x0) / 0.000050;
+        x = (px - x0) / 0.000750;
         vecApper.push(math.complex(1 * Math.exp(- x * x)))
     }
 
@@ -474,7 +479,7 @@ function drawGraph() {
             graphData.push(vecDeriv(vecW, distStep));
             break
         case "Waist(x)": 
-            graphData.push(vecWaist);
+            graphData.push(math.abs(vecWaist));
             graphData.push(vecDeriv(vecWaist, distStep));
             break;
         case "QWaist(x)": 
@@ -1058,7 +1063,7 @@ function fullCavityCrystal() {
     let Ikl = kerrPar / 5 / 50;
     let M, imagA;
     let MatSide = [[[-1.2947E+00, 4.8630E-03], [1.5111E+02, -1.3400E+00]],  // right
-                 [[1.1589E+00, 8.2207E-04], [1.5111E+02, -1.3400E+00]]];   // left
+                 [[1.1589E+00, 8.2207E-04], [2.9333E+02, 1.0709E+00]]];   // left
     let MatsSide = [];
     let MatTotal = [[1, 0], [0, 1]];
 
@@ -1105,11 +1110,13 @@ function fullCavityCrystal() {
 
             let dxf, dx0 = rx / L;
 
-            if (iStep == 1) {
+            if (iStep <= 1) {
                 let width = calcWidth(fx);
                 let waist = width * dx0 * 1.41421356237;
                 console.log(`------ waist ${waist}`);
-
+                vecW.push(width);
+                vecWaist.push(waist);
+    
                 let pi = calcPower(fx);
                 for (let ii = 0; ii < fx.length; ii++) {
                     fx[ii] = math.multiply(fx[ii], vecApper[ii]);
@@ -1121,7 +1128,7 @@ function fullCavityCrystal() {
                 }
                 let pt = calcPower(fx);
 
-                console.log(`pi = ${pi}, pf = ${pf}, pt = ${pt}, `)
+                //console.log(`pi = ${pi}, pf = ${pf}, pt = ${pt}, `)
             }
 
             imagA = - dx0 * dx0 / fa;
@@ -1129,12 +1136,13 @@ function fullCavityCrystal() {
             let waist = width * dx0 * 1.41421356237;
             vecW.push(width);
             vecWaist.push(waist);
+            //waist = 0.000030;
             if (iStep % 2 == 0) {
                 let focal = Math.pow(waist, 4) / (Ikl * power);
-                console.log(`waist ${waist}, focal ${focal} power ${math.sum(math.dotMultiply(fx, math.conj(fx)))}, IKL = ${Ikl}`);
+                console.log(`waist ${waist}, focal ${focal}`);
                 M = [[1 - distStep / focal, distStep], [- 1 / focal, 1]];
             } else {
-                console.log(`waist ${waist} power ${math.sum(math.dotMultiply(fx, math.conj(fx)))}`);
+                //console.log(`waist ${waist} power ${math.sum(math.dotMultiply(fx, math.conj(fx)))}`);
                 M = [[1, distStep], [0, 1]];
             }
             let gainFactor = Math.min(1.0, fa / (2 * waist * waist));
@@ -1157,20 +1165,23 @@ function fullCavityCrystal() {
         let fx = math.clone(fronts[fronts.length - 1]);
         let dxf, dx0 = ranges[ranges.length - 1] / L;
         let waist = calcWidth(fx) * dx0 * 1.41421356237;
-        console.log(`waist before M2 ${waist}`);
+        console.log(`waist before M2 ${waist} dx = ${dx0}`);
 
         [fx, dxf] = CalcNextFrontOfM(fx, L, M2, dx0, iDir == 1);
         MatTotal = math.multiply(M2, MatTotal);
+        console.log(`after 2  waist = ${calcWidth(fx) * dxf * 1.41421356237} dx = ${dxf}`);
+        console.log(fx);
 
         waist = calcWidth(fx) * dxf * 1.41421356237;
         console.log(`waist before M1 ${waist} power ${math.sum(math.dotMultiply(fx, math.conj(fx)))}`);
         [fx, dxf] = CalcNextFrontOfM(fx, L, M1, dxf, iDir == 1);
+        console.log(`after 1  waist = ${calcWidth(fx) * dxf * 1.41421356237} dx = ${dxf}`);
         MatTotal = math.multiply(M1, MatTotal);
 
         waist = calcWidth(fx) * dxf * 1.41421356237;
         console.log(`======= waist after M1 ${waist} power ${math.sum(math.dotMultiply(fx, math.conj(fx)))}`);
         
-        console.log(`Before ${power} `, fx)
+        console.log(`Before ${power} `)
         // power = normalizePower(fx, power, dxf);
         // console.log(`After ${power} `, fx)
 
@@ -1187,10 +1198,20 @@ function fullCavityCrystal() {
     console.log(`|A+D| = ${Math.abs(MatTotal[0][0] + MatTotal[1][1])}, ABCD = ${MatTotal[0][0]} ${MatTotal[0][1]} ${MatTotal[1][0]} ${MatTotal[1][1]}`);
     if (Math.abs(MatTotal[0][0] + MatTotal[1][1]) < 2.0) {
         let [[A, B], [C, D]] = MatTotal;
-        let oneOverQ = math.complex((D - A) / B * 0.5, Math.sqrt(1 - 0.25 * (A + D) * (A + D)) / B);
+        let oneOverQ = math.complex((D - A) / (2 * B), Math.sqrt(1 - 0.25 * (A + D) * (A + D)) / B);
+        let actualQ = math.divide(1, oneOverQ);
+        let nextQ = math.divide(math.add(math.multiply(actualQ, A), B), math.add(math.multiply(actualQ, C), D));
+        let diffQ = math.subtract(actualQ, nextQ);
+        console.log(`A = ${A}, B = ${B}, C = ${C}, D = ${D}`);
+        console.log(`SOL1 => Q = ${actualQ} 1/Q = ${oneOverQ} nextQ = ${nextQ} diff = ${math.abs(diffQ)}`);
+        
         beamDist = 2.0 * B / (D - A);
-        beamWaist = Math.sqrt(lambda * Math.abs(B) / (Math.PI * Math.sqrt(1 - 0.25 * (A + D) * (A + D))))
-        console.log(`beamDist = ${beamDist}, beamWaist = ${beamWaist}`);
+        beamWaist = Math.sqrt(lambda * Math.abs(B) / (Math.PI * Math.sqrt(1 - 0.25 * (A + D) * (A + D))));
+
+
+        console.log(`beamWaist = ${beamWaist}, beamDist = ${beamDist}`);
+        setFieldFloat('beamDist', beamDist);
+        setFieldFloat('beamParam', beamWaist);
     }
     //setFieldFloat('power', power);
 

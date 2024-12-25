@@ -17,6 +17,7 @@ def ver_func(l):
 
     return vf
 
+
 def draw_single_front(draw: ImageDraw, px, py, w, h, n, vec):
     for i in range(n):
         c = math.floor(vec[i] * 255)
@@ -24,6 +25,9 @@ def draw_single_front(draw: ImageDraw, px, py, w, h, n, vec):
 
 def draw_multimode(draw: ImageDraw):
     draw_single_front(draw, 30, 30, 10, 2, 256, ver_func(256))
+
+def FlexN(a, b):
+    return Div(a, b, style="display: flex; gap: 10px;")
 
 def Element(el, s, tab):
     match (el["t"]):
@@ -80,16 +84,9 @@ def funCanvas(idd, width=1000, height=800 ):
 def graphCanvas():
     return Div(
         Div(
-            Select(Option("A"), 
-                        Option("B"), 
-                        Option("C"), 
-                        Option("D"), 
-                        Option("AbsE(x)"), 
-                        Option("ArgE(x)"), 
-                        Option("M(x)"), 
-                        Option("Width(x)"),                               
-                        Option("Waist(x)"),                               
-                        Option("QWaist(x)"),                               
+            Select(Option("A"), Option("B"), Option("C"), Option("D"), 
+                        Option("AbsE(x)"), Option("ArgE(x)"), Option("M(x)"), 
+                        Option("Width(x)"), Option("Waist(x)"), Option("QWaist(x)"),
                         id="displayOption",
                         **{'onchange':"drawGraph();"},),
             Canvas(id="graphCanvas", width=1000, height = 200,
@@ -106,8 +103,8 @@ def initBeamType(beamParamInit = 0.0005, beamDistInit = 0.0):
             Option("Gaussian shift"), Option("Delta"), Option("Zero"),                               
             id="incomingFront"
         ),
-        Input(type="number", id=f'beamParam', placeholder="beam", step="0.0001", style="width:80px;", value=f'{beamParamInit}'),
-        Input(type="number", id=f'beamDist', placeholder="dist", step="0.0001", style="width:80px;", value=f'{beamDistInit}'),
+        Input(type="number", id=f'beamParam', placeholder="beam", step="0.0001", style="width:120px;", value=f'{beamParamInit}'),
+        Input(type="number", id=f'beamDist', placeholder="dist", step="0.0001", style="width:120px;", value=f'{beamDistInit}'),
         style="display:inline-block;"
     )
 
@@ -150,8 +147,9 @@ def generate_fun(data_obj, tab, offset = 0):
                     *[Element(el, i, tab) for i, el in enumerate(elements[tab - 1])],
                     Button(NotStr("&#43;"), escapse=False, hx_post="/addElement/2", hx_target="#fun", hx_vals='js:{localId: getLocalId()}'), 
                 ),
-                funCanvas(1, width=500, height=400),
-                funCanvas(2, width=500, height=400),
+                FlexN(
+                    funCanvas(1, width=500, height=400),
+                    funCanvas(2, width=500, height=400)),
                 graphCanvas()
             )
         # case 3:

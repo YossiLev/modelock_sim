@@ -78,7 +78,11 @@ def funCanvas(idd, width=1000, height=800 ):
                     onclick="zoomMultiMode(-1);"
                 ),
             ),
-            Canvas(id=f"funCanvas{idd}", width=width, height=height, **{'onmousemove':f"mainCanvasMouseMove(event, {idd});"}),
+            Canvas(id=f"funCanvas{idd}", width=width, height=height, 
+                   **{'onmousemove':f"mainCanvasMouseMove(event, {idd});",
+                      'onmousedown':f"mainCanvasMouseDown(event, {idd});",
+                      'onmouseup':f"mainCanvasMouseUp(event, {idd});",
+                      }),
         )
     )   
 def graphCanvas():
@@ -89,6 +93,8 @@ def graphCanvas():
                         Option("Width(x)"), Option("Waist(x)"), Option("QWaist(x)"),
                         id="displayOption",
                         **{'onchange':"drawGraph();"},),
+            Label(Input(id="cbxPrevCompare", type='checkbox', name='Compare', checked=False), "Compare"),
+
             Canvas(id="graphCanvas", width=1000, height = 200,
                 **{'onmousemove':"graphCanvasMouseMove(event);",
                 'onmousedown':"graphCanvasMouseDown(event);",
@@ -139,6 +145,7 @@ def generate_fun(data_obj, tab, offset = 0):
                 Div(initBeamType(beamParamInit = 0.00003, beamDistInit = 0.0), 
                     Button("Init", onclick="initElementsMultiMode(); initMultiMode(2);"),
                     Button("Full", onclick="fullCavityCrystal()"),
+                    Button("Full(prev)", onclick="fullCavityCrystal(2)"),
                     Button("Switch view", onclick="switchViewMultiMode()"),
                     Input(type="number", id=f'initialRange', placeholder="range(m)", step="0.0001", style="width:120px;", value=f'0.00034613292'),
                     Input(type="number", id=f'power', placeholder="power", step="1000000", style="width:120px;", value=f'30000000'),

@@ -22,6 +22,7 @@ var vecMats = [];
 var RayleighRange;
 var graphData = [];
 var vecApper = [];
+var isMouseDownOnMain = false;
 var isMouseDownOnGraph = false;
 var mouseOnGraphStart = 0;
 var mouseOnGraphEnd = 0;
@@ -370,10 +371,14 @@ function vecWaistFromQ(v) {
     return vw;
 }
 
+var drawVectorComparePrevious = [];
+
 function drawVector(v, clear = true, color = "red", pixelWidth = drawW) {
     if (!drawOption) {
         return
     }
+    const prevCompare = document.getElementById('cbxPrevCompare').checked;
+
     const canvas = document.getElementById("graphCanvas");
     const ctx = canvas.getContext("2d");
     let l = v.length;
@@ -386,14 +391,25 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW) {
             ctx.fillStyle = "#ddd";
             ctx.fillRect(drawSx + mouseOnGraphStart * drawW, 0, (mouseOnGraphEnd - mouseOnGraphStart) * drawW, 200)
         }
-        ctx.strokeStyle = `black`;
+        ctx.strokeStyle = `gray`;
         ctx.beginPath();
         ctx.moveTo(drawSx, 100);
-        ctx.lineTo(drawSx + l * drawW, 100);
+        ctx.lineTo(drawSx + l * pixelWidth, 100);
         ctx.stroke();
     }
 
     let fac = Math.max(Math.abs(Math.max(...v)), Math.abs(Math.min(...v)));
+    if (prevCompare) {
+        let facPrev = Math.max(Math.abs(Math.max(...drawVectorComparePrevious)), Math.abs(Math.min(...drawVectorComparePrevious)));
+        if (fac < facPrev) {
+            fac = facPrev;
+        }
+        let diffPrev = math.subtract(v, drawVectorComparePrevious)
+        facPrev = Math.max(Math.abs(Math.max(...diffPrev)), Math.abs(Math.min(...diffPrev)));
+        if (fac < facPrev) {
+            fac = facPrev;
+        }
+    }
     if (fac > 0) {
         fac = 90 / fac
     }
@@ -404,6 +420,24 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW) {
         ctx.lineTo(drawSx + i * pixelWidth, 100 - Math.floor(fac * v[i]));
     }
     ctx.stroke();
+    if (prevCompare) {
+        ctx.strokeStyle = 'green';
+        ctx.beginPath();
+        ctx.moveTo(drawSx, 100 - Math.floor(fac * drawVectorComparePrevious[0]));
+        for (let i = 1; i < l; i++) {
+            ctx.lineTo(drawSx + i * pixelWidth, 100 - Math.floor(fac * drawVectorComparePrevious[i]));
+        }
+        ctx.stroke();
+        ctx.strokeStyle = 'blue';
+        ctx.beginPath();
+        ctx.moveTo(drawSx, 100 - Math.floor(fac * (v[0] - drawVectorComparePrevious[0])));
+        for (let i = 1; i < l; i++) {
+            ctx.lineTo(drawSx + i * pixelWidth, 100 - Math.floor(fac * (v[i] - drawVectorComparePrevious[i])));
+        }
+        ctx.stroke();
+    } else {
+        drawVectorComparePrevious = math.clone(v);
+    }
 }
 
 function calcNewRange(B, lambda, L, r0) {
@@ -1048,8 +1082,14 @@ function calcPower(f) {
     return math.sum(math.dotMultiply(f, math.conj(f)))
 }
 
-function fullCavityCrystal() {
+var fullCavityCrystalPrevFocal = []
+function fullCavityCrystal(modePrev = 1) {
     drawMode = 1;
+    let fullCavityCrystalPrevFocalIndex = 0;
+
+    if (modePrev == 1) {
+        fullCavityCrystalPrevFocal = [];
+    }
 
     vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0]; vecW = [], vecWaist = [], vecQ[0] = math.complex(0, RayleighRange), vecMats = [];
 
@@ -1110,7 +1150,7 @@ function fullCavityCrystal() {
 
             let dxf, dx0 = rx / L;
 
-            if (iStep <= 1) {
+            if (iStep < 1) {
                 let width = calcWidth(fx);
                 let waist = width * dx0 * 1.41421356237;
                 console.log(`------ waist ${waist}`);
@@ -1139,6 +1179,13 @@ function fullCavityCrystal() {
             //waist = 0.000030;
             if (iStep % 2 == 0) {
                 let focal = Math.pow(waist, 4) / (Ikl * power);
+                if (modePrev == 1) {
+                    fullCavityCrystalPrevFocal.push(focal);
+                } else {
+                    focal = fullCavityCrystalPrevFocal[fullCavityCrystalPrevFocalIndex];
+                    fullCavityCrystalPrevFocalIndex++;
+                }
+
                 console.log(`waist ${waist}, focal ${focal}`);
                 M = [[1 - distStep / focal, distStep], [- 1 / focal, 1]];
             } else {
@@ -1422,6 +1469,9 @@ function deltaGraphMultiMode() {
 }
 
 function mainCanvasMouseMove(e, id) {
+    if (!isMouseDownOnMain) {
+        return;
+    }
     const sel = document.getElementById("displayOption");
     var bounds = e.target.getBoundingClientRect();
     var x = e.clientX - bounds.left;
@@ -1437,7 +1487,7 @@ function mainCanvasMouseMove(e, id) {
             for (let i = 0; i < fi.length; i++) {
                 fr.push(fi[i].toPolar().r);
             }
-            drawVector(fr, true, "green", 1);
+            drawVector(fr, true, "red", 1);
         } else if (sel.value == "ArgE(x)") {
             fi = fronts[ix];
             fr = [];
@@ -1451,6 +1501,15 @@ function mainCanvasMouseMove(e, id) {
     }
 
 }
+function mainCanvasMouseDown(e, id) {
+    isMouseDownOnMain = true;
+    mainCanvasMouseMove(e, id);
+}
+
+function mainCanvasMouseUp(e, id) {
+    isMouseDownOnMain = false;
+}
+
 
 function graphCanvasMouseMove(e) {
     var bounds = e.target.getBoundingClientRect();

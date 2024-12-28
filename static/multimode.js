@@ -62,9 +62,12 @@ function getInitFront(pPar = - 1) {
     RayleighRange = 0.0;
     switch (sel.value) {
         case "Gaussian Beam":
-            let waist = pPar > 0 ? pPar : getFieldFloat("beamParam", 0.0005);
+            let waist0 = pPar > 0 ? pPar : getFieldFloat("beamParam", 0.0005);
             let beamDist = getFieldFloat("beamDist", 0.0);
-            saveBeamParam = waist;
+            RayleighRange = Math.PI * waist0 * waist0 / lambda;
+            let theta = Math.abs(beamDist) < 0.000001 ? 0 : Math.PI  / (lambda * beamDist);
+            let waist = waist0 * Math.sqrt(1 + beamDist / RayleighRange);
+            saveBeamParam = waist0;
             saveBeamDist = beamDist;
             let dx = initialRange / nSamples;
             x0 = nSamples / 2 * dx;
@@ -72,12 +75,9 @@ function getInitFront(pPar = - 1) {
                 let px = i * dx;
                 let x = (px - x0);
                 xw = x / waist;
-                //vf.push(math.complex(1 * Math.exp(- xw * xw)))
-                let theta = Math.abs(beamDist) < 0.000001 ? 0 : - x * x  / (Math.PI * lambda * beamDist);
-                let fVal = math.exp(math.complex(- xw * xw, theta))
+                let fVal = math.exp(math.complex(- xw * xw, - theta * x * x))
                 vf.push(fVal);
             }
-            RayleighRange = Math.PI * waist * waist * 1.0 / lambda;
 
             break;
         case "Two Slit":
@@ -406,8 +406,8 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW) {
     const canvas = document.getElementById("graphCanvas");
     const ctx = canvas.getContext("2d");
     let l = v.length;
-    if (pixelWidth > canvas.width / l) {
-        pixelWidth = canvas.width / l;
+    if (pixelWidth > (canvas.width - drawSx - 2) / l) {
+        pixelWidth = (canvas.width - drawSx - 2) / l;
     }
     if (clear) {
         ctx.fillStyle = `white`;

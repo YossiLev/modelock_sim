@@ -21,7 +21,7 @@ var vecQ = [];
 var vecMats = [];
 var RayleighRange;
 var graphData = [];
-var vecApper = [];
+var vecAperture = [];
 var isMouseDownOnMain = false;
 var isMouseDownOnGraph = false;
 var mouseOnGraphStart = 0;
@@ -29,6 +29,8 @@ var mouseOnGraphEnd = 0;
 var drawOption = true;
 var drawMode = 1;
 var deltaGraphX, deltaGraphY,  deltaGraphYHalf, deltaGraphYCalc;
+var displayTemp = [[], []];
+var displayTempPrevious = [[], []];
 
 
 function getFieldFloat(id, defaultValue) {
@@ -50,7 +52,7 @@ function setFieldFloat(id, newValue) {
         cont.value = `${newValue}`;
     }
 }
-
+var saveBeamParam, saveBeamDist;
 function getInitFront(pPar = - 1) {
     const sel = document.getElementById("incomingFront");
     //const par = document.getElementById("beamParam");
@@ -62,6 +64,8 @@ function getInitFront(pPar = - 1) {
         case "Gaussian Beam":
             let waist = pPar > 0 ? pPar : getFieldFloat("beamParam", 0.0005);
             let beamDist = getFieldFloat("beamDist", 0.0);
+            saveBeamParam = waist;
+            saveBeamDist = beamDist;
             let dx = initialRange / nSamples;
             x0 = nSamples / 2 * dx;
             for (let i = 0; i < nSamples; i++) {
@@ -110,17 +114,33 @@ function getInitFront(pPar = - 1) {
             break;    
     }
 
-    vecApper  = [];
+    apertureChanged();
+
+    return vf;
+}
+
+function apertureChanged() {
+    vecAperture  = [];
+    let aperture = getFieldFloat('apreture', 0.000056)
     let dx = initialRange / nSamples;
     x0 = nSamples / 2 * dx;
     for (let i = 0; i < nSamples; i++) {
         px = i * dx;
-        x = (px - x0) / 0.000750;
-        vecApper.push(math.complex(1 * Math.exp(- x * x)))
+        x = (px - x0) / aperture;
+        vecAperture.push(math.complex(1 * Math.exp(- x * x)))
     }
-
-    return vf;
 }
+
+function nSamplesChanged() {
+    const val = document.getElementById("nSamples").value;
+    nSamples = parseInt(val);
+    let step = 0.0003;
+    initialRange =  math.sqrt(lambda * step * nSamples);
+    setFieldFloat("initialRange", initialRange);
+
+
+}
+
 
 function zoomMultiMode(z) {
     if (z > 0) {
@@ -280,9 +300,14 @@ function drawMultiMode() {
             }
         }
         if (drawMode == 1) {
-            drawElements();
+            drawElements(index + 1);
+            displayTemp[index].forEach((el, i, a) => {
+                drawTextBG(ctx, el.toFixed(7), canvas.width - 80, canvas.height - 28 - 16 * ((a.length - i)));
+            });
+            displayTempPrevious[index].forEach((el, i, a) => {
+                drawTextBG(ctx, el.toFixed(7), canvas.width - 160, canvas.height - 28 - 16 * ((a.length - i)));
+            });
         }
-
 
         drowShenets(ctx, "V0", zoomFactor * basicZoomFactor);
         switch (workingTab) {
@@ -300,51 +325,48 @@ function drawMultiMode() {
         }
     });    
 
-
     drawGraph();
-
 }
 
-function drawElements() {
+function drawElements(index) {
     if (!drawOption) {
         return
     }
-    document.querySelectorAll('[id^="funCanvas"]').forEach((canvas) => {
-        const ctx = canvas.getContext("2d");
-        ctx.fillStyle = `yellow`;
-        for (let iEl = 0; iEl < elements.length; iEl++) {
-            switch (elements[iEl].t) {
-                case "L":
-                    ctx.fillStyle = `yellow`;
-                    px = drawSx + (elements[iEl].par[0] - distStart) / distStep * drawW ;
-                    ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);          
-                    break;
-                case "C":
-                    ctx.fillStyle = `purple`;
-                    px = drawSx + (elements[iEl].par[0] - distStart) / distStep * drawW ;
-                    ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);          
-                    px = drawSx + (elements[iEl].par[0] + elements[iEl].par[1] - distStart) / distStep * drawW ;
-                    ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);
-                    let spx = (elements[iEl].par[1] / 10);
-                    ctx.strokeStyle = `purple`;
-                    ctx.setLineDash([5, 3]);
-                    ctx.beginPath();
-                    for (let iL = 0; iL < 5; iL++) {
-                        px = drawSx + (elements[iEl].par[0] + (1 + 2 * iL) * spx - distStart) / distStep * drawW ;
-                        ctx.moveTo(px, drawMid - 80 * zoomFactor);
-                        ctx.lineTo(px, drawMid + 80 * zoomFactor);
-                    }
-                    ctx.stroke();
-                    break;
-                case "X":
-                    ctx.fillStyle = `blue`;
-                    px = drawSx + (elements[iEl].par[0] - distStart) / distStep * drawW ;
-                    ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);          
-                    break;
-                    
-            }
+    const canvas = document.getElementById(`funCanvas${index}`);
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = `yellow`;
+    for (let iEl = 0; iEl < elements.length; iEl++) {
+        switch (elements[iEl].t) {
+            case "L":
+                ctx.fillStyle = `yellow`;
+                px = drawSx + (elements[iEl].par[0] - distStart) / distStep * drawW ;
+                ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);          
+                break;
+            case "C":
+                ctx.fillStyle = `purple`;
+                px = drawSx + (elements[iEl].par[0] - distStart) / distStep * drawW ;
+                ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);          
+                px = drawSx + (elements[iEl].par[0] + elements[iEl].par[1] - distStart) / distStep * drawW ;
+                ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);
+                let spx = (elements[iEl].par[1] / 10);
+                ctx.strokeStyle = `purple`;
+                ctx.setLineDash([5, 3]);
+                ctx.beginPath();
+                for (let iL = 0; iL < 5; iL++) {
+                    px = drawSx + (elements[iEl].par[0] + (1 + 2 * iL) * spx - distStart) / distStep * drawW ;
+                    ctx.moveTo(px, drawMid - 80 * zoomFactor);
+                    ctx.lineTo(px, drawMid + 80 * zoomFactor);
+                }
+                ctx.stroke();
+                break;
+            case "X":
+                ctx.fillStyle = `blue`;
+                px = drawSx + (elements[iEl].par[0] - distStart) / distStep * drawW ;
+                ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);          
+                break;
+                
         }
-    });
+    }
 }
 
 function vecDeriv(v, dx = 1) {
@@ -382,6 +404,9 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW) {
     const canvas = document.getElementById("graphCanvas");
     const ctx = canvas.getContext("2d");
     let l = v.length;
+    if (pixelWidth > canvas.width / l) {
+        pixelWidth = canvas.width / l;
+    }
     if (clear) {
         ctx.fillStyle = `white`;
         ctx.fillRect(0, 0, 1000, 200);     
@@ -514,7 +539,7 @@ function drawGraph() {
             break
         case "Waist(x)": 
             graphData.push(math.abs(vecWaist));
-            graphData.push(vecDeriv(vecWaist, distStep));
+            graphData.push(vecDeriv(math.abs(vecWaist), distStep));
             break;
         case "QWaist(x)": 
             graphData.push(vecWaistFromQ(vecQ));
@@ -602,6 +627,9 @@ function initMultiMode(setWorkingTab = - 1, beamParam = - 1) {
             focusOnCrystal();
             break
     }
+
+    displayTemp = [[], []];
+    displayTempPrevious = [[], []];
 
     multiFronts[0] = [getInitFront(beamParam)];
     multiRanges[0] = [initialRange];
@@ -1109,6 +1137,8 @@ function fullCavityCrystal(modePrev = 1) {
 
     for (let tt = 0; tt < 1; tt++) {
     MatSide.forEach((m, index) => {
+        displayTempPrevious[index] = displayTemp[index];
+        displayTemp[index] = [];
         let [[A, B], [C, D]] = m;
 
         let M1, M2;
@@ -1150,7 +1180,7 @@ function fullCavityCrystal(modePrev = 1) {
 
             let dxf, dx0 = rx / L;
 
-            if (iStep < 1) {
+            if (iStep <= 1) {
                 let width = calcWidth(fx);
                 let waist = width * dx0 * 1.41421356237;
                 console.log(`------ waist ${waist}`);
@@ -1159,7 +1189,7 @@ function fullCavityCrystal(modePrev = 1) {
     
                 let pi = calcPower(fx);
                 for (let ii = 0; ii < fx.length; ii++) {
-                    fx[ii] = math.multiply(fx[ii], vecApper[ii]);
+                    fx[ii] = math.multiply(fx[ii], vecAperture[ii]);
                 }
                 let pf = calcPower(fx);
                 let fff = Math.sqrt(pi / pf);
@@ -1187,6 +1217,7 @@ function fullCavityCrystal(modePrev = 1) {
                 }
 
                 console.log(`waist ${waist}, focal ${focal}`);
+                displayTemp[iDir].push(focal);
                 M = [[1 - distStep / focal, distStep], [- 1 / focal, 1]];
             } else {
                 //console.log(`waist ${waist} power ${math.sum(math.dotMultiply(fx, math.conj(fx)))}`);
@@ -1254,9 +1285,10 @@ function fullCavityCrystal(modePrev = 1) {
         
         beamDist = 2.0 * B / (D - A);
         beamWaist = Math.sqrt(lambda * Math.abs(B) / (Math.PI * Math.sqrt(1 - 0.25 * (A + D) * (A + D))));
+        console.log(`ORIG beamWaist = ${saveBeamParam}, beamDist = ${saveBeamDist}`);
 
 
-        console.log(`beamWaist = ${beamWaist}, beamDist = ${beamDist}`);
+        console.log(`beamWaist = ${beamWaist}, beamDist = ${beamDist}, z = ${actualQ.re}`);
         setFieldFloat('beamDist', beamDist);
         setFieldFloat('beamParam', beamWaist);
     }
@@ -1574,7 +1606,10 @@ function drawTextBG(ctx, txt, x, y, color = '#000', font = "10pt Courier") {
     ctx.textBaseline = 'top';
     ctx.fillStyle = '#fff';
     var width = ctx.measureText(txt).width;
-    ctx.fillRect(x, y, width, parseInt(font, 10));
+    ctx.beginPath();
+    ctx.roundRect(x, y + 1, width, parseInt(font, 10) + 3, 3);
+    ctx.fill();
+    //ctx.fillRect(x, y + 1, width, parseInt(font, 10) + 3);
     ctx.fillStyle = color;
     ctx.fillText(txt, x, y);
     ctx.restore();

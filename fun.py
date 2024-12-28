@@ -147,8 +147,10 @@ def generate_fun(data_obj, tab, offset = 0):
                     Button("Full", onclick="fullCavityCrystal()"),
                     Button("Full(prev)", onclick="fullCavityCrystal(2)"),
                     Button("Switch view", onclick="switchViewMultiMode()"),
-                    Input(type="number", id=f'initialRange', placeholder="range(m)", step="0.0001", style="width:120px;", value=f'0.00034613292'),
-                    Input(type="number", id=f'power', placeholder="power", step="1000000", style="width:120px;", value=f'30000000'),
+                    Input(type="number", id=f'initialRange', placeholder="range(m)", step="0.0001", style="width:100px;", value=f'0.00034613292'),
+                    Input(type="number", id=f'power', placeholder="power", step="1000000", style="width:80px;", value=f'30000000'),
+                    Input(type="number", id=f'apreture', placeholder="apreture", step="0.00001", style="width:70px;", value=f'0.000056', **{'onchange':"apertureChanged();"},),
+                    Select(Option("256"), Option("512"), Option("1024"), Option("2048"), Option("4096"), id="nSamples", **{'onchange':"nSamplesChanged();"},),
                 ),
                 Div(
                     *[Element(el, i, tab) for i, el in enumerate(elements[tab - 1])],

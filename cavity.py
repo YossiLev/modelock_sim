@@ -26,6 +26,7 @@ class CavityData():
         self.str_beam_theta = "0.5"
         print(f"aa matlab {matlab}")
         self.matlab = matlab
+        self.step = 0
 
         pass
 
@@ -84,6 +85,7 @@ class CavityData():
         pass
 
     def restart(self):
+        self.step = 0
         pass
 
     def getPinnedParameters(self):
@@ -106,6 +108,7 @@ class CavityData():
         return {}
     
     def simulation_step(self):
+        self.step = self.step + 1
         pass
    
 class CavityDataParts(CavityData):
@@ -329,6 +332,8 @@ class CavityDataPartsKerr(CavityDataParts):
         self.dispersion = np.exp(-1j * self.disp_par * self.w**2)  # exp(-i phi(w)) dispersion
 
     def restart(self, seed):
+        super().restart()
+
         self.cbuf = 0
         self.nbuf = 1
         
@@ -355,6 +360,8 @@ class CavityDataPartsKerr(CavityDataParts):
         self.phaseShift = np.angle(self.Ew[self.cbuf, :])
 
     def simulation_step(self):
+        super().simulation_step()
+
         sim = self
 
         phiKerr = lambda Itxx, Wxx: np.exp((1j * sim.Ikl * Itxx) / (sim.lambda_ * Wxx**2)) # non-linear instantenous phase accumulated due to Kerr effect

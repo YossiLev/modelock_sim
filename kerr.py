@@ -38,6 +38,8 @@ def MLSpatial_gain(sim):
         edgeFactor = 0.5
     steps = [1] * (Nmid - 1) + [edgeFactor]
     lens_aperture = 56e-6
+    # if sim.step > 8000:
+    #     lens_aperture = 56e-6 * 2
     fAper = ((2 * np.pi * lens_aperture ** 2) / sim.lambda_)
 
     def Mcur(rm):

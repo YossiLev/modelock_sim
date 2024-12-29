@@ -1541,7 +1541,6 @@ function drawTextBG(ctx, txt, x, y, color = '#000', font = "10pt Courier") {
     ctx.beginPath();
     ctx.roundRect(x, y + 1, width, parseInt(font, 10) + 3, 3);
     ctx.fill();
-    //ctx.fillRect(x, y + 1, width, parseInt(font, 10) + 3);
     ctx.fillStyle = color;
     ctx.fillText(txt, x, y);
     ctx.restore();

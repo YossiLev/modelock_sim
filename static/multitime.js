@@ -1,6 +1,11 @@
 var nTimeSamples = 1024;
 var multiTimeFronts = [];
 var multiFrequencyFronts = [];
+var factorGain = [];
+var IntensitySaturationLevel = 4;
+var intensityTotalByIx = [];
+var factorGainByIx = [];
+var Ikl = 0.02;
 
 function initMultiTime() {
     workingTab = 3
@@ -16,12 +21,61 @@ function initMultiTime() {
         }
     }
 
-    multiFrequencyFronts = [];
-    for (let i = 0; i < nSamples; i++) {
-        multiFrequencyFronts.push(fft(multiTimeFronts[i], 1.0));
-    }
+    fftToFrequency();
 
     drawMultiMode();
+}
+
+function multiTimeRoundTrip() {
+
+    // phaseChangeDuringKerr
+
+    // gainCorrectionDueToSaturation
+    // gainByfrequency
+    // dispersionByFrequency
+
+    // oneSideCavity
+    // mirrorLoss
+}
+
+function fftToFrequency() {
+    multiFrequencyFronts = [];
+    for (let ix = 0; ix < nSamples; ix++) {
+        multiFrequencyFronts.push(fft(multiTimeFronts[ix], 1.0));
+    }
+}
+
+function ifftToTime() {
+    multiTimeFronts = [];
+    for (let ix = 0; ix < nSamples; ix++) {
+        multiTimeFronts.push(ifft(multiFrequencyFronts[ix], 1.0));
+    }
+}
+
+function phaseChangeDuringKerr() {
+    let IklTimesI = math.complex(0, Ikl);
+    for (let ix = 0; ix < nSamples; ix++) {
+        let bin = multiFrequencyFronts[ix];
+        let bin2 = math.abs(math.dotMultiply(bin, math.conj(bin)));
+        let phaseShift = math.multiply(IklTimesI, bin2);
+        multiFrequencyFronts[ix] = math.dotMultiply(bin, math.exp(phaseShift));
+    }
+}
+
+function totalIxPower() {
+    intensityTotalByIx = [];
+
+    for (let ix = 0; ix < nSamples; ix++) {
+        intensityTotalByIx.push(math.sum(math.dotMultiply(multiTimeFronts[ix], math.conj(multiTimeFronts[ix]))));
+    }
+}
+
+function SatGain() {
+    factorGainByIx = [];
+
+    for (let ix = 0; ix < nSamples; ix++) {
+        factorGainByIx.push(g0 / (1 +  intensityTotalByIx[ix] / IntensitySaturationLevel))
+    }
 }
 
 function drawMultiTime() {

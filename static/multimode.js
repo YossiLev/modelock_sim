@@ -5,7 +5,7 @@ var multiFronts = [[], []];
 const lambda = 0.000000780;
 var initialRange = 0.01047;
 var multiRanges = [[], []];
-var nSamples = 512;
+var nSamples = 256;
 var viewOption = 1;
 var zoomFactor = 1.0;
 var basicZoomFactor = 50000.0; // pixels per meter
@@ -137,8 +137,6 @@ function nSamplesChanged() {
     let step = 0.0003;
     initialRange =  math.sqrt(lambda * step * nSamples);
     setFieldFloat("initialRange", initialRange);
-
-
 }
 
 
@@ -263,7 +261,11 @@ function drawDeltaGraph(ctx) {
 
 function drawMultiMode() {
     if (!drawOption) {
-        return
+        return;
+    }
+    if (workingTab == 3) {
+        drawMultiTime();
+        return;
     }
     const canvasList = document.querySelectorAll('[id^="funCanvas"]');
     canvasList.forEach((canvas, index) => {
@@ -683,106 +685,6 @@ function dft(inp, ss) {
     return o;
 }
 
-function test() {
-    let inp = [
-        math.complex(2, 0),
-        math.complex(7, 0),
-        math.complex(-1, 0),
-        math.complex(0, 0),
-        math.complex(1, 0),
-        math.complex(0, 0),
-        math.complex(-1, 0),
-        math.complex(0, 0),
-    ];
-
-    let inp2 = math.clone(inp);
-
-    const ss = 1; // Scaling factor
-    const fftOutput = fft(inp, ss);
-    console.log("FFT Output:", fftOutput);
-
-    const dftOutput = dft(inp2, ss);
-    console.log("DFT Output:", dftOutput);
-
-}
-
-function fft(inp, s) {
-    const N = inp.length;
-
-    // Ensure input size is a power of 2
-    if ((N & (N - 1)) !== 0) {
-        throw new Error("Input size must be a power of 2");
-    }
-
-    // Extract real and imaginary parts
-    const realS = inp.map(x => math.re(x));
-    const imagS = inp.map(x => math.im(x));
-
-    // Reorder input
-    let real = [], imag = [];
-    for (let k = 0; k < N; k++) {
-        real.push(realS[(k + N / 2) % N]);
-        imag.push(imagS[(k + N / 2) % N]);
-    }
-
-    // Bit-reversal permutation
-    function bitReverseArray(arr) {
-        const n = arr.length;
-        const reversed = new Array(n);
-        let bits = Math.log2(n);
-
-        for (let i = 0; i < n; i++) {
-            let reversedIndex = 0;
-            for (let j = 0; j < bits; j++) {
-                reversedIndex = (reversedIndex << 1) | ((i >> j) & 1);
-            }
-            reversed[reversedIndex] = arr[i];
-        }
-
-        return reversed;
-    }
-
-    const realReversed = bitReverseArray(real);
-    const imagReversed = bitReverseArray(imag);
-
-    // Cooley-Tukey FFT
-    for (let len = 2; len <= N; len *= 2) {
-        const halfLen = len / 2;
-        const angleStep = (2 * Math.PI) / len; // Positive phase for DFT matching
-
-        for (let i = 0; i < N; i += len) {
-            for (let j = 0; j < halfLen; j++) {
-                const angle = angleStep * j;
-                const wReal = Math.cos(angle);
-                const wImag = Math.sin(angle); // Positive sine matches DFT
-
-                const evenReal = realReversed[i + j];
-                const evenImag = imagReversed[i + j];
-                const oddReal = realReversed[i + j + halfLen];
-                const oddImag = imagReversed[i + j + halfLen];
-
-                // FFT butterfly computations (positive sine matches DFT)
-                const tReal = wReal * oddReal - wImag * oddImag;
-                const tImag = wReal * oddImag + wImag * oddReal;
-
-                realReversed[i + j] = evenReal + tReal;
-                imagReversed[i + j] = evenImag + tImag;
-
-                realReversed[i + j + halfLen] = evenReal - tReal;
-                imagReversed[i + j + halfLen] = evenImag - tImag;
-            }
-        }
-    }
-
-    // Scale results while reordering 
-    const output = [];
-    for (let i = 0; i < N; i++) {
-        let iFrom = (i + N / 2) % N;
-        output.push(math.complex(realReversed[iFrom] * s, imagReversed[iFrom] * s));
-    }
-
-    return output;
-}
 
 function propogateMultiMode() {
     let fronts = multiFronts[0];
@@ -1134,6 +1036,8 @@ function fullCavityCrystal(modePrev = 1) {
                  [[1.1589E+00, 8.2207E-04], [2.9333E+02, 1.0709E+00]]];   // left
     let MatsSide = [];
     let MatTotal = [[1, 0], [0, 1]];
+    let focalAper = ((2 * Math.PI * lens_aperture ** 2) / lambda)
+    let matAperture = [[1, 0], [math.complex(0, -1/ focalAper), 1]];
 
     for (let tt = 0; tt < 1; tt++) {
     MatSide.forEach((m, index) => {
@@ -1196,7 +1100,9 @@ function fullCavityCrystal(modePrev = 1) {
                 for (let ii = 0; ii < fx.length; ii++) {
                     fx[ii] = math.multiply(fx[ii], fff);
                 }
-                let pt = calcPower(fx);
+                //let pt = calcPower(fx);
+
+                //MatTotal = math.multiply(matAperture, MatTotal);
 
                 //console.log(`pi = ${pi}, pf = ${pf}, pt = ${pt}, `)
             }
@@ -1273,32 +1179,58 @@ function fullCavityCrystal(modePrev = 1) {
     }
     }
 
-    console.log(`|A+D| = ${Math.abs(MatTotal[0][0] + MatTotal[1][1])}, ABCD = ${MatTotal[0][0]} ${MatTotal[0][1]} ${MatTotal[1][0]} ${MatTotal[1][1]}`);
-    if (Math.abs(MatTotal[0][0] + MatTotal[1][1]) < 2.0) {
-        let [[A, B], [C, D]] = MatTotal;
-        let oneOverQ = math.complex((D - A) / (2 * B), Math.sqrt(1 - 0.25 * (A + D) * (A + D)) / B);
-        let actualQ = math.divide(1, oneOverQ);
-        let nextQ = math.divide(math.add(math.multiply(actualQ, A), B), math.add(math.multiply(actualQ, C), D));
-        let diffQ = math.subtract(actualQ, nextQ);
-        console.log(`A = ${A}, B = ${B}, C = ${C}, D = ${D}`);
-        console.log(`SOL1 => Q = ${actualQ} 1/Q = ${oneOverQ} nextQ = ${nextQ} diff = ${math.abs(diffQ)}`);
+    let [[A, B], [C, D]] = MatTotal;
+    let [lambda1, lambda2] = calculateEigenvalues(A, B, C, D);
+
+    console.log(`eigen values = [${lambda1}, ${lambda2}] mult=${math.multiply(lambda1, lambda2)}`);
+    console.log(`abs = [${math.abs(lambda1)}, ${math.abs(lambda2)}] `);
+    console.log(`|A+D| = ${math.abs(math.add(MatTotal[0][0], MatTotal[1][1]))}, det = ${math.det(MatTotal)}`)
+    console.log(`ABCD = ${MatTotal[0][0]} ${MatTotal[0][1]} ${MatTotal[1][0]} ${MatTotal[1][1]}`);
+    if (math.abs(math.add(MatTotal[0][0], MatTotal[1][1])) < 2.0) {
+        // let [[A, B], [C, D]] = MatTotal;
+        // let oneOverQ = math.complex(math.divide((math.subtract(D,  A)), (2 * B)), 
+        //         math.divide(math.sqrt(math.subtract(1, math.multiply(0.25, math.multiply(math.add(A, D), math.add(A, D))),)), B));
+        // let actualQ = math.divide(1, oneOverQ);
+        // let nextQ = math.divide(math.add(math.multiply(actualQ, A), B), math.add(math.multiply(actualQ, C), D));
+        // let diffQ = math.subtract(actualQ, nextQ);
+        // console.log(`A = ${A}, B = ${B}, C = ${C}, D = ${D}`);
+        // console.log(`SOL1 => Q = ${actualQ} 1/Q = ${oneOverQ} nextQ = ${nextQ} diff = ${math.abs(diffQ)}`);
         
-        beamDist = 2.0 * B / (D - A);
-        beamWaist = Math.sqrt(lambda * Math.abs(B) / (Math.PI * Math.sqrt(1 - 0.25 * (A + D) * (A + D))));
-        console.log(`ORIG beamWaist = ${saveBeamParam}, beamDist = ${saveBeamDist}`);
+        // beamDist = 2.0 * B / (D - A);
+        // beamWaist = Math.sqrt(lambda * Math.abs(B) / (Math.PI * Math.sqrt(1 - 0.25 * (A + D) * (A + D))));
+        // console.log(`ORIG beamWaist = ${saveBeamParam}, beamDist = ${saveBeamDist}`);
 
 
-        console.log(`beamWaist = ${beamWaist}, beamDist = ${beamDist}, z = ${actualQ.re}`);
-        setFieldFloat('beamDist', beamDist);
-        setFieldFloat('beamParam', beamWaist);
+        // console.log(`beamWaist = ${beamWaist}, beamDist = ${beamDist}, z = ${actualQ.re}`);
+        // setFieldFloat('beamDist', beamDist);
+        // setFieldFloat('beamParam', beamWaist);
     }
     //setFieldFloat('power', power);
 
     drawMultiMode();
 }
 
+function calculateEigenvalues(A, B, C, D) { // thank you chatgpt
+    // Calculate trace and determinant
+    const trace = math.add(A, D); // A + D
+    const determinant = math.subtract(math.multiply(A, D), math.multiply(B, C)); // AD - BC
+
+    // Discriminant: (trace / 2)^2 - determinant
+    const halfTrace = math.divide(trace, 2); // trace / 2
+    const discriminant = math.subtract(math.pow(halfTrace, 2), determinant);
+
+    // Square root of the discriminant
+    const sqrtDiscriminant = math.sqrt(discriminant);
+
+    // Eigenvalues: λ1 = trace/2 + sqrt(discriminant), λ2 = trace/2 - sqrt(discriminant)
+    const lambda1 = math.add(halfTrace, sqrtDiscriminant);
+    const lambda2 = math.subtract(halfTrace, sqrtDiscriminant);
+
+    return [lambda1, lambda2];
+}
+
 function  normalizePower(fx, power, dxf) {
-    const p = math.sum(math.dotMultiply(fx, math.conj(fx))) / 512;
+    const p = math.sum(math.dotMultiply(fx, math.conj(fx))) / nSamples;
     console.log(`dot ${p}`)
     fx = math.multiply(fx, 1 /  Math.sqrt(p));
     return power * p; 

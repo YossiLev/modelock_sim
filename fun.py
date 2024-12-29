@@ -63,7 +63,7 @@ def Element(el, s, tab):
                 style="border: 1px solid red; display: inline-block; padding:2px;"
             )
 
-def funCanvas(idd, width=1000, height=800 ):
+def funCanvas(idd, width=1000, height=800, useZoom = True ):
     return Div(
         Div(
             Div(
@@ -77,7 +77,7 @@ def funCanvas(idd, width=1000, height=800 ):
                     cls="imgButton",
                     onclick="zoomMultiMode(-1);"
                 ),
-            ),
+            ) if useZoom else Div(),
             Canvas(id=f"funCanvas{idd}", width=width, height=height, 
                    **{'onmousemove':f"mainCanvasMouseMove(event, {idd});",
                       'onmousedown':f"mainCanvasMouseDown(event, {idd});",
@@ -161,19 +161,27 @@ def generate_fun(data_obj, tab, offset = 0):
                     funCanvas(2, width=500, height=400)),
                 graphCanvas()
             )
-        # case 3:
-        #     images.append(Image.new('RGB', (1024, 256), (225, 255, 255)))
-        #     draw = ImageDraw.Draw(images[- 1])
-        #     powerChart = sim.get_state()[0]
-        #     mxArg = np.argmax(powerChart.y) + offset
-        #     powerChart.draw(draw, markX = [mxArg])
-        #     images.append(Image.new('RGB', (1024, 512), (225, 255, 255)))
-        #     draw = ImageDraw.Draw(images[- 1])
-        #     sim.draw_cavity(draw, aligned = True, keep_aspect = False)
-        #     added = Div(
-        #             Button(">", hx_post=f"/moveonchart/{offset + 1}", hx_trigger="click, keyup[key=='ArrowRight'] from:body", hx_target="#geometry", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML"), 
-        #             Button("<", hx_post=f"/moveonchart/{offset - 1}", hx_trigger="click, keyup[key=='ArrowLeft'] from:body", hx_target="#geometry", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML"), 
-        #             style="padding:0px 3px;")
+        case 3:
+            added = Div(
+                Div(initBeamType(beamParamInit = 0.00003, beamDistInit = 0.0), 
+                    Button("Init", onclick="initElementsMultiMode(); initMultiTime();"),
+                    Button("Phase", onclick="timeCavityStep(1)"),
+                    Input(type="number", id=f'phase', placeholder="phase", step="0.0001", style="width:100px;", value=f'0.0001'),
+                    Button("Switch view", onclick="switchViewMultiMode()"),
+                    Input(type="number", id=f'initialRange', placeholder="range(m)", step="0.0001", style="width:100px;", value=f'0.00034613292'),
+                    Input(type="number", id=f'power', placeholder="power", step="1000000", style="width:80px;", value=f'30000000'),
+                    Input(type="number", id=f'apreture', placeholder="apreture", step="0.00001", style="width:70px;", value=f'0.000056', **{'onchange':"apertureChanged();"},),
+                    Select(Option("256"), Option("512"), Option("1024"), Option("2048"), Option("4096"), id="nSamples", **{'onchange':"nSamplesChanged();"},),
+                ),
+                Div(
+                    *[Element(el, i, tab) for i, el in enumerate(elements[0])],
+                    Button(NotStr("&#43;"), escapse=False, hx_post="/addElement/2", hx_target="#fun", hx_vals='js:{localId: getLocalId()}'), 
+                ),
+                funCanvas(1, width=1024, height=256, useZoom=False), 
+                funCanvas(2, width=1024, height=256, useZoom=False),
+                graphCanvas()
+            )
+
 
 
     my_base64_jpgData = []
@@ -187,7 +195,7 @@ def generate_fun(data_obj, tab, offset = 0):
 
     return Div(Div(Div("Multimode",  hx_post="/tabfun/1", hx_target="#fun", cls=f"tab {'tabselected' if tab == 1 else ''}", hx_vals='js:{localId: getLocalId()}'),
         Div("Crystal", hx_post="tabfun/2", hx_target="#fun", cls=f"tab {'tabselected' if tab == 2 else ''}", hx_vals='js:{localId: getLocalId()}'),
-        Div("Peak beam", hx_post="tabfun/3", hx_target="#fun", cls=f"tab {'tabselected' if tab == 3 else ''}", hx_vals='js:{localId: getLocalId()}')),
+        Div("Multitime", hx_post="tabfun/3", hx_target="#fun", cls=f"tab {'tabselected' if tab == 3 else ''}", hx_vals='js:{localId: getLocalId()}')),
 
         added,
     )

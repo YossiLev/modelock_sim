@@ -17,6 +17,11 @@ def ver_func(l):
 
     return vf
 
+# def InputN(type, id, placeholder="", step="0.01", style="width:50px;", value="", name="", dir):
+#     Span(
+#         Input(type=type, id=id, placeholder=placeholder, step=step, style=style, value=value, dir), 
+#         Span(name)
+#     )
 
 def draw_single_front(draw: ImageDraw, px, py, w, h, n, vec):
     for i in range(n):
@@ -105,7 +110,7 @@ def graphCanvas():
 
 def initBeamType(beamParamInit = 0.0005, beamDistInit = 0.0):
     return Div(
-        Select(Option("Gaussian Beam"), Option("Two Slit"), Option("Mode He5"), 
+        Select(Option("Gaussian Beam"), Option("Gaussian Noise"), Option("Two Slit"), Option("Mode He5"), 
             Option("Gaussian shift"), Option("Delta"), Option("Zero"),                               
             id="incomingFront"
         ),
@@ -165,12 +170,13 @@ def generate_fun(data_obj, tab, offset = 0):
             added = Div(
                 Div(initBeamType(beamParamInit = 0.00003, beamDistInit = 0.0), 
                     Button("Init", onclick="initElementsMultiMode(); initMultiTime();"),
-                    Button("Phase", onclick="timeCavityStep(1)"),
+                    Button("Phase", onclick="timeCavityStep(1, true)"),
                     Input(type="number", id=f'phase', placeholder="phase", step="0.0001", style="width:100px;", value=f'0.0001'),
                     Button("Switch view", onclick="switchViewMultiMode()"),
                     Input(type="number", id=f'initialRange', placeholder="range(m)", step="0.0001", style="width:100px;", value=f'0.00034613292'),
                     Input(type="number", id=f'power', placeholder="power", step="1000000", style="width:80px;", value=f'30000000'),
-                    Input(type="number", id=f'apreture', placeholder="apreture", step="0.00001", style="width:70px;", value=f'0.000056', **{'onchange':"apertureChanged();"},),
+                    Input(type="number", id=f'apreture', placeholder="apreture", step="0.00001", 
+                           style="width:70px;", value=f'0.000056', name="name", **{'onchange':"apertureChanged();"},),
                     Select(Option("256"), Option("512"), Option("1024"), Option("2048"), Option("4096"), id="nSamples", **{'onchange':"nSamplesChanged();"},),
                 ),
                 Div(

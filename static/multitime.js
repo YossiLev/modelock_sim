@@ -38,6 +38,17 @@ function multiTimeRoundTrip() {
     // mirrorLoss
 }
 
+function timeCavityStep(step, redraw) {
+    switch (step) {
+        case 1:
+            phaseChangeDuringKerr();
+            break;
+    }
+    if (redraw) {
+        fftToFrequency()
+        drawMultiMode();
+    }
+}
 function fftToFrequency() {
     multiFrequencyFronts = [];
     for (let ix = 0; ix < nSamples; ix++) {
@@ -53,12 +64,12 @@ function ifftToTime() {
 }
 
 function phaseChangeDuringKerr() {
-    let IklTimesI = math.complex(0, Ikl);
+    let IklTimesI = math.complex(0, Ikl * 100);
     for (let ix = 0; ix < nSamples; ix++) {
-        let bin = multiFrequencyFronts[ix];
+        let bin = multiTimeFronts[ix];
         let bin2 = math.abs(math.dotMultiply(bin, math.conj(bin)));
         let phaseShift = math.multiply(IklTimesI, bin2);
-        multiFrequencyFronts[ix] = math.dotMultiply(bin, math.exp(phaseShift));
+        multiTimeFronts[ix] = math.dotMultiply(bin, math.exp(phaseShift));
     }
 }
 
@@ -87,7 +98,7 @@ function drawMultiTime() {
     drawTimeFronts(2, document.getElementById("funCanvas2"));
 }
 
-function drawTimeFronts(viewOption, canvas) {
+function drawTimeFronts(domainOption, canvas) {
 
     const ctx = canvas.getContext("2d");
     drawMid = canvas.height / 2;
@@ -97,16 +108,16 @@ function drawTimeFronts(viewOption, canvas) {
     var id = ctx.getImageData(0, 0, canvasWidth, canvasHeight);
     var pixels = id.data;
     
-    let fs = viewOption == 1 ? multiTimeFronts : multiFrequencyFronts
+    let fs = domainOption == 1 ? multiTimeFronts : multiFrequencyFronts
     for (let i = 0; i < nSamples; i++) {
         let off = i * nTimeSamples * 4;
         let  line = fs[i];
         for (let iTime = 0; iTime < nTimeSamples; iTime++) {
-            //if (viewOption == 1) {
+            if (viewOption == 1) {
                 c = Math.floor(line[iTime].toPolar().r * 255.0);
-            //} else {
-            //    c = Math.floor((line[iTime].toPolar().phi / (2 * Math.PI) + 0.5) * 255.0);
-            //}
+            } else {
+                c = Math.floor((line[iTime].toPolar().phi / (2 * Math.PI) + 0.5) * 255.0);
+            }
             pixels[off++] = c;
             pixels[off++] = c;
             pixels[off++] = c;

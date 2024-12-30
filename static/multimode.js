@@ -54,6 +54,7 @@ function setFieldFloat(id, newValue) {
 }
 var saveBeamParam, saveBeamDist;
 function getInitFront(pPar = - 1) {
+    let waist0, beamDist, theta, waist, dx;
     const sel = document.getElementById("incomingFront");
     //const par = document.getElementById("beamParam");
     const rng = document.getElementById("initialRange");
@@ -62,14 +63,14 @@ function getInitFront(pPar = - 1) {
     RayleighRange = 0.0;
     switch (sel.value) {
         case "Gaussian Beam":
-            let waist0 = pPar > 0 ? pPar : getFieldFloat("beamParam", 0.0005);
-            let beamDist = getFieldFloat("beamDist", 0.0);
+            waist0 = getFieldFloat("beamParam", 0.0005);
+            beamDist = getFieldFloat("beamDist", 0.0);
             RayleighRange = Math.PI * waist0 * waist0 / lambda;
-            let theta = Math.abs(beamDist) < 0.000001 ? 0 : Math.PI  / (lambda * beamDist);
-            let waist = waist0 * Math.sqrt(1 + beamDist / RayleighRange);
+            theta = Math.abs(beamDist) < 0.000001 ? 0 : Math.PI  / (lambda * beamDist);
+            waist = waist0 * Math.sqrt(1 + beamDist / RayleighRange);
             saveBeamParam = waist0;
             saveBeamDist = beamDist;
-            let dx = initialRange / nSamples;
+            dx = initialRange / nSamples;
             x0 = nSamples / 2 * dx;
             for (let i = 0; i < nSamples; i++) {
                 let px = i * dx;
@@ -78,7 +79,24 @@ function getInitFront(pPar = - 1) {
                 let fVal = math.exp(math.complex(- xw * xw, - theta * x * x))
                 vf.push(fVal);
             }
-
+            break;
+        case "Gaussian Noise":
+            waist0 = getFieldFloat("beamParam", 0.0005);
+            beamDist = getFieldFloat("beamDist", 0.0);
+            RayleighRange = Math.PI * waist0 * waist0 / lambda;
+            theta = Math.abs(beamDist) < 0.000001 ? 0 : Math.PI  / (lambda * beamDist);
+            waist = waist0 * Math.sqrt(1 + beamDist / RayleighRange);
+            saveBeamParam = waist0;
+            saveBeamDist = beamDist;
+            dx = initialRange / nSamples;
+            x0 = nSamples / 2 * dx;
+            for (let i = 0; i < nSamples; i++) {
+                let px = i * dx;
+                let x = (px - x0);
+                xw = x / waist;
+                let fVal = math.add(math.exp(math.complex(- xw * xw, - theta * x * x)), math.complex(Math.random() * 0.1, Math.random() * 0.1));
+                vf.push(fVal);
+            }
             break;
         case "Two Slit":
             z1 = 2 * nSamples / 5

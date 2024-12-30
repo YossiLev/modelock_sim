@@ -1254,6 +1254,26 @@ function  normalizePower(fx, power, dxf) {
     return power * p; 
 }
 
+function vectorsForFresnel(M, N, dx0, gain, isBack) {
+    let [[A, B], [C, D]] = M;
+    let dxf = B * lambda / (N * dx0);
+    let factor = math.multiply(math.complex(0, gain), math.sqrt(math.complex(0, - 1 / (B * lambda))));
+    if (isBack) {
+        factor = math.multiply(factor, math.complex(0, gain));
+    }    
+    let co0 = - Math.PI * dx0 * dx0 * A / (B * lambda);
+    let cof = - Math.PI * dxf * dxf * D / (B * lambda);
+
+    let vec0 = [], vecF = []
+    for (let i = 0; i < N; i++) {
+        let ii = i - N / 2;
+        vec0.push(math.exp(math.complex(0, co0 * ii * ii)));
+        vecF.push(math.dotMultiply(factor, math.exp(math.complex(0, cof * ii * ii))));
+    }
+
+    return [vec0, vecF];
+}
+
 function CalcNextFrontOfM(f0, L, M, dx0, isBack = false, imagA = 0, gain = 1) {
     let A = M[0][0];
     let B = M[0][1];

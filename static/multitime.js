@@ -6,6 +6,19 @@ var IntensitySaturationLevel = 4;
 var intensityTotalByIx = [];
 var factorGainByIx = [];
 var Ikl = 0.02;
+var rangeW = [];
+var spectralGain = [];
+var dispersion = [];
+var sumPowerIx = [];
+var pumpGain0 = [];
+var frequencyTotalMultFactor = [];
+var mirrorLoss = 0.95;
+var fresnelData = [];
+var totalRange = 0.001000;
+var dx0 = totalRange / nSamples;
+var scalarOne = math.complex(1);
+var nTimeSamplesOnes = Array.from({length: nTimeSamples}, (v) => scalarOne)
+var nSamplesOnes = Array.from({length: nSamples}, (v) => scalarOne)
 
 function initMultiTime() {
     workingTab = 3
@@ -15,37 +28,60 @@ function initMultiTime() {
     }
     for (let iTime = 0; iTime < nTimeSamples; iTime++) {
         let fr = getInitFront(beamParam);
-        multiTimeFronts.push(getInitFront(beamParam))
         for (let i = 0; i < nSamples; i++) {
             multiTimeFronts[i].push(fr[i]);
         }
     }
 
+    prepareLinearFresnelHelpData();
+
+    prepareGainPump();
+    initGainByFrequency();
+
     fftToFrequency();
+    ifftToTime();
 
     drawMultiMode();
 }
 
+function initGainByFrequency() {
+    let specGain = math.complex(200);
+    let disp_par = 0.5e-3 * 2 * Math.PI / specGain;
+    rangeW = math.range(- nTimeSamples / 2 , nTimeSamples / 2).toArray().map((v) => math.complex(v + 0.0));
+    let ones = rangeW.map((v) => math.complex(1.0));
+    let mid = math.dotDivide(rangeW, rangeW.map((v) => specGain));
+    spectralGain = math.dotDivide(ones, math.add(math.square(mid), 1));
+    dispersion = math.exp(math.multiply(math.complex(0, - disp_par), math.square(rangeW)));
+    let expW = math.exp(math.multiply(math.complex(0, - 2 * Math.PI), rangeW));
+    frequencyTotalMultFactor = math.dotMultiply(expW, math.dotMultiply(spectralGain, dispersion));
+}
+
 function multiTimeRoundTrip() {
 
-    // phaseChangeDuringKerr
+    [0, 1].forEach((side) => {
+        phaseChangeDuringKerr();
+        // phaseChangeDuringKerr (V)
 
-    // gainCorrectionDueToSaturation
-    // gainByfrequency
-    // dispersionByFrequency
+        spectralGainDispersion();
+        // gainByfrequency (V)
+        // dispersionByFrequency (V)
 
-    // oneSideCavity
-    // mirrorLoss
+        linearCavityOneSide(side);
+        // gainCorrectionDueToSaturation
+        // oneSideCavity
+        // mirrorLoss (only on left side)
+    });
 }
 
 function timeCavityStep(step, redraw) {
     switch (step) {
-        case 1:
-            phaseChangeDuringKerr();
-            break;
+        case 1: phaseChangeDuringKerr(); fftToFrequency(); break;
+        case 2: spectralGainDispersion(); break;
+        case 3: linearCavityOneSide(0); break;
+        case 4: linearCavityOneSide(1); break;
+        case 5: math.range(1, 10).forEach(()=> multiTimeRoundTrip()); break;
     }
     if (redraw) {
-        fftToFrequency()
         drawMultiMode();
     }
 }
@@ -65,12 +101,87 @@ function ifftToTime() {
 
 function phaseChangeDuringKerr() {
     let IklTimesI = math.complex(0, Ikl * 100);
+    sumPowerIx = [];
     for (let ix = 0; ix < nSamples; ix++) {
         let bin = multiTimeFronts[ix];
         let bin2 = math.abs(math.dotMultiply(bin, math.conj(bin)));
+        sumPowerIx.push(math.sum(bin2));
         let phaseShift = math.multiply(IklTimesI, bin2);
         multiTimeFronts[ix] = math.dotMultiply(bin, math.exp(phaseShift));
     }
+}
+
+function spectralGainDispersion() {
+    fftToFrequency();
+    for (let ix = 0; ix < nSamples; ix++) {
+        multiFrequencyFronts[ix] = math.dotMultiply(multiFrequencyFronts[ix], frequencyTotalMultFactor);
+    }
+    ifftToTime();
+}
+
+function linearCavityOneSide(side) {
+    let Is = 20;
+    let gainReduction = math.dotMultiply(pumpGain0, math.dotDivide(nSamplesOnes, math.add(1, math.divide(sumPowerIx, Is * nTimeSamples))));
+
+    let multiTimeFrontsTrans = math.transpose(multiTimeFronts) 
+    for (let iTime = 0; iTime < nTimeSamples; iTime++) {
+        let fr = multiTimeFrontsTrans[iTime];
+
+        fr = math.dotMultiply(fr, gainReduction);
+        fresnelData[side].forEach((matData) => {
+            fr = math.dotMultiply(fr, matData[0]);
+            fr = fft(fr, 1);
+            fr = math.dotMultiply(fr, matData[1]);
+        });
+
+        multiTimeFrontsTrans[iTime] = fr;
+    }
+    multiTimeFronts = math.transpose(multiTimeFrontsTrans) 
+}
+
+function prepareGainPump() {
+    let epsilon = 0.2;
+    let pumpWidth = 0.00005;
+    let g0 = 1 / mirrorLoss + epsilon;
+    pumpGain0 = [];
+    for (let ix = 0; ix < nSamples; ix++) {
+        let x = (ix - nSamples / 2) * dx0;
+        let xw = x / pumpWidth;
+        pumpGain0.push(g0 * math.exp(- 0.5 * xw * xw));
+    }
+    
+}
+function prepareLinearFresnelHelpData() {
+    let MatSide = [[[-1.2947E+00, 4.8630E-03], [1.5111E+02, -1.3400E+00]],  // right
+                    [[1.1589E+00, 8.2207E-04], [2.9333E+02, 1.0709E+00]]];   // left
+    fresnelData = [];
+
+    MatSide.forEach((sideM, indexSide) => {
+        let [[A, B], [C, D]] = sideM;
+        let M1, M2;
+
+        if (A > 0) {
+            // A not close to -1
+            M2 = [[A, B / (A + 1)], [C, D - C * B / (A + 1)]];
+            M1 = [[1, B / (A + 1)], [0, 1]];
+        } else {
+            // A close to -1, so negate matrix and then decompose
+            M2 = [[-A, -B / (-A + 1)], [-C, -D - C * B / (-A + 1)]];
+            M1 = [[-1, B / (-A + 1)], [0, -1]];
+        }
+
+        fresnelSideData = [];
+        let dx = dx0;
+        console.log(`orig dx = ${dx}`);
+        [M1, M2].forEach((M, index) => {
+            let loss = (index == 0 && indexSide == 1) ? mirrorLoss : 1; // left side mirror loss
+            fresnelSideData.push(vectorsForFresnel(M, nSamples, dx, loss, M[0][0] < 0));
+            dx = M[0][1] * lambda / totalRange;
+            console.log(`step ${index + 1} dx = ${dx}`);
+        })
+
+        fresnelData.push(fresnelSideData);
+    });
 }
 
 function totalIxPower() {
@@ -85,7 +196,7 @@ function SatGain() {
     factorGainByIx = [];
 
     for (let ix = 0; ix < nSamples; ix++) {
-        factorGainByIx.push(g0 / (1 +  intensityTotalByIx[ix] / IntensitySaturationLevel))
+        factorGainByIx.push(g0 / (1 + intensityTotalByIx[ix] / IntensitySaturationLevel))
     }
 }
 
@@ -108,13 +219,24 @@ function drawTimeFronts(domainOption, canvas) {
     var id = ctx.getImageData(0, 0, canvasWidth, canvasHeight);
     var pixels = id.data;
     
-    let fs = domainOption == 1 ? multiTimeFronts : multiFrequencyFronts
+    let fs = (domainOption == 1) ? multiTimeFronts : multiFrequencyFronts;
+    let maxV, maxS, meanV, meanS;
+
+    if (viewOption == 1) {
+        fs = math.abs(fs);
+        fs = math.dotMultiply(fs, fs);
+        maxV = math.max(fs, 0);
+        maxS = math.max(maxV);
+        meanV = math.mean(fs, 0);
+        meanS = math.max(meanV);
+    }
+
     for (let i = 0; i < nSamples; i++) {
         let off = i * nTimeSamples * 4;
-        let  line = fs[i];
+        let line = (viewOption == 1) ? math.dotDivide(fs[i], maxV): fs[i];
         for (let iTime = 0; iTime < nTimeSamples; iTime++) {
             if (viewOption == 1) {
-                c = Math.floor(line[iTime].toPolar().r * 255.0);
+                c = Math.floor(line[iTime] * 255.0);
             } else {
                 c = Math.floor((line[iTime].toPolar().phi / (2 * Math.PI) + 0.5) * 255.0);
             }
@@ -123,6 +245,40 @@ function drawTimeFronts(domainOption, canvas) {
             pixels[off++] = c;
             pixels[off++] = 255;
         }
-    }  
+    }
+    // if (viewOption == 1) {
+    //     let maxVN = math.floor(math.multiply(maxV, (canvas.height - 10) / (maxS + 0.0001)));
+    //     for (let iTime = 0; iTime < nTimeSamples; iTime++) {
+    //         let off = ((canvas.height - 1 - maxVN[iTime]) * nTimeSamples + iTime) * 4;
+    //         pixels[off++] = 255;
+    //         pixels[off++] = 0;
+    //         pixels[off++] = 0;
+    //         pixels[off++] = 255;
+    //     }
+    // }
     ctx.putImageData(id, 0, 0);
+    if (viewOption == 1) {
+        let maxVN = math.floor(math.multiply(maxV, (canvas.height - 10) / (maxS + 0.0001)));
+        let y = canvas.height - 1 - maxVN[0];
+        ctx.strokeStyle = 'red';
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        for (let iTime = 1; iTime < nTimeSamples; iTime++) {
+            y = canvas.height - 1 - maxVN[iTime];
+            ctx.lineTo(iTime, y);
+        }
+        ctx.stroke();
+        let meanVN = math.floor(math.multiply(meanV, (canvas.height - 10) / (meanS + 0.0001)));
+        y = canvas.height - 1 - meanVN[0];
+        ctx.strokeStyle = 'green';
+        ctx.fillStyle = 'green';
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        for (let iTime = 1; iTime < nTimeSamples; iTime++) {
+            y = canvas.height - 1 - meanVN[iTime];
+            ctx.lineTo(iTime, y);
+        }
+        ctx.stroke();
+        drawTextBG(ctx, (meanS * nSamples).toFixed(3), 10, 10);
+    }
 }

@@ -100,7 +100,7 @@ function fft(inp, s) {
     return output;
 }
 
-function ifft(inp, ss) {
+function ifft(inp, s) {
     const N = inp.length;
 
     // Ensure input size is a power of 2
@@ -108,11 +108,22 @@ function ifft(inp, ss) {
         throw new Error("Input size must be a power of 2");
     }
 
-    let s = ss * 1;
+    // Extract real and imaginary parts
+    //const real = inp.map(x => math.re(x));
+    //const imag = inp.map(x => math.im(x));
+
 
     // Extract real and imaginary parts
-    const real = inp.map(x => math.re(x));
-    const imag = inp.map(x => math.im(x));
+    const realS = inp.map(x => math.re(x));
+    const imagS = inp.map(x => math.im(x));
+
+    // Reorder input
+    let real = [], imag = [];
+    for (let k = 0; k < N; k++) {
+        real.push(realS[(k + N / 2) % N]);
+        imag.push(imagS[(k + N / 2) % N]);
+    }
+
 
     // Bit-reversal permutation
     function bitReverseArray(arr) {

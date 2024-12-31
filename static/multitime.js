@@ -82,7 +82,7 @@ function timeCavityStep(step, redraw) {
         case 2: spectralGainDispersion(); break;
         case 3: linearCavityOneSide(0); break;
         case 4: linearCavityOneSide(1); break;
-        case 5: math.range(1, 1000).forEach(()=> multiTimeRoundTrip()); break;
+        case 5: math.range(1, 3).forEach(()=> multiTimeRoundTrip()); break;
     }
     const endTime = performance.now()
     console.log(`Call to timeCavityStep took ${endTime - startTime} milliseconds`)

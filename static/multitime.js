@@ -10,6 +10,7 @@ var rangeW = [];
 var spectralGain = [];
 var dispersion = [];
 var sumPowerIx = [];
+var gainReduction = [];
 var pumpGain0 = [];
 var frequencyTotalMultFactor = [];
 var mirrorLoss = 0.95;
@@ -74,15 +75,23 @@ function multiTimeRoundTrip() {
 }
 
 function timeCavityStep(step, redraw) {
+    const startTime = performance.now()
+
     switch (step) {
         case 1: phaseChangeDuringKerr(); fftToFrequency(); break;
         case 2: spectralGainDispersion(); break;
         case 3: linearCavityOneSide(0); break;
         case 4: linearCavityOneSide(1); break;
-        case 5: math.range(1, 10).forEach(()=> multiTimeRoundTrip()); break;
+        case 5: math.range(1, 1000).forEach(()=> multiTimeRoundTrip()); break;
     }
+    const endTime = performance.now()
+    console.log(`Call to timeCavityStep took ${endTime - startTime} milliseconds`)
+
     if (redraw) {
         drawMultiMode();
+        drawVector(gainReduction, true, "red", 1, "gainSat", "GainSat", 0);
+        drawVector(pumpGain0, false, "green", 1, "gainSat", "Pump", 0);
+        drawVector(sumPowerIx, true, "blue", 1, "meanPower", "Power", 0);
     }
 }
 function fftToFrequency() {
@@ -121,17 +130,16 @@ function spectralGainDispersion() {
 
 function linearCavityOneSide(side) {
     let Is = 20;
-    let gainReduction = math.dotMultiply(pumpGain0, math.dotDivide(nSamplesOnes, math.add(1, math.divide(sumPowerIx, Is * nTimeSamples))));
+    gainReduction = math.dotMultiply(pumpGain0, math.dotDivide(nSamplesOnes, math.add(1, math.divide(sumPowerIx, Is * nTimeSamples)))).map((v) => v.re);
 
     let multiTimeFrontsTrans = math.transpose(multiTimeFronts) 
     for (let iTime = 0; iTime < nTimeSamples; iTime++) {
         let fr = multiTimeFrontsTrans[iTime];
-
         fr = math.dotMultiply(fr, gainReduction);
-        fresnelData[side].forEach((matData) => {
-            fr = math.dotMultiply(fr, matData[0]);
-            fr = fft(fr, 1);
-            fr = math.dotMultiply(fr, matData[1]);
+        fresnelData[side].forEach((fresnelSideData) => {
+            fr = math.dotMultiply(fr, fresnelSideData.vecs[0]);
+            fr = fft(fr, fresnelSideData.dx);
+            fr = math.dotMultiply(fr, fresnelSideData.vecs[1]);
         });
 
         multiTimeFrontsTrans[iTime] = fr;
@@ -140,8 +148,8 @@ function linearCavityOneSide(side) {
 }
 
 function prepareGainPump() {
-    let epsilon = 0.2;
-    let pumpWidth = 0.00005;
+    let epsilon = 0.4;
+    let pumpWidth = 0.00008;
     let g0 = 1 / mirrorLoss + epsilon;
     pumpGain0 = [];
     for (let ix = 0; ix < nSamples; ix++) {
@@ -170,7 +178,7 @@ function prepareLinearFresnelHelpData() {
             M1 = [[-1, B / (-A + 1)], [0, -1]];
         }
 
-        fresnelSideData = [];
+        fresnelSideData =[];
         let dx = dx0;
         console.log(`orig dx = ${dx}`);
         [M1, M2].forEach((M, index) => {
@@ -179,6 +187,7 @@ function prepareLinearFresnelHelpData() {
             dx = M[0][1] * lambda / totalRange;
             console.log(`step ${index + 1} dx = ${dx}`);
         })
+        console.log(fresnelSideData);
 
         fresnelData.push(fresnelSideData);
     });
@@ -220,7 +229,7 @@ function drawTimeFronts(domainOption, canvas) {
     var pixels = id.data;
     
     let fs = (domainOption == 1) ? multiTimeFronts : multiFrequencyFronts;
-    let maxV, maxS, meanV, meanS;
+    let maxV, maxS, meanV, meanS, meanMean;
 
     if (viewOption == 1) {
         fs = math.abs(fs);
@@ -229,6 +238,7 @@ function drawTimeFronts(domainOption, canvas) {
         maxS = math.max(maxV);
         meanV = math.mean(fs, 0);
         meanS = math.max(meanV);
+        meanMean = math.mean(meanV);
     }
 
     for (let i = 0; i < nSamples; i++) {
@@ -279,6 +289,6 @@ function drawTimeFronts(domainOption, canvas) {
             ctx.lineTo(iTime, y);
         }
         ctx.stroke();
-        drawTextBG(ctx, (meanS * nSamples).toFixed(3), 10, 10);
+        drawTextBG(ctx, (meanMean).toFixed(6), 10, 10);
     }
 }

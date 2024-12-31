@@ -31,7 +31,7 @@ var drawMode = 1;
 var deltaGraphX, deltaGraphY,  deltaGraphYHalf, deltaGraphYCalc;
 var displayTemp = [[], []];
 var displayTempPrevious = [[], []];
-
+var presentedVectors = new Map();
 
 function getFieldFloat(id, defaultValue) {
     const cont = document.getElementById(id);
@@ -415,35 +415,51 @@ function vecWaistFromQ(v) {
 
 var drawVectorComparePrevious = [];
 
-function drawVector(v, clear = true, color = "red", pixelWidth = drawW) {
+function drawVector(v, clear = true, color = "red", pixelWidth = drawW, id="graphCanvas", name = "", start=drawSx ) {
     if (!drawOption) {
         return
     }
-    const prevCompare = document.getElementById('cbxPrevCompare').checked;
 
-    const canvas = document.getElementById("graphCanvas");
-    const ctx = canvas.getContext("2d");
     let l = v.length;
-    if (pixelWidth > (canvas.width - drawSx - 2) / l) {
-        pixelWidth = (canvas.width - drawSx - 2) / l;
+    if (l <= 0) {
+        return;
     }
-    if (clear) {
-        ctx.fillStyle = `white`;
-        ctx.fillRect(0, 0, 1000, 200);     
-        if (isMouseDownOnGraph) {
-            const canvas = document.getElementById("graphCanvas");
-            const ctx = canvas.getContext("2d");
-            ctx.fillStyle = "#ddd";
-            ctx.fillRect(drawSx + mouseOnGraphStart * drawW, 0, (mouseOnGraphEnd - mouseOnGraphStart) * drawW, 200)
-        }
-        ctx.strokeStyle = `gray`;
-        ctx.beginPath();
-        ctx.moveTo(drawSx, 100);
-        ctx.lineTo(drawSx + l * pixelWidth, 100);
-        ctx.stroke();
+    const prevCompare = document.getElementById('cbxPrevCompare').checked;
+    let fac = Math.max(Math.abs(Math.max(...v)), Math.abs(Math.min(...v)));
+    const canvas = document.getElementById(id);
+    const ctx = canvas.getContext("2d");
+    if (pixelWidth > (canvas.width - start) / l) {
+        pixelWidth = (canvas.width - start) / l;
     }
 
-    let fac = Math.max(Math.abs(Math.max(...v)), Math.abs(Math.min(...v)));
+    let vectors = presentedVectors.get(id);
+    if (vectors == null) {
+        vectors = [];
+    }
+    let vecObj = {vec: math.clone(v), w: pixelWidth, s: start, c: color, n: name, f: fac};
+    if (clear) {
+        vectors = [vecObj];
+    } else {
+        vectors.push(vecObj);
+    }
+    presentedVectors.set(id, vectors);
+
+
+    ctx.fillStyle = `white`;
+    ctx.fillRect(0, 0, 1000, 200);     
+    if (isMouseDownOnGraph) {
+        const canvas = document.getElementById(id);
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#ddd";
+        ctx.fillRect(start + mouseOnGraphStart * drawW, 0, (mouseOnGraphEnd - mouseOnGraphStart) * drawW, 200)
+    }
+    ctx.strokeStyle = `gray`;
+    ctx.beginPath();
+    ctx.moveTo(start, 100);
+    ctx.lineTo(start + l * pixelWidth, 100);
+    ctx.stroke();
+
+    fac = vectors.reduce((p, c) => Math.max(p, c.f), 0.001);
     if (prevCompare) {
         let facPrev = Math.max(Math.abs(Math.max(...drawVectorComparePrevious)), Math.abs(Math.min(...drawVectorComparePrevious)));
         if (fac < facPrev) {
@@ -458,26 +474,28 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW) {
     if (fac > 0) {
         fac = 90 / fac
     }
-    ctx.strokeStyle = color;
-    ctx.beginPath();
-    ctx.moveTo(drawSx, 100 - Math.floor(fac * v[0]));
-    for (let i = 1; i < l; i++) {
-        ctx.lineTo(drawSx + i * pixelWidth, 100 - Math.floor(fac * v[i]));
-    }
-    ctx.stroke();
+    vectors.forEach((vo) => {
+        ctx.strokeStyle = vo.c;
+        ctx.beginPath();
+        ctx.moveTo(vo.s, 100 - Math.floor(fac * vo.vec[0]));
+        for (let i = 1; i < l; i++) {
+            ctx.lineTo(vo.s + i * pixelWidth, 100 - Math.floor(fac * vo.vec[i]));
+        }
+        ctx.stroke();
+    });
     if (prevCompare) {
         ctx.strokeStyle = 'green';
         ctx.beginPath();
-        ctx.moveTo(drawSx, 100 - Math.floor(fac * drawVectorComparePrevious[0]));
+        ctx.moveTo(start, 100 - Math.floor(fac * drawVectorComparePrevious[0]));
         for (let i = 1; i < l; i++) {
-            ctx.lineTo(drawSx + i * pixelWidth, 100 - Math.floor(fac * drawVectorComparePrevious[i]));
+            ctx.lineTo(start + i * pixelWidth, 100 - Math.floor(fac * drawVectorComparePrevious[i]));
         }
         ctx.stroke();
         ctx.strokeStyle = 'blue';
         ctx.beginPath();
-        ctx.moveTo(drawSx, 100 - Math.floor(fac * (v[0] - drawVectorComparePrevious[0])));
+        ctx.moveTo(start, 100 - Math.floor(fac * (v[0] - drawVectorComparePrevious[0])));
         for (let i = 1; i < l; i++) {
-            ctx.lineTo(drawSx + i * pixelWidth, 100 - Math.floor(fac * (v[i] - drawVectorComparePrevious[i])));
+            ctx.lineTo(start + i * pixelWidth, 100 - Math.floor(fac * (v[i] - drawVectorComparePrevious[i])));
         }
         ctx.stroke();
     } else {
@@ -1271,7 +1289,7 @@ function vectorsForFresnel(M, N, dx0, gain, isBack) {
         vecF.push(math.dotMultiply(factor, math.exp(math.complex(0, cof * ii * ii))));
     }
 
-    return [vec0, vecF];
+    return {dx: dx0, vecs: [vec0, vecF]};
 }
 
 function CalcNextFrontOfM(f0, L, M, dx0, isBack = false, imagA = 0, gain = 1) {
@@ -1518,9 +1536,14 @@ function graphCanvasMouseMove(e) {
     var x = e.clientX - bounds.left;
     var y = e.clientY - bounds.top;
 
-    let ix = Math.floor((x - drawSx) / drawW);
+    let vectors = presentedVectors.get(e.target.id);
+    if (vectors == null || vectors.lenght < 1) {
+        return;
+    }
+    let vecObj = vectors[0];
+    let ix = Math.floor((x - vecObj.s) / vecObj.w);
 
-    const canvas = document.getElementById("graphCanvas");
+    const canvas = document.getElementById(e.target.id);
     const ctx = canvas.getContext("2d");
     if (isMouseDownOnGraph) {
         mouseOnGraphEnd = ix;
@@ -1545,11 +1568,12 @@ function graphCanvasMouseMove(e) {
     if (ix >= 0) {
         ctx.fillStyle = "black";
         
-        drawTextBG(ctx, (ix * distStep).toFixed(6), 20, 120);
-        for (let iVec = 0; iVec < graphData.length; iVec++) {
-            if (graphData[iVec].length > ix) {
-                let val = graphData[iVec][ix];
-                drawTextBG(ctx, val.toFixed(8), 20, 120 + (iVec + 1) * 16, iVec == 0 ? "red" : "purple");
+        drawTextBG(ctx, (ix * vecObj.w).toFixed(6), 20, 120);
+        for (let iVec = 0; iVec < vectors.length; iVec++) {
+            let vecObj = vectors[iVec];
+            if (vecObj.vec.length > ix) {
+                let val = vecObj.vec[ix];
+                drawTextBG(ctx, val.toFixed(8), 20, 120 + (iVec + 1) * 16, vecObj.c);
             }
         }
     }
@@ -1577,7 +1601,7 @@ function drawTextBG(ctx, txt, x, y, color = '#000', font = "10pt Courier") {
     ctx.fillStyle = '#fff';
     var width = ctx.measureText(txt).width;
     ctx.beginPath();
-    ctx.roundRect(x, y + 1, width, parseInt(font, 10) + 3, 3);
+    ctx.roundRect(x, y - 1, width, parseInt(font, 10) + 3, 3);
     ctx.fill();
     ctx.fillStyle = color;
     ctx.fillText(txt, x, y);

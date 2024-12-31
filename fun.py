@@ -31,8 +31,8 @@ def draw_single_front(draw: ImageDraw, px, py, w, h, n, vec):
 def draw_multimode(draw: ImageDraw):
     draw_single_front(draw, 30, 30, 10, 2, 256, ver_func(256))
 
-def FlexN(a, b):
-    return Div(a, b, style="display: flex; gap: 10px;")
+def FlexN(v):
+    return Div(*v, style="display: flex; gap: 10px;")
 
 def Element(el, s, tab):
     match (el["t"]):
@@ -90,17 +90,18 @@ def funCanvas(idd, width=1000, height=800, useZoom = True ):
                       }),
         )
     )   
-def graphCanvas():
+def graphCanvas(id="graphCanvas", width=1000, height = 200, options=True):
     return Div(
         Div(
-            Select(Option("A"), Option("B"), Option("C"), Option("D"), 
+            Div(Select(Option("A"), Option("B"), Option("C"), Option("D"), 
                         Option("AbsE(x)"), Option("ArgE(x)"), Option("M(x)"), 
                         Option("Width(x)"), Option("Waist(x)"), Option("QWaist(x)"),
                         id="displayOption",
                         **{'onchange':"drawGraph();"},),
-            Label(Input(id="cbxPrevCompare", type='checkbox', name='Compare', checked=False), "Compare"),
+            Label(Input(id="cbxPrevCompare", type='checkbox', name='Compare', checked=False), "Compare"))
+            if options else "",
 
-            Canvas(id="graphCanvas", width=1000, height = 200,
+            Canvas(id=id, width=width, height = height,
                 **{'onmousemove':"graphCanvasMouseMove(event);",
                 'onmousedown':"graphCanvasMouseDown(event);",
                 'onmouseup':"graphCanvasMouseUp(event);",},
@@ -161,9 +162,8 @@ def generate_fun(data_obj, tab, offset = 0):
                     *[Element(el, i, tab) for i, el in enumerate(elements[tab - 1])],
                     Button(NotStr("&#43;"), escapse=False, hx_post="/addElement/2", hx_target="#fun", hx_vals='js:{localId: getLocalId()}'), 
                 ),
-                FlexN(
-                    funCanvas(1, width=500, height=400),
-                    funCanvas(2, width=500, height=400)),
+                FlexN([funCanvas(1, width=500, height=400), funCanvas(2, width=500, height=400)]),
+
                 graphCanvas()
             )
         case 3:
@@ -189,6 +189,8 @@ def generate_fun(data_obj, tab, offset = 0):
                 ),
                 funCanvas(1, width=1024, height=256, useZoom=False), 
                 funCanvas(2, width=1024, height=256, useZoom=False),
+                FlexN([graphCanvas(id="gainSat", width=256, height = 200, options=False), 
+                       graphCanvas(id="meanPower", width=256, height = 200, options=False)]),
                 graphCanvas()
             )
 

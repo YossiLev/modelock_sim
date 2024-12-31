@@ -57,7 +57,19 @@ function initGainByFrequency() {
     frequencyTotalMultFactor = math.dotMultiply(expW, math.dotMultiply(spectralGain, dispersion));
 }
 
-function multiTimeRoundTrip() {
+function multiTimeRoundTrip(iCount) {
+    if (iCount % 50 == 0) {
+        const endTime = performance.now()
+
+        let fs = multiTimeFronts;
+        let meanV, meanMean;
+        fs = math.abs(fs);
+        fs = math.dotMultiply(fs, fs);
+        meanV = math.mean(fs, 0);
+        meanMean = math.mean(meanV);
+
+        console.log(`${iCount} - ${((endTime - startTime) * 0.001).toFixed(3)} mean=${meanMean}`);
+    }
 
     [0, 1].forEach((side) => {
         phaseChangeDuringKerr();
@@ -74,15 +86,16 @@ function multiTimeRoundTrip() {
     });
 }
 
+var startTime;
 function timeCavityStep(step, redraw) {
-    const startTime = performance.now()
+    startTime = performance.now()
 
     switch (step) {
         case 1: phaseChangeDuringKerr(); fftToFrequency(); break;
         case 2: spectralGainDispersion(); break;
         case 3: linearCavityOneSide(0); break;
         case 4: linearCavityOneSide(1); break;
-        case 5: math.range(1, 3).forEach(()=> multiTimeRoundTrip()); break;
+        case 5: math.range(0, 101).forEach((x)=> multiTimeRoundTrip(x)); break;
     }
     const endTime = performance.now()
     console.log(`Call to timeCavityStep took ${endTime - startTime} milliseconds`)
@@ -150,7 +163,7 @@ function linearCavityOneSide(side) {
 function prepareGainPump() {
     let epsilon = 0.4;
     let pumpWidth = 0.00008;
-    let g0 = 1 / mirrorLoss + epsilon;
+    let g0 = 1 / 0.05/*mirrorLoss*/ + epsilon;
     pumpGain0 = [];
     for (let ix = 0; ix < nSamples; ix++) {
         let x = (ix - nSamples / 2) * dx0;
@@ -256,16 +269,7 @@ function drawTimeFronts(domainOption, canvas) {
             pixels[off++] = 255;
         }
     }
-    // if (viewOption == 1) {
-    //     let maxVN = math.floor(math.multiply(maxV, (canvas.height - 10) / (maxS + 0.0001)));
-    //     for (let iTime = 0; iTime < nTimeSamples; iTime++) {
-    //         let off = ((canvas.height - 1 - maxVN[iTime]) * nTimeSamples + iTime) * 4;
-    //         pixels[off++] = 255;
-    //         pixels[off++] = 0;
-    //         pixels[off++] = 0;
-    //         pixels[off++] = 255;
-    //     }
-    // }
+
     ctx.putImageData(id, 0, 0);
     if (viewOption == 1) {
         let maxVN = math.floor(math.multiply(maxV, (canvas.height - 10) / (maxS + 0.0001)));

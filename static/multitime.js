@@ -95,7 +95,7 @@ function timeCavityStep(step, redraw) {
         case 2: spectralGainDispersion(); break;
         case 3: linearCavityOneSide(0); break;
         case 4: linearCavityOneSide(1); break;
-        case 5: math.range(0, 101).forEach((x)=> multiTimeRoundTrip(x)); break;
+        case 5: math.range(0, 1).forEach((x)=> multiTimeRoundTrip(x)); break;
     }
     const endTime = performance.now()
     console.log(`Call to timeCavityStep took ${endTime - startTime} milliseconds`)
@@ -162,7 +162,7 @@ function linearCavityOneSide(side) {
 
 function prepareGainPump() {
     let epsilon = 0.4;
-    let pumpWidth = 0.00008;
+    let pumpWidth = 0.000056;
     let g0 = 1 / 0.05/*mirrorLoss*/ + epsilon;
     pumpGain0 = [];
     for (let ix = 0; ix < nSamples; ix++) {
@@ -175,12 +175,16 @@ function prepareGainPump() {
 function prepareLinearFresnelHelpData() {
     let MatSide = [[[-1.2947E+00, 4.8630E-03], [1.5111E+02, -1.3400E+00]],  // right
                     [[1.1589E+00, 8.2207E-04], [2.9333E+02, 1.0709E+00]]];   // left
+    let matProg = [[1, 0.003], [0, 1]];
     fresnelData = [];
 
     MatSide.forEach((sideM, indexSide) => {
+        if (indexSide == 1) {
+            sideM = math.multiply(matProg, math.multiply(sideM, matProg));
+        }
         let [[A, B], [C, D]] = sideM;
         let M1, M2;
-
+        console.log(`Side ${indexSide + 1} mat A=${A}, B=${B}, C=${C}, D=${D}`);
         if (A > 0) {
             // A not close to -1
             M2 = [[A, B / (A + 1)], [C, D - C * B / (A + 1)]];
@@ -190,6 +194,8 @@ function prepareLinearFresnelHelpData() {
             M2 = [[-A, -B / (-A + 1)], [-C, -D - C * B / (-A + 1)]];
             M1 = [[-1, B / (-A + 1)], [0, -1]];
         }
+        console.log(`M1 A=${M1[0][0]}, B=${M1[0][1]}, C=${M1[1][0]}, D=${M1[1][1]}`);
+        console.log(`M2 A=${M2[0][0]}, B=${M2[0][1]}, C=${M2[1][0]}, D=${M2[1][1]}`);
 
         fresnelSideData =[];
         let dx = dx0;
@@ -197,8 +203,8 @@ function prepareLinearFresnelHelpData() {
         [M1, M2].forEach((M, index) => {
             let loss = (index == 0 && indexSide == 1) ? mirrorLoss : 1; // left side mirror loss
             fresnelSideData.push(vectorsForFresnel(M, nSamples, dx, loss, M[0][0] < 0));
-            dx = M[0][1] * lambda / totalRange;
-            console.log(`step ${index + 1} dx = ${dx}`);
+            dx = M[0][1] * lambda / (nSamples * dx);
+            console.log(`After step ${index + 1} dx = ${dx}`);
         })
         console.log(fresnelSideData);
 
@@ -227,8 +233,8 @@ function drawMultiTime() {
         return
     }
 
-    drawTimeFronts(1, document.getElementById("funCanvas1"));
-    drawTimeFronts(2, document.getElementById("funCanvas2"));
+    drawTimeFronts(1, document.getElementById("funCanvasTime"));
+    drawTimeFronts(2, document.getElementById("funCanvasFrequency"));
 }
 
 function drawTimeFronts(domainOption, canvas) {
@@ -295,4 +301,24 @@ function drawTimeFronts(domainOption, canvas) {
         ctx.stroke();
         drawTextBG(ctx, (meanMean).toFixed(6), 10, 10);
     }
+}
+
+function multiTimeCanvasMouseMove(e) {
+    id = e.target.id;
+    let fs = (id == "funCanvasTime") ? multiTimeFronts : multiFrequencyFronts;
+    var bounds = e.target.getBoundingClientRect();
+    var x = e.clientX - bounds.left;
+    var y = e.clientY - bounds.top;
+
+    let xVec, yVec;
+    if (viewOption == 1) {
+        xVec = math.abs(math.transpose(fs)[x]);
+        yVec = math.abs(fs[y]);
+    } else {
+        xVec = math.transpose(fs)[x].map((v) => v.toPolar().phi);
+        yVec = fs[y].map((v) => v.toPolar().phi);
+    }
+
+    drawVector(xVec, true, "red", 1, "sampleX", "X", 0);
+    drawVector(yVec, true, "red", 1, "sampleY", "Y", 0);
 }

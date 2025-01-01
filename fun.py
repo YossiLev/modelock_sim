@@ -84,9 +84,9 @@ def funCanvas(idd, width=1000, height=800, useZoom = True ):
                 ),
             ) if useZoom else Div(),
             Canvas(id=f"funCanvas{idd}", width=width, height=height, 
-                   **{'onmousemove':f"mainCanvasMouseMove(event, {idd});",
-                      'onmousedown':f"mainCanvasMouseDown(event, {idd});",
-                      'onmouseup':f"mainCanvasMouseUp(event, {idd});",
+                   **{'onmousemove':f"mainCanvasMouseMove(event);",
+                      'onmousedown':f"mainCanvasMouseDown(event);",
+                      'onmouseup':f"mainCanvasMouseUp(event);",
                       }),
         )
     )   
@@ -153,7 +153,7 @@ def generate_fun(data_obj, tab, offset = 0):
                     Button("Full", onclick="fullCavityCrystal()"),
                     Button("Full(prev)", onclick="fullCavityCrystal(2)"),
                     Button("Switch view", onclick="switchViewMultiMode()"),
-                    Input(type="number", id=f'initialRange', placeholder="range(m)", step="0.0001", style="width:100px;", value=f'0.00034613292'),
+                    Input(type="number", id=f'initialRange', placeholder="range(m)", step="0.0001", style="width:100px;", value=f'0.00024475293'),
                     Input(type="number", id=f'power', placeholder="power", step="1000000", style="width:80px;", value=f'30000000'),
                     Input(type="number", id=f'apreture', placeholder="apreture", step="0.00001", style="width:70px;", value=f'0.000056', **{'onchange':"apertureChanged();"},),
                     Select(Option("256"), Option("512"), Option("1024"), Option("2048"), Option("4096"), id="nSamples", **{'onchange':"nSamplesChanged();"},),
@@ -177,7 +177,7 @@ def generate_fun(data_obj, tab, offset = 0):
                     Button("L", onclick="timeCavityStep(4, true)"),
                     Button("Full", onclick="timeCavityStep(5, true)"),
                     Button("Switch view", onclick="switchViewMultiMode()"),
-                    Input(type="number", id=f'initialRange', placeholder="range(m)", step="0.0001", style="width:100px;", value=f'0.00034613292'),
+                    Input(type="number", id=f'initialRange', placeholder="range(m)", step="0.0001", style="width:100px;", value=f'0.00024475293'),
                     Input(type="number", id=f'power', placeholder="power", step="1000000", style="width:80px;", value=f'30000000'),
                     Input(type="number", id=f'apreture', placeholder="apreture", step="0.00001", 
                            style="width:70px;", value=f'0.000056', name="name", **{'onchange':"apertureChanged();"},),
@@ -187,11 +187,12 @@ def generate_fun(data_obj, tab, offset = 0):
                     *[Element(el, i, tab) for i, el in enumerate(elements[0])],
                     Button(NotStr("&#43;"), escapse=False, hx_post="/addElement/2", hx_target="#fun", hx_vals='js:{localId: getLocalId()}'), 
                 ),
-                funCanvas(1, width=1024, height=256, useZoom=False), 
-                funCanvas(2, width=1024, height=256, useZoom=False),
+                funCanvas("Time", width=1024, height=256, useZoom=False), 
+                funCanvas("Frequency", width=1024, height=256, useZoom=False),
                 FlexN([graphCanvas(id="gainSat", width=256, height = 200, options=False), 
-                       graphCanvas(id="meanPower", width=256, height = 200, options=False)]),
-                graphCanvas()
+                       graphCanvas(id="meanPower", width=256, height = 200, options=False),
+                       graphCanvas(id="sampleX", width=256, height = 200, options=False),]),
+                graphCanvas(id="sampleY", width=1024, height = 200, options=False)
             )
 
 

@@ -424,7 +424,7 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW, id="grap
     if (l <= 0) {
         return;
     }
-    const prevCompare = document.getElementById('cbxPrevCompare').checked;
+    const prevCompare = document.getElementById('cbxPrevCompare')?.checked;
     let fac = Math.max(Math.abs(Math.max(...v)), Math.abs(Math.min(...v)));
     const canvas = document.getElementById(id);
     const ctx = canvas.getContext("2d");
@@ -446,7 +446,7 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW, id="grap
 
 
     ctx.fillStyle = `white`;
-    ctx.fillRect(0, 0, 1000, 200);     
+    ctx.fillRect(0, 0, canvas.width, canvas.height);     
     if (isMouseDownOnGraph) {
         const canvas = document.getElementById(id);
         const ctx = canvas.getContext("2d");
@@ -1223,23 +1223,23 @@ function fullCavityCrystal(modePrev = 1) {
     console.log(`|A+D| = ${math.abs(math.add(MatTotal[0][0], MatTotal[1][1]))}, det = ${math.det(MatTotal)}`)
     console.log(`ABCD = ${MatTotal[0][0]} ${MatTotal[0][1]} ${MatTotal[1][0]} ${MatTotal[1][1]}`);
     if (math.abs(math.add(MatTotal[0][0], MatTotal[1][1])) < 2.0) {
-        // let [[A, B], [C, D]] = MatTotal;
-        // let oneOverQ = math.complex(math.divide((math.subtract(D,  A)), (2 * B)), 
-        //         math.divide(math.sqrt(math.subtract(1, math.multiply(0.25, math.multiply(math.add(A, D), math.add(A, D))),)), B));
-        // let actualQ = math.divide(1, oneOverQ);
-        // let nextQ = math.divide(math.add(math.multiply(actualQ, A), B), math.add(math.multiply(actualQ, C), D));
-        // let diffQ = math.subtract(actualQ, nextQ);
-        // console.log(`A = ${A}, B = ${B}, C = ${C}, D = ${D}`);
-        // console.log(`SOL1 => Q = ${actualQ} 1/Q = ${oneOverQ} nextQ = ${nextQ} diff = ${math.abs(diffQ)}`);
+        let [[A, B], [C, D]] = MatTotal;
+        let oneOverQ = math.complex(math.divide((math.subtract(D,  A)), (2 * B)), 
+                math.divide(math.sqrt(math.subtract(1, math.multiply(0.25, math.multiply(math.add(A, D), math.add(A, D))),)), B));
+        let actualQ = math.divide(1, oneOverQ);
+        let nextQ = math.divide(math.add(math.multiply(actualQ, A), B), math.add(math.multiply(actualQ, C), D));
+        let diffQ = math.subtract(actualQ, nextQ);
+        console.log(`A = ${A}, B = ${B}, C = ${C}, D = ${D}`);
+        console.log(`SOL1 => Q = ${actualQ} 1/Q = ${oneOverQ} nextQ = ${nextQ} diff = ${math.abs(diffQ)}`);
         
-        // beamDist = 2.0 * B / (D - A);
-        // beamWaist = Math.sqrt(lambda * Math.abs(B) / (Math.PI * Math.sqrt(1 - 0.25 * (A + D) * (A + D))));
-        // console.log(`ORIG beamWaist = ${saveBeamParam}, beamDist = ${saveBeamDist}`);
+        beamDist = 2.0 * B / (D - A);
+        beamWaist = Math.sqrt(lambda * Math.abs(B) / (Math.PI * Math.sqrt(1 - 0.25 * (A + D) * (A + D))));
+        console.log(`ORIG beamWaist = ${saveBeamParam}, beamDist = ${saveBeamDist}`);
 
 
-        // console.log(`beamWaist = ${beamWaist}, beamDist = ${beamDist}, z = ${actualQ.re}`);
-        // setFieldFloat('beamDist', beamDist);
-        // setFieldFloat('beamParam', beamWaist);
+        console.log(`beamWaist = ${beamWaist}, beamDist = ${beamDist}, z = ${actualQ.re}`);
+        setFieldFloat('beamDist', beamDist);
+        setFieldFloat('beamParam', beamWaist);
     }
     //setFieldFloat('power', power);
 
@@ -1488,8 +1488,18 @@ function deltaGraphMultiMode() {
     drawMultiMode();
 }
 
-function mainCanvasMouseMove(e, id) {
+function mainCanvasMouseMove(e) {
     if (!isMouseDownOnMain) {
+        return;
+    }
+    const id = e.target.id;
+    let fronts = []
+    if (id == "funCanvas1") {
+        fronts = multiFronts[0];
+    } else if (id == "funCanvas2") {
+        fronts = multiFronts[1];
+    } else if (id == "funCanvasTime" || id == "funCanvasFrequency") {
+        multiTimeCanvasMouseMove(e);
         return;
     }
     const sel = document.getElementById("displayOption");
@@ -1497,7 +1507,7 @@ function mainCanvasMouseMove(e, id) {
     var x = e.clientX - bounds.left;
     var y = e.clientY - bounds.top;
 
-    let fronts = multiFronts[id - 1];
+    fronts = multiFronts[id - 1];
 
     let ix = Math.floor((x - drawSx) / drawW);
     if (ix >= 0 && ix < fronts.length) {
@@ -1521,12 +1531,12 @@ function mainCanvasMouseMove(e, id) {
     }
 
 }
-function mainCanvasMouseDown(e, id) {
+function mainCanvasMouseDown(e) {
     isMouseDownOnMain = true;
-    mainCanvasMouseMove(e, id);
+    mainCanvasMouseMove(e);
 }
 
-function mainCanvasMouseUp(e, id) {
+function mainCanvasMouseUp(e) {
     isMouseDownOnMain = false;
 }
 

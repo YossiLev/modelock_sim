@@ -6,6 +6,7 @@ const lambda = 0.000000780;
 var initialRange = 0.01047;
 var multiRanges = [[], []];
 var nSamples = 256;
+var nRounds = 0;
 var viewOption = 1;
 var zoomFactor = 1.0;
 var basicZoomFactor = 50000.0; // pixels per meter
@@ -89,12 +90,14 @@ function getInitFront(pPar = - 1) {
             saveBeamParam = waist0;
             saveBeamDist = beamDist;
             dx = initialRange / nSamples;
+
             x0 = nSamples / 2 * dx;
             for (let i = 0; i < nSamples; i++) {
                 let px = i * dx;
                 let x = (px - x0);
                 xw = x / waist;
-                let fVal = math.add(math.exp(math.complex(- xw * xw, - theta * x * x)), math.complex(Math.random() * 0.1, Math.random() * 0.1));
+                let fVal = math.add(math.exp(math.complex(- xw * xw, - theta * x * x)), 
+                    math.complex((Math.random() * 2 - 1) * 0.1, (Math.random() * 2 + 1) * 0.1));
                 vf.push(fVal);
             }
             break;
@@ -157,6 +160,10 @@ function nSamplesChanged() {
     setFieldFloat("initialRange", initialRange);
 }
 
+function nRoundsChanged() {
+    const val = document.getElementById("nRounds").value;
+    nRounds = parseInt(val);
+}
 
 function zoomMultiMode(z) {
     if (z > 0) {
@@ -185,7 +192,7 @@ function drowShenets(ctx, dType, valPerPixel, startVal = 0) {
             canvasSize = ctx.canvas.width - drawSx - 10;
             break;
     }
-    const sizeM = canvasSize / valPerPixel + startVal;
+    const sizeM = (canvasSize / valPerPixel + startVal) / 1.5;
     const powSize = Math.log10(sizeM);
     const markSizeFixed = Math.max(0, - Math.floor(powSize));
     const markSize = Math.pow(10, Math.floor(powSize));
@@ -277,15 +284,40 @@ function drawDeltaGraph(ctx) {
 
 }
 
+function drawFronts(canvas, ctx, fronts, ranges) {
+    for (let f = 0; f < fronts.length; f++) {
+        let fi = fronts[f];
+        let r = ranges[f];
+        let l = fi.length;       
+        let h = Math.abs(r) / l * (zoomFactor * basicZoomFactor);
+        if (f == 0 && drawMode <= 2) {
+            ctx.fillStyle = `#ffddaa`;
+            ctx.fillRect(0, drawMid - l / 2, canvas.width, l);          
+        }
+        for (let i = 0; i < l; i++) {
+            ii = r > 0.0 ? i : l - 1 - i;
+            if (viewOption == 1) {
+                c = Math.floor(fi[ii].toPolar().r * 255.0);
+            } else {
+                c = Math.floor((fi[ii].toPolar().phi / (2 * Math.PI) + 0.5) * 255.0);
+            }
+            ctx.fillStyle = `rgba(${c}, ${c}, ${c}, 255)`;
+            ctx.fillRect(drawSx + f * drawW, (i - (l / 2)) * (h) + drawMid, drawW, h + 1);
+        }
+    }
+}
+
 function drawMultiMode() {
     if (!drawOption) {
         return;
     }
+    let canvasList;
     if (workingTab == 3) {
         drawMultiTime();
-        return;
+        canvasList = [document.getElementById("funCanvasTest")];
+    } else {
+        canvasList = document.querySelectorAll('[id^="funCanvas"]');
     }
-    const canvasList = document.querySelectorAll('[id^="funCanvas"]');
     canvasList.forEach((canvas, index) => {
         const ctx = canvas.getContext("2d");
         ctx.fillStyle = "#ffb0e0";
@@ -296,29 +328,9 @@ function drawMultiMode() {
             drawDeltaGraph(ctx);
             return;
         }
-        let fronts = multiFronts[index];
-        let ranges = multiRanges[index];
 
-        for (let f = 0; f < fronts.length; f++) {
-            let fi = fronts[f];
-            let r = ranges[f];
-            let l = fi.length;       
-            let h = Math.abs(r) / l * (zoomFactor * basicZoomFactor);
-            if (f == 0 && drawMode <= 2) {
-                ctx.fillStyle = `#ffddaa`;
-                ctx.fillRect(0, drawMid - l / 2, canvas.width, l);          
-            }
-            for (let i = 0; i < l; i++) {
-                ii = r > 0.0 ? i : l - 1 - i;
-                if (viewOption == 1) {
-                    c = Math.floor(fi[ii].toPolar().r * 255.0);
-                } else {
-                    c = Math.floor((fi[ii].toPolar().phi / (2 * Math.PI) + 0.5) * 255.0);
-                }
-                ctx.fillStyle = `rgba(${c}, ${c}, ${c}, 255)`;
-                ctx.fillRect(drawSx + f * drawW, (i - (l / 2)) * (h) + drawMid, drawW, h + 1);
-            }
-        }
+        drawFronts(canvas, ctx, multiFronts[index], multiRanges[index]);
+
         if (drawMode == 1) {
             drawElements(index + 1);
             displayTemp[index].forEach((el, i, a) => {
@@ -339,20 +351,29 @@ function drawMultiMode() {
                 }
                 break;
             case 2:
+            case 3:
                 drowShenets(ctx, "H",  drawW / distStep, 0, distStart);
                 break;
 
         }
     });    
 
-    drawGraph();
+    if (workingTab != 3) {
+        drawGraph();
+    }
 }
 
 function drawElements(index) {
     if (!drawOption) {
         return
     }
-    const canvas = document.getElementById(`funCanvas${index}`);
+    let canvas;
+    if (workingTab == 3) {
+        drawMultiTime();
+        canvas = document.getElementById("funCanvasTest");
+    } else {
+        canvas = document.getElementById(`funCanvas${index}`);
+    }
     const ctx = canvas.getContext("2d");
     ctx.fillStyle = `yellow`;
     for (let iEl = 0; iEl < elements.length; iEl++) {
@@ -420,6 +441,12 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW, id="grap
         return
     }
 
+    let vectors = presentedVectors.get(id);
+    if (clear || vectors == null) {
+        vectors = [];
+        presentedVectors.set(id, vectors);
+    }
+
     let l = v.length;
     if (l <= 0) {
         return;
@@ -432,16 +459,8 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW, id="grap
         pixelWidth = (canvas.width - start) / l;
     }
 
-    let vectors = presentedVectors.get(id);
-    if (vectors == null) {
-        vectors = [];
-    }
     let vecObj = {vec: math.clone(v), w: pixelWidth, s: start, c: color, n: name, f: fac};
-    if (clear) {
-        vectors = [vecObj];
-    } else {
-        vectors.push(vecObj);
-    }
+    vectors.push(vecObj);
     presentedVectors.set(id, vectors);
 
 
@@ -558,6 +577,9 @@ function drawGraph() {
         return
     }
     const sel = document.getElementById("displayOption");
+    if (sel == null) {
+        return;
+    }
 
     graphData = [];
     switch (sel.value) {
@@ -1000,7 +1022,7 @@ function fullCavityMultiMode() {
     
     vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0]; vecW = [0], vecWaist = [0], vecQ[0] = math.complex(0, RayleighRange), vecMats = [];
     
-    for (let iStep = 1; iStep < 300; iStep++) {
+    for (let iStep = 1; iStep < 400; iStep++) {
         let f0 = math.clone(fronts[0]);
         let r0 = ranges[0];
         let L = f0.length;
@@ -1501,6 +1523,8 @@ function mainCanvasMouseMove(e) {
     } else if (id == "funCanvasTime" || id == "funCanvasFrequency") {
         multiTimeCanvasMouseMove(e);
         return;
+    } else {
+        return;
     }
     const sel = document.getElementById("displayOption");
     var bounds = e.target.getBoundingClientRect();
@@ -1538,6 +1562,11 @@ function mainCanvasMouseDown(e) {
 
 function mainCanvasMouseUp(e) {
     isMouseDownOnMain = false;
+    const id = e.target.id;
+
+    if (id == "funCanvasTime" || id == "funCanvasFrequency") {
+        multiTimeCanvasMouseMove(e, true);
+    }
 }
 
 

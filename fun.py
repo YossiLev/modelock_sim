@@ -176,6 +176,7 @@ def generate_fun(data_obj, tab, offset = 0):
                     Button("R", onclick="timeCavityStep(3, true)"),
                     Button("L", onclick="timeCavityStep(4, true)"),
                     Button("Full", onclick="timeCavityStep(5, true)"),
+                    Select(Option("0"), Option("1"), Option("2"), Option("3"), id="nRounds", **{'onchange':"nRoundsChanged();"}),
                     Button("Switch view", onclick="switchViewMultiMode()"),
                     Input(type="number", id=f'initialRange', placeholder="range(m)", step="0.0001", style="width:100px;", value=f'0.00024475293'),
                     Input(type="number", id=f'power', placeholder="power", step="1000000", style="width:80px;", value=f'30000000'),
@@ -192,10 +193,10 @@ def generate_fun(data_obj, tab, offset = 0):
                 FlexN([graphCanvas(id="gainSat", width=256, height = 200, options=False), 
                        graphCanvas(id="meanPower", width=256, height = 200, options=False),
                        graphCanvas(id="sampleX", width=256, height = 200, options=False),]),
-                graphCanvas(id="sampleY", width=1024, height = 200, options=False)
+                graphCanvas(id="sampleY", width=1024, height = 200, options=False),
+                Button("Progress", onclick="progressMultiTime()"),
+                funCanvas("Test", width=1400, height=256, useZoom=True), 
             )
-
-
 
     my_base64_jpgData = []
     for image in images:
@@ -209,7 +210,6 @@ def generate_fun(data_obj, tab, offset = 0):
     return Div(Div(Div("Multimode",  hx_post="/tabfun/1", hx_target="#fun", cls=f"tab {'tabselected' if tab == 1 else ''}", hx_vals='js:{localId: getLocalId()}'),
         Div("Crystal", hx_post="tabfun/2", hx_target="#fun", cls=f"tab {'tabselected' if tab == 2 else ''}", hx_vals='js:{localId: getLocalId()}'),
         Div("Multitime", hx_post="tabfun/3", hx_target="#fun", cls=f"tab {'tabselected' if tab == 3 else ''}", hx_vals='js:{localId: getLocalId()}')),
-
         added,
     )
 

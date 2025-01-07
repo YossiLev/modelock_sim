@@ -2,7 +2,7 @@ var nTimeSamples = 1024;
 var multiTimeFronts = [];
 var multiFrequencyFronts = [];
 var factorGain = [];
-var IntensitySaturationLevel = 4;
+var IntensitySaturationLevel = 400000000000000.0;
 var intensityTotalByIx = [];
 var factorGainByIx = [];
 var Ikl = 0.02;
@@ -55,10 +55,11 @@ function initGainByFrequency() {
     dispersion = math.exp(math.multiply(math.complex(0, - disp_par), math.square(rangeW)));
     let expW = math.exp(math.multiply(math.complex(0, - 2 * Math.PI), rangeW));
     frequencyTotalMultFactor = math.dotMultiply(expW, math.dotMultiply(spectralGain, dispersion));
+    console.log(frequencyTotalMultFactor);
 }
 
 function multiTimeRoundTrip(iCount) {
-    if (iCount % 50 == 0) {
+    if (iCount % 10 == 0) {
         const endTime = performance.now()
 
         let fs = multiTimeFronts;
@@ -95,7 +96,7 @@ function timeCavityStep(step, redraw) {
         case 2: spectralGainDispersion(); break;
         case 3: linearCavityOneSide(0); break;
         case 4: linearCavityOneSide(1); break;
-        case 5: math.range(0, 1).forEach((x)=> multiTimeRoundTrip(x)); break;
+        case 5: math.range(0, Math.pow(10, nRounds)).forEach((x)=> multiTimeRoundTrip(x)); break;
     }
     const endTime = performance.now()
     console.log(`Call to timeCavityStep took ${endTime - startTime} milliseconds`)
@@ -122,7 +123,7 @@ function ifftToTime() {
 }
 
 function phaseChangeDuringKerr() {
-    let IklTimesI = math.complex(0, Ikl * 100);
+    let IklTimesI = math.complex(0, -Ikl * 10);
     sumPowerIx = [];
     for (let ix = 0; ix < nSamples; ix++) {
         let bin = multiTimeFronts[ix];
@@ -142,7 +143,7 @@ function spectralGainDispersion() {
 }
 
 function linearCavityOneSide(side) {
-    let Is = 20;
+    let Is = 200;
     gainReduction = math.dotMultiply(pumpGain0, math.dotDivide(nSamplesOnes, math.add(1, math.divide(sumPowerIx, Is * nTimeSamples)))).map((v) => v.re);
 
     let multiTimeFrontsTrans = math.transpose(multiTimeFronts) 
@@ -161,9 +162,9 @@ function linearCavityOneSide(side) {
 }
 
 function prepareGainPump() {
-    let epsilon = 0.4;
+    let epsilon = 0.8;
     let pumpWidth = 0.000056;
-    let g0 = 1 / 0.05/*mirrorLoss*/ + epsilon;
+    let g0 = 1 / mirrorLoss + epsilon;
     pumpGain0 = [];
     for (let ix = 0; ix < nSamples; ix++) {
         let x = (ix - nSamples / 2) * dx0;
@@ -177,6 +178,8 @@ function prepareLinearFresnelHelpData() {
                     [[1.1589E+00, 8.2207E-04], [2.9333E+02, 1.0709E+00]]];   // left
     let matProg = [[1, 0.003], [0, 1]];
     fresnelData = [];
+
+    console.log(`lambda = ${lambda} range = ${totalRange} nSamples = ${nSamples} dx = ${totalRange / nSamples}`);
 
     MatSide.forEach((sideM, indexSide) => {
         if (indexSide == 1) {
@@ -224,6 +227,9 @@ function SatGain() {
     factorGainByIx = [];
 
     for (let ix = 0; ix < nSamples; ix++) {
+        if (ix == nSamples / 2) {
+            console.log(`ix=${ix}, int=${intensityTotalByIx[ix]}`)
+        }
         factorGainByIx.push(g0 / (1 + intensityTotalByIx[ix] / IntensitySaturationLevel))
     }
 }
@@ -248,11 +254,12 @@ function drawTimeFronts(domainOption, canvas) {
     var pixels = id.data;
     
     let fs = (domainOption == 1) ? multiTimeFronts : multiFrequencyFronts;
-    let maxV, maxS, meanV, meanS, meanMean;
+    let maxV, maxS, meanV, meanS, meanMean, totalSumPower;
 
     if (viewOption == 1) {
         fs = math.abs(fs);
         fs = math.dotMultiply(fs, fs);
+        totalSumPower = math.sum(fs);
         maxV = math.max(fs, 0);
         maxS = math.max(maxV);
         meanV = math.mean(fs, 0);
@@ -260,9 +267,17 @@ function drawTimeFronts(domainOption, canvas) {
         meanMean = math.mean(meanV);
     }
 
+    let sum0;
     for (let i = 0; i < nSamples; i++) {
+        if (viewOption == 1) {
+            if (i == 0) {
+                sum0 = math.clone(fs[i]);
+            } else {
+                sum0 = math.add(sum0, fs[i]);
+            }
+        }
         let off = i * nTimeSamples * 4;
-        let line = (viewOption == 1) ? math.dotDivide(fs[i], maxV): fs[i];
+        let line = (viewOption == 1) ? math.dotDivide(fs[i], maxS): fs[i];
         for (let iTime = 0; iTime < nTimeSamples; iTime++) {
             if (viewOption == 1) {
                 c = Math.floor(line[iTime] * 255.0);
@@ -278,47 +293,73 @@ function drawTimeFronts(domainOption, canvas) {
 
     ctx.putImageData(id, 0, 0);
     if (viewOption == 1) {
+        let maxSum0 = math.max(sum0);
+        factor = (canvas.height - 10) / maxSum0;
+        sum0 = math.multiply(sum0, factor);
+    
         let maxVN = math.floor(math.multiply(maxV, (canvas.height - 10) / (maxS + 0.0001)));
-        let y = canvas.height - 1 - maxVN[0];
+        let y = canvas.height - 5 - sum0[0];
         ctx.strokeStyle = 'red';
         ctx.beginPath();
         ctx.moveTo(0, y);
         for (let iTime = 1; iTime < nTimeSamples; iTime++) {
-            y = canvas.height - 1 - maxVN[iTime];
+            y = canvas.height - 0 - sum0[iTime];
             ctx.lineTo(iTime, y);
         }
         ctx.stroke();
-        let meanVN = math.floor(math.multiply(meanV, (canvas.height - 10) / (meanS + 0.0001)));
-        y = canvas.height - 1 - meanVN[0];
-        ctx.strokeStyle = 'green';
-        ctx.fillStyle = 'green';
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        for (let iTime = 1; iTime < nTimeSamples; iTime++) {
-            y = canvas.height - 1 - meanVN[iTime];
-            ctx.lineTo(iTime, y);
-        }
-        ctx.stroke();
+        // let meanVN = math.floor(math.multiply(meanV, (canvas.height - 10) / (meanS + 0.0001)));
+        // y = canvas.height - 1 - meanVN[0];
+        // ctx.strokeStyle = 'green';
+        // ctx.fillStyle = 'green';
+        // ctx.beginPath();
+        // ctx.moveTo(0, y);
+        // for (let iTime = 1; iTime < nTimeSamples; iTime++) {
+        //     y = canvas.height - 1 - meanVN[iTime];
+        //     ctx.lineTo(iTime, y);
+        // }
+        // ctx.stroke();
         drawTextBG(ctx, (meanMean).toFixed(6), 10, 10);
+        drawTextBG(ctx, (totalSumPower).toFixed(1), 10, 30);
     }
 }
 
-function multiTimeCanvasMouseMove(e) {
+function multiTimeCanvasMouseMove(e, updateTest = false) {
     id = e.target.id;
     let fs = (id == "funCanvasTime") ? multiTimeFronts : multiFrequencyFronts;
     var bounds = e.target.getBoundingClientRect();
     var x = e.clientX - bounds.left;
     var y = e.clientY - bounds.top;
 
+    let front = math.transpose(fs)[x]
     let xVec, yVec;
     if (viewOption == 1) {
-        xVec = math.abs(math.transpose(fs)[x]);
+        xVec = math.abs(front);
         yVec = math.abs(fs[y]);
     } else {
-        xVec = math.transpose(fs)[x].map((v) => v.toPolar().phi);
+        xVec = front.map((v) => v.toPolar().phi);
         yVec = fs[y].map((v) => v.toPolar().phi);
     }
+    multiFronts[0] = [front];
+    multiRanges[0] = [totalRange];
 
     drawVector(xVec, true, "red", 1, "sampleX", "X", 0);
     drawVector(yVec, true, "red", 1, "sampleY", "Y", 0);
+
+    if (updateTest) {
+        const canvas = document.getElementById(`funCanvasTest`);
+        const ctx = canvas.getContext("2d");
+        drawFronts(canvas, ctx, multiFronts[0], multiRanges[0]);
+    }
+}
+
+function progressMultiTime() {
+    drawOption = false;
+    // sfs = 0;
+    // for (let i = 0; i < 10; i++) {
+    //     propogateMultiMode();
+    // }
+    initElementsMultiMode();
+    fullCavityMultiMode();
+    drawOption = true;
+    drawMultiMode();
 }

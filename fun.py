@@ -203,22 +203,21 @@ def generate_fun(data_obj, tab, offset = 0):
             )
         case 4:
             added = Div(
-                Div(initBeamType(beamParamInit = 0.00003, beamDistInit = 0.0), 
-                    Button("Init", onclick="initElementsMultiMode(); initMultiMode(2);"),
-                    Button("Full", onclick="fullCavityCrystal()"),
-                    Button("Full(prev)", onclick="fullCavityCrystal(2)"),
+                Div(initBeamType(), 
+                    Button("Init", onclick="initElementsMultiMode(); initMultiMode(4);"),
+                    Select(Option("All"), Option("1"), Option("2"), Option("3"), Option("4"), Option("5"), id="nMaxMatrices", **{'onchange':"nMaxMatricesChanged();"},),
+                    Button("Full", onclick="fullCavityMultiMode()"),
+                    Button("Roundtrip", onclick="roundtripMultiMode()"),
                     Button("Switch view", onclick="switchViewMultiMode()"),
-                    Input(type="number", id=f'initialRange', placeholder="range(m)", step="0.0001", style="width:100px;", value=f'0.00024475293'),
-                    Input(type="number", id=f'power', placeholder="power", step="1000000", style="width:80px;", value=f'30000000'),
-                    Input(type="number", id=f'apreture', placeholder="apreture", step="0.00001", style="width:70px;", value=f'0.000056', **{'onchange':"apertureChanged();"},),
+                    Input(type="number", id=f'initialRange', placeholder="range(m)", step="0.001", style="width:80px;", value=f'0.005'),
+                    Button("Auto range", onclick="initElementsMultiMode(); autoRangeMultiMode();"),
                     Select(Option("256"), Option("512"), Option("1024"), Option("2048"), Option("4096"), id="nSamples", **{'onchange':"nSamplesChanged();"},),
                 ),
                 Div(
                     *[Element(el, i, tab) for i, el in enumerate(elements[2])],
                     Button(NotStr("&#43;"), escapse=False, hx_post="/addElement/3", hx_target="#fun", hx_vals='js:{localId: getLocalId()}'), 
                 ),
-                FlexN([funCanvas(1, width=500, height=400), funCanvas(2, width=500, height=400)]),
-
+                funCanvas(1),
                 graphCanvas()
             )
 

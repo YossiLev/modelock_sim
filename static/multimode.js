@@ -361,6 +361,7 @@ function drawMultiMode() {
                 break;
             case 2:
             case 3:
+            case 4:
                 drowShenets(ctx, "H",  drawW / distStep, 0, distStart);
                 break;
 
@@ -690,11 +691,14 @@ function initMultiMode(setWorkingTab = - 1, beamParam = - 1) {
             drawW = 3;
             distStart = 0.0;
             distStep = 0.003;
-
             break
         case 2:
             drawW = 30;
             focusOnCrystal();
+            break;
+        case 4:
+            drawW = 3;
+            distStep = 0.006;
             break
     }
 

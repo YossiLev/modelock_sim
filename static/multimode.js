@@ -6,6 +6,7 @@ const lambda = 0.000000780;
 var initialRange = 0.01047;
 var multiRanges = [[], []];
 var nSamples = 256;
+var nMaxMatrices = 1000;
 var nRounds = 0;
 var viewOption = 1;
 var zoomFactor = 1.0;
@@ -64,7 +65,7 @@ function getInitFront(pPar = - 1) {
     RayleighRange = 0.0;
     switch (sel.value) {
         case "Gaussian Beam":
-            waist0 = getFieldFloat("beamParam", 0.0005);
+            waist0 = pPar > 0.0 ? pPar : getFieldFloat("beamParam", 0.0005);
             beamDist = getFieldFloat("beamDist", 0.0);
             RayleighRange = Math.PI * waist0 * waist0 / lambda;
             theta = Math.abs(beamDist) < 0.000001 ? 0 : Math.PI  / (lambda * beamDist);
@@ -160,6 +161,14 @@ function nSamplesChanged() {
     setFieldFloat("initialRange", initialRange);
 }
 
+function nMaxMatricesChanged() {
+    const val = document.getElementById("nMaxMatrices").value;
+    if (val == "All") {
+        nMaxMatrices = 1000;
+    } else {
+        nMaxMatrices = parseInt(val);
+    }
+}
 function nRoundsChanged() {
     const val = document.getElementById("nRounds").value;
     nRounds = parseInt(val);
@@ -413,7 +422,8 @@ function drawElements(index) {
 function vecDeriv(v, dx = 1) {
     let vd = math.clone(v);
     vd[0] = 0;
-    for (let i = 1; i < v.length; i++) {
+    vd[1] = 0;
+    for (let i = 2; i < v.length; i++) {
         vd[i] = (v[i] - v[i - 1]) / dx;
     }
     return vd;
@@ -1043,7 +1053,8 @@ function fullCavityMultiMode() {
 
         let dx = dx0;
         let fx = math.clone(fronts[0]);
-        for (let iMat = 1; iMat < mats.length; iMat++) {
+
+        for (let iMat = 1; iMat < Math.min(mats.length, nMaxMatrices + 1); iMat++) {
             //console.log(`===== MM ${mats[iMat][0][0]},${mats[iMat][0][1]},${mats[iMat][1][0]},${mats[iMat][1][1]}, dx = ${dx}`);
             [ff, dx] = CalcNextFrontOfM(fx, L, mats[iMat], dx, isBack[iMat]);
             fx = math.clone(ff);
@@ -1423,6 +1434,7 @@ function doDeltaStep(delta, waist) {
     let D = M[1][1];
 
     autoRangeMultiMode(M);
+    console.log(`delta ${delta} A+D=${A+D}`);
 
     if (Math.abs(A + D) > 2.0) {
         elements[1].par[0] = origValue;
@@ -1531,7 +1543,7 @@ function mainCanvasMouseMove(e) {
     var x = e.clientX - bounds.left;
     var y = e.clientY - bounds.top;
 
-    fronts = multiFronts[id - 1];
+    //fronts = multiFronts[id - 1];
 
     let ix = Math.floor((x - drawSx) / drawW);
     if (ix >= 0 && ix < fronts.length) {

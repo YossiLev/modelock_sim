@@ -7,6 +7,7 @@ from fasthtml.common import *
 elements = [
     [{"t": "L", "par":[0.3, 0.075]}, {"t": "L", "par":[0.45, 0.075]}, {"t": "X", "par":[0.85]}, ],
     [{"t": "L", "par":[0.3, 0.075]}, {"t": "C", "par":[0.3735, 0.003]}, {"t": "L", "par":[0.45, 0.075]}, {"t": "X", "par":[0.85]}, ],
+    [{"t": "L", "par":[0.9, 0.075]}, {"t": "L", "par":[0.975, 2.000]}, {"t": "L", "par":[1.05, 0.075]}, {"t": "X", "par":[1.45]}, ],   
 ]
 
 def ver_func(l):
@@ -33,6 +34,9 @@ def draw_multimode(draw: ImageDraw):
 
 def FlexN(v):
     return Div(*v, style="display: flex; gap: 10px;")
+
+def TabMaker(label, group, sel):
+    return Div(label,  hx_post=group, hx_target="#fun", cls=f"tab {'tabselected' if sel else ''}", hx_vals='js:{localId: getLocalId()}'),
 
 def Element(el, s, tab):
     match (el["t"]):
@@ -130,14 +134,14 @@ def generate_fun(data_obj, tab, offset = 0):
             added = Div(
                 Div(initBeamType(), 
                     Button("Init", onclick="initElementsMultiMode(); initMultiMode(1);"),
+                    Select(Option("All"), Option("1"), Option("2"), Option("3"), Option("4"), Option("5"), id="nMaxMatrices", **{'onchange':"nMaxMatricesChanged();"},),
                     Button("Full", onclick="fullCavityMultiMode()"),
                     Button("Roundtrip", onclick="roundtripMultiMode()"),
                     Button("Delta graph", onclick="deltaGraphMultiMode()"),
                     Button("Switch view", onclick="switchViewMultiMode()"),
                     Input(type="number", id=f'initialRange', placeholder="range(m)", step="0.001", style="width:80px;", value=f'0.005'),
                     Button("Auto range", onclick="initElementsMultiMode(); autoRangeMultiMode();"),
-                    Input(type="number", id=f'nSamplesPower', placeholder="power", step="1", style="width:80px;", value=f'8'),
-
+                    Select(Option("256"), Option("512"), Option("1024"), Option("2048"), Option("4096"), id="nSamples", **{'onchange':"nSamplesChanged();"},),
                 ),
                 Div(
                     *[Element(el, i, tab) for i, el in enumerate(elements[tab - 1])],
@@ -197,6 +201,26 @@ def generate_fun(data_obj, tab, offset = 0):
                 Button("Progress", onclick="progressMultiTime()"),
                 funCanvas("Test", width=1400, height=256, useZoom=True), 
             )
+        case 4:
+            added = Div(
+                Div(initBeamType(beamParamInit = 0.00003, beamDistInit = 0.0), 
+                    Button("Init", onclick="initElementsMultiMode(); initMultiMode(2);"),
+                    Button("Full", onclick="fullCavityCrystal()"),
+                    Button("Full(prev)", onclick="fullCavityCrystal(2)"),
+                    Button("Switch view", onclick="switchViewMultiMode()"),
+                    Input(type="number", id=f'initialRange', placeholder="range(m)", step="0.0001", style="width:100px;", value=f'0.00024475293'),
+                    Input(type="number", id=f'power', placeholder="power", step="1000000", style="width:80px;", value=f'30000000'),
+                    Input(type="number", id=f'apreture', placeholder="apreture", step="0.00001", style="width:70px;", value=f'0.000056', **{'onchange':"apertureChanged();"},),
+                    Select(Option("256"), Option("512"), Option("1024"), Option("2048"), Option("4096"), id="nSamples", **{'onchange':"nSamplesChanged();"},),
+                ),
+                Div(
+                    *[Element(el, i, tab) for i, el in enumerate(elements[2])],
+                    Button(NotStr("&#43;"), escapse=False, hx_post="/addElement/3", hx_target="#fun", hx_vals='js:{localId: getLocalId()}'), 
+                ),
+                FlexN([funCanvas(1, width=500, height=400), funCanvas(2, width=500, height=400)]),
+
+                graphCanvas()
+            )
 
     my_base64_jpgData = []
     for image in images:
@@ -207,9 +231,16 @@ def generate_fun(data_obj, tab, offset = 0):
     
     print(len(images))
 
-    return Div(Div(Div("Multimode",  hx_post="/tabfun/1", hx_target="#fun", cls=f"tab {'tabselected' if tab == 1 else ''}", hx_vals='js:{localId: getLocalId()}'),
-        Div("Crystal", hx_post="tabfun/2", hx_target="#fun", cls=f"tab {'tabselected' if tab == 2 else ''}", hx_vals='js:{localId: getLocalId()}'),
-        Div("Multitime", hx_post="tabfun/3", hx_target="#fun", cls=f"tab {'tabselected' if tab == 3 else ''}", hx_vals='js:{localId: getLocalId()}')),
+    return Div(Div(
+        TabMaker("Multimode", "/tabfun/1", tab == 1),
+        TabMaker("Crystal", "/tabfun/2", tab == 2),
+        TabMaker("Multitime", "/tabfun/3", tab == 3),
+        TabMaker("Tester", "/tabfun/4", tab == 4),
+        ),
+        # Div("Multimode",  hx_post="/tabfun/1", hx_target="#fun", cls=f"tab {'tabselected' if tab == 1 else ''}", hx_vals='js:{localId: getLocalId()}'),
+        # Div("Crystal", hx_post="tabfun/2", hx_target="#fun", cls=f"tab {'tabselected' if tab == 2 else ''}", hx_vals='js:{localId: getLocalId()}'),
+        # Div("Multitime", hx_post="tabfun/3", hx_target="#fun", cls=f"tab {'tabselected' if tab == 3 else ''}", hx_vals='js:{localId: getLocalId()}'),
+        # Div("Tester", hx_post="tabfun/4", hx_target="#fun", cls=f"tab {'tabselected' if tab == 4 else ''}", hx_vals='js:{localId: getLocalId()}')),
         added,
     )
 

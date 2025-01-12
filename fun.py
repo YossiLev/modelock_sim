@@ -208,6 +208,7 @@ def generate_fun(data_obj, tab, offset = 0):
                     Select(Option("All"), Option("1"), Option("2"), Option("3"), Option("4"), Option("5"), id="nMaxMatrices", **{'onchange':"nMaxMatricesChanged();"},),
                     Button("Full", onclick="fullCavityMultiMode()"),
                     Button("Roundtrip", onclick="roundtripMultiMode()"),
+                    Button("Delta graph", onclick="deltaGraphMultiMode()"),
                     Button("Switch view", onclick="switchViewMultiMode()"),
                     Input(type="number", id=f'initialRange', placeholder="range(m)", step="0.001", style="width:80px;", value=f'0.005'),
                     Button("Auto range", onclick="initElementsMultiMode(); autoRangeMultiMode();"),

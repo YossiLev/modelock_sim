@@ -1427,8 +1427,10 @@ function doDeltaStep(delta, waist) {
     let fronts = multiFronts[0];
     let ranges = multiRanges[0];
 
-    const origValue = elements[1].par[0];
-    elements[1].par[0] += delta;
+    let iElDelta = elements.findLastIndex((el) => el.t == "L");
+
+    const origValue = elements[iElDelta].par[0];
+    elements[iElDelta].par[0] += delta;
     
     initMultiMode(1, waist);
 
@@ -1441,7 +1443,7 @@ function doDeltaStep(delta, waist) {
     console.log(`delta ${delta} A+D=${A+D}`);
 
     if (Math.abs(A + D) > 2.0) {
-        elements[1].par[0] = origValue;
+        elements[iElDelta].par[0] = origValue;
         return (waist);
     }
     let ad = 0.5 * (A + D);
@@ -1479,7 +1481,7 @@ function doDeltaStep(delta, waist) {
             let width = calcWidth(ff);
             deltaGraphYHalf.push(width * Math.abs(dxf) * 1.41421356237);
 
-            elements[1].par[0] = origValue;
+            elements[iElDelta].par[0] = origValue;
             return (waist);
         }
 
@@ -1494,8 +1496,8 @@ function doDeltaStepCover(delta) {
     drawOption = false;
     coverWaist = doDeltaStep(delta, coverWaist);
 
-    delta += 0.0002;
-    if (delta < 0.045) {
+    delta += 0.0004;
+    if (delta < 0.085) {
         setTimeout(doDeltaStepCover, 1, delta);
     } else {
         drawOption = true;

@@ -263,14 +263,28 @@ function drowShenets(ctx, dType, valPerPixel, startVal = 0) {
     ctx.globalCompositeOperation = "source-over";
 }
 
+function toCtxCoords(ctx, xy, zoomXY, shiftXY, pushXY) {
+    const h = ctx.canvas.height;
+    return [(xy[0] - shiftXY[0]) * zoomXY[0] + pushXY[0], h - 1 - (xy[1] - shiftXY[1]) * zoomXY[1] + pushXY[1]];
+}
+function fromCtxCoords(ctx, xy, zoomXY, shiftXY, pushXY) {
+    const h = ctx.canvas.height;
+    return [(xy[0] - pushXY[0]) / zoomXY[0] + shiftXY[0], (h - 1 - (xy[1] - pushXY[1])) / zoomXY[1] + shiftXY[1]];
+}
+
+let deltaMinX = 0;
+let deltaMaxX = 1;
+let deltaMinY = 0;
+let deltaMaxY = 1;
+
 function drawDeltaGraph(ctx) {
     if (deltaGraphX.length < 5) {
         return;
     }
-    const deltaMinX = Math.min(...deltaGraphX);
-    const deltaMaxX = Math.max(...deltaGraphX);
-    const deltaMinY = Math.min(...deltaGraphY, ...deltaGraphYHalf);
-    const deltaMaxY = Math.max(...deltaGraphY, ...deltaGraphYHalf);
+    deltaMinX = Math.min(...deltaGraphX);
+    deltaMaxX = Math.max(...deltaGraphX);
+    deltaMinY = Math.min(...deltaGraphY, ...deltaGraphYHalf);
+    deltaMaxY = Math.max(...deltaGraphY, ...deltaGraphYHalf);
 
     const height = ctx.canvas.height;
     const gWidth = ctx.canvas.width - 200;
@@ -281,11 +295,15 @@ function drawDeltaGraph(ctx) {
 
     ctx.fillStyle = "red";
     for (let i = 0; i < deltaGraphX.length; i++) {
-        ctx.fillRect((deltaGraphX[i] - deltaMinX) * zoomX + drawSx - 3, - (deltaGraphY[i] - deltaMinY) * zoomY + height - 4, 6, 6);
+        let [x, y] = [deltaGraphX[i], deltaGraphY[i]];
+        let [cx, cy] = toCtxCoords(ctx, [x, y], [zoomX, zoomY], [deltaMinX, deltaMinY], [drawSx, 0]);
+        ctx.fillRect(cx - 3, cy - 3, 6, 6);
     }
     ctx.fillStyle = "blue";
     for (let i = 0; i < deltaGraphX.length; i++) {
-        ctx.fillRect((deltaGraphX[i] - deltaMinX) * zoomX + drawSx - 3, - (deltaGraphYHalf[i] - deltaMinY) * zoomY + height - 4, 6, 6);
+        let [x, y] = [deltaGraphX[i], deltaGraphYHalf[i]];
+        let [cx, cy] = toCtxCoords(ctx, [x, y], [zoomX, zoomY], [deltaMinX, deltaMinY], [drawSx, 0]);
+        ctx.fillRect(cx - 3, cy - 3, 6, 6);
     }
 
     drowShenets(ctx, "V", zoomY, deltaMinY);
@@ -1442,7 +1460,7 @@ function doDeltaStep(delta, waist) {
     autoRangeMultiMode(M);
     console.log(`delta ${delta} A+D=${A+D}`);
 
-    if (Math.abs(A + D) > 2.0) {
+    if (Math.abs(A + D) > 2.0 - 0.00001) {
         elements[iElDelta].par[0] = origValue;
         return (waist);
     }
@@ -1501,6 +1519,7 @@ function doDeltaStepCover(delta) {
         setTimeout(doDeltaStepCover, 1, delta);
     } else {
         drawOption = true;
+        drawMode = 3;
         return;
     }
     drawMode = 3;
@@ -1516,6 +1535,10 @@ function deltaGraphMultiMode() {
     deltaGraphY = [];
     deltaGraphYHalf = [];
     deltaGraphYCalc = [];
+    deltaMinX = 0;
+    deltaMaxX = 1;
+    deltaMinY = 0;
+    deltaMaxY = 1;
 
     initMultiMode(1, coverWaist);
 
@@ -1528,7 +1551,38 @@ function deltaGraphMultiMode() {
     drawMultiMode();
 }
 
+function getClientCoordinates(e) {
+    var bounds = e.target.getBoundingClientRect();
+    var x = e.clientX - bounds.left;
+    var y = e.clientY - bounds.top;
+    return [x, y];
+}
+
+function deltaCanvasMouseMove(e) {
+    if (deltaGraphX.length < 5) {
+        return;
+    }
+    let canvas = document.getElementById(e.target.id);
+    let ctx = canvas.getContext("2d");
+
+    const gWidth = ctx.canvas.width - 200;
+    const gHeight = ctx.canvas.height - 200;
+
+    let [x, y] = getClientCoordinates(e);
+
+    const zoomY = gHeight / (deltaMaxY - deltaMinY);
+    const zoomX = gWidth / (deltaMaxX - deltaMinX);
+
+    let [gx, gy] = fromCtxCoords(ctx, [x, y], [zoomX, zoomY], [deltaMinX, deltaMinY], [drawSx, 0]);
+
+    drawTextBG(ctx, gx.toFixed(6), ctx.canvas.width - 100, 10);
+    drawTextBG(ctx, gy.toFixed(6), ctx.canvas.width - 100, 30);
+}
+ 
 function mainCanvasMouseMove(e) {
+    if (drawMode == 3) {
+        return deltaCanvasMouseMove(e)
+    }
     if (!isMouseDownOnMain) {
         return;
     }
@@ -1545,9 +1599,7 @@ function mainCanvasMouseMove(e) {
         return;
     }
     const sel = document.getElementById("displayOption");
-    var bounds = e.target.getBoundingClientRect();
-    var x = e.clientX - bounds.left;
-    var y = e.clientY - bounds.top;
+    let [x, y] = getClientCoordinates(e);
 
     //fronts = multiFronts[id - 1];
 

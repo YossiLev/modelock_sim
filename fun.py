@@ -86,6 +86,16 @@ def funCanvas(idd, width=1000, height=800, useZoom = True ):
                     cls="imgButton",
                     onclick="zoomMultiMode(-1);"
                 ),
+                Button(
+                    Img(src="static/ziw.png", alt="Zoom out", title="Stretch horizontally", width="24", height="24"),
+                    cls="imgButton",
+                    onclick="zoomMultiMode(2);"
+                ),
+                Button(
+                    Img(src="static/zow.png", alt="Zoom out", title="Reduce horizontal stretch", width="24", height="24"),
+                    cls="imgButton",
+                    onclick="zoomMultiMode(-2);"
+                ),
             ) if useZoom else Div(),
             Canvas(id=f"funCanvas{idd}", width=width, height=height, 
                    **{'onmousemove':f"mainCanvasMouseMove(event);",

@@ -11,7 +11,9 @@ var nRounds = 0;
 var viewOption = 1;
 var zoomFactor = 1.0;
 var basicZoomFactor = 50000.0; // pixels per meter
-var zoomHorizonalCener = 0.5;
+var zoomHorizontalCenter = 0.5;
+var zoomHorizontalShift = 0.0;
+var zoomHorizontalAmount = 1.0;
 
 var vecA = [];
 var vecB = [];
@@ -176,11 +178,21 @@ function nRoundsChanged() {
 }
 
 function zoomMultiMode(z) {
-    if (z > 0) {
-        zoomFactor = zoomFactor * 1.5
-    } else {
-        zoomFactor = zoomFactor / 1.5
+    switch (z) {
+        case   1: zoomFactor           = zoomFactor           * 1.5; break;
+        case - 1: zoomFactor           = zoomFactor           / 1.5; break;
+        case - 2: 
+            zoomHorizontalShift = zoomHorizontalCenter - (zoomHorizontalCenter - zoomHorizontalShift) / 1.5;
+            zoomHorizontalAmount = zoomHorizontalAmount * 1.5; 
+            racalcHorizontalZoom();
+            break;
+        case   2: 
+            zoomHorizontalShift = zoomHorizontalCenter - (zoomHorizontalCenter - zoomHorizontalShift) * 1.5;
+            zoomHorizontalAmount = zoomHorizontalAmount / 1.5;
+            racalcHorizontalZoom(); 
+            break;
     }
+    
     drawMultiMode();
 }
 let drawSx = 50;
@@ -235,6 +247,7 @@ function drowShenets(ctx, dType, valPerPixel, startVal = 0) {
 
     if (dType == "H") {
         ctx.beginPath();
+
         for (it = 0; it * markSizePixel < canvasSize; it++) {
             let t = (it - startVal / markSize) * markSizePixel + drawSx;
             ctx.moveTo(t, canvasHeight);
@@ -400,15 +413,15 @@ function drawMultiMode() {
             case 2:
             case 3:
             case 4:
-                drowShenets(ctx, "H",  drawW / distStep, 0, distStart);
+                drowShenets(ctx, "H",  drawW / distStep * zoomHorizontalAmount, 0, distStart);
                 break;
 
         }
         if (drawMode == 1) {
-            if (zoomHorizonalCener > 0.0) {
+            if (zoomHorizontalCenter > 0.0) {
                 ctx.fillStyle = 'red';
                 ctx.beginPath();
-                let x = zoomHorizonalCener * drawW / distStep + drawSx;
+                let x = zoomHorizontalCenter * drawW / distStep + drawSx;
                 ctx.moveTo(x, 10);
                 ctx.lineTo(x + 5, 0);
                 ctx.lineTo(x - 5, 0);
@@ -443,7 +456,7 @@ function drawElements(index) {
         switch (elements[iEl].t) {
             case "L":
                 ctx.fillStyle = `yellow`;
-                px = drawSx + (elements[iEl].par[0] - distStart) / distStep * drawW ;
+                px = drawSx + (elements[iEl].par[0] - distStart - zoomHorizontalShift) / distStep * zoomHorizontalAmount * drawW ;
                 ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);          
                 break;
             case "C":
@@ -465,7 +478,8 @@ function drawElements(index) {
                 break;
             case "X":
                 ctx.fillStyle = `blue`;
-                px = drawSx + (elements[iEl].par[0] - distStart) / distStep * drawW ;
+                //px = drawSx + (elements[iEl].par[0] - distStart) / distStep * drawW ;
+                px = drawSx + (elements[iEl].par[0] - distStart - zoomHorizontalShift) / distStep * zoomHorizontalAmount * drawW ;
                 ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);          
                 break;
                 
@@ -1077,6 +1091,18 @@ function getMatricesAtDistFromStart(M, dStep, r0) {
     return [mats, isBack];
 }
 
+function getDistanceOfStep(iStep) {
+
+    return iStep * distStep / zoomHorizontalAmount + zoomHorizontalShift;
+    
+}
+
+function racalcHorizontalZoom() {
+    if (drawMode == 1) {
+        fullCavityMultiMode();
+    }
+}
+
 function fullCavityMultiMode() {
     drawMode = 1;
     
@@ -1094,7 +1120,12 @@ function fullCavityMultiMode() {
         let r0 = ranges[0];
         let L = f0.length;
         let dx0 = r0 / L;
-        let dStep = iStep * distStep;
+        let dStep = getDistanceOfStep(iStep);
+        if (dStep < 0) {
+            fronts.push(fronts[0].map((x) => 0.0));
+            ranges.push(r0);
+            continue;
+        }
 
         let MS = getMatOnStep(dStep);
 
@@ -1304,7 +1335,7 @@ function fullCavityCrystal(modePrev = 1) {
     }
     }
 
-    let [stable, lambda1, lambda2, beamWaist, beamDist] = analyzeStability(matTotal);
+    let [stable, lambda1, lambda2, beamWaist, beamDist] = analyzeStability(MatTotal);
 
     if (stable) {
         setFieldFloat('beamDist', beamDist);
@@ -1678,8 +1709,9 @@ function mainCanvasMouseUp(e) {
     const id = e.target.id;
 
     let [x, y] = getClientCoordinates(e);
-    if (zoomHorizonalCener != (x - drawSx) / ( drawW / distStep)) {
-        zoomHorizonalCener = (x - drawSx) / ( drawW / distStep);
+    if (zoomHorizontalCenter != (x - drawSx) / ( drawW / distStep)) {
+        zoomHorizontalCenter = (x - drawSx) / ( drawW / distStep);
+        console.log(` zoomHorizontalAmount ${zoomHorizontalAmount}`)
         drawMultiMode();
     }
 

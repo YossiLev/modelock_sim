@@ -11,6 +11,7 @@ var nRounds = 0;
 var viewOption = 1;
 var zoomFactor = 1.0;
 var basicZoomFactor = 50000.0; // pixels per meter
+var zoomHorizonalCener = 0.5;
 
 var vecA = [];
 var vecB = [];
@@ -368,6 +369,25 @@ function drawMultiMode() {
             });
         }
 
+        if (drawMode == 2) {  // roundtrip
+            let M = getMatOnRoundTrip(false);
+            let [stable, lambda1, lambda2, beamWaist, beamDist] = analyzeStability(M);
+            drawTextBG(ctx, M[0][0].toFixed(7), canvas.width - 180, 10);
+            drawTextBG(ctx, M[0][1].toFixed(7), canvas.width - 80, 10);
+            drawTextBG(ctx, M[1][0].toFixed(7), canvas.width - 180, 30);
+            drawTextBG(ctx, M[1][1].toFixed(7), canvas.width - 80, 30);
+            drawTextBG(ctx, lambda1.re.toFixed(7), canvas.width - 180, 60);
+            drawTextBG(ctx, lambda1.im.toFixed(7), canvas.width - 80, 60);
+            drawTextBG(ctx, lambda2.re.toFixed(7), canvas.width - 180, 80);
+            drawTextBG(ctx, lambda2.im.toFixed(7), canvas.width - 80, 80);
+            if (stable) {
+                drawTextBG(ctx, beamWaist.toFixed(7), canvas.width - 180, 120);
+                drawTextBG(ctx, beamDist.toFixed(7), canvas.width - 80, 120);
+            }
+
+
+        }
+
         drowShenets(ctx, "V0", zoomFactor * basicZoomFactor);
         switch (workingTab) {
             case 1:
@@ -384,7 +404,22 @@ function drawMultiMode() {
                 break;
 
         }
-    });    
+        if (drawMode == 1) {
+            if (zoomHorizonalCener > 0.0) {
+                ctx.fillStyle = 'red';
+                ctx.beginPath();
+                let x = zoomHorizonalCener * drawW / distStep + drawSx;
+                ctx.moveTo(x, 10);
+                ctx.lineTo(x + 5, 0);
+                ctx.lineTo(x - 5, 0);
+                
+                ctx.closePath();
+                ctx.fill();
+            }
+    
+        }
+    });
+
 
     if (workingTab != 3) {
         drawGraph();
@@ -465,7 +500,7 @@ function vecWaistFromQ(v) {
 
 var drawVectorComparePrevious = [];
 
-function drawVector(v, clear = true, color = "red", pixelWidth = drawW, id="graphCanvas", name = "", start=drawSx ) {
+function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowChange= false, id="graphCanvas", name = "", start=drawSx ) {
     if (!drawOption) {
         return
     }
@@ -484,7 +519,7 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW, id="grap
     let fac = Math.max(Math.abs(Math.max(...v)), Math.abs(Math.min(...v)));
     const canvas = document.getElementById(id);
     const ctx = canvas.getContext("2d");
-    if (pixelWidth > (canvas.width - start) / l) {
+    if (allowChange && pixelWidth > (canvas.width - start) / l) {
         pixelWidth = (canvas.width - start) / l;
     }
 
@@ -1235,7 +1270,6 @@ function fullCavityCrystal(modePrev = 1) {
             }
         }
 
-
         [M1, M2] = MatsSide[iDir];
         let fx = math.clone(fronts[fronts.length - 1]);
         let dxf, dx0 = ranges[ranges.length - 1] / L;
@@ -1270,29 +1304,9 @@ function fullCavityCrystal(modePrev = 1) {
     }
     }
 
-    let [[A, B], [C, D]] = MatTotal;
-    let [lambda1, lambda2] = calculateEigenvalues(A, B, C, D);
+    let [stable, lambda1, lambda2, beamWaist, beamDist] = analyzeStability(matTotal);
 
-    console.log(`eigen values = [${lambda1}, ${lambda2}] mult=${math.multiply(lambda1, lambda2)}`);
-    console.log(`abs = [${math.abs(lambda1)}, ${math.abs(lambda2)}] `);
-    console.log(`|A+D| = ${math.abs(math.add(MatTotal[0][0], MatTotal[1][1]))}, det = ${math.det(MatTotal)}`)
-    console.log(`ABCD = ${MatTotal[0][0]} ${MatTotal[0][1]} ${MatTotal[1][0]} ${MatTotal[1][1]}`);
-    if (math.abs(math.add(MatTotal[0][0], MatTotal[1][1])) < 2.0) {
-        let [[A, B], [C, D]] = MatTotal;
-        let oneOverQ = math.complex(math.divide((math.subtract(D,  A)), (2 * B)), 
-                math.divide(math.sqrt(math.subtract(1, math.multiply(0.25, math.multiply(math.add(A, D), math.add(A, D))),)), B));
-        let actualQ = math.divide(1, oneOverQ);
-        let nextQ = math.divide(math.add(math.multiply(actualQ, A), B), math.add(math.multiply(actualQ, C), D));
-        let diffQ = math.subtract(actualQ, nextQ);
-        console.log(`A = ${A}, B = ${B}, C = ${C}, D = ${D}`);
-        console.log(`SOL1 => Q = ${actualQ} 1/Q = ${oneOverQ} nextQ = ${nextQ} diff = ${math.abs(diffQ)}`);
-        
-        beamDist = 2.0 * B / (D - A);
-        beamWaist = Math.sqrt(lambda * Math.abs(B) / (Math.PI * Math.sqrt(1 - 0.25 * (A + D) * (A + D))));
-        console.log(`ORIG beamWaist = ${saveBeamParam}, beamDist = ${saveBeamDist}`);
-
-
-        console.log(`beamWaist = ${beamWaist}, beamDist = ${beamDist}, z = ${actualQ.re}`);
+    if (stable) {
         setFieldFloat('beamDist', beamDist);
         setFieldFloat('beamParam', beamWaist);
     }
@@ -1318,6 +1332,34 @@ function calculateEigenvalues(A, B, C, D) { // thank you chatgpt
     const lambda2 = math.subtract(halfTrace, sqrtDiscriminant);
 
     return [lambda1, lambda2];
+}
+
+function analyzeStability(MatTotal) {
+    let beamWaist, beamDist;
+    let [[A, B], [C, D]] = MatTotal;
+    let [lambda1, lambda2] = calculateEigenvalues(A, B, C, D);
+
+    console.log(`eigen values = [${lambda1}, ${lambda2}] mult=${math.multiply(lambda1, lambda2)}`);
+    console.log(`abs = [${math.abs(lambda1)}, ${math.abs(lambda2)}] `);
+    console.log(`|A+D| = ${math.abs(math.add(MatTotal[0][0], MatTotal[1][1]))}, det = ${math.det(MatTotal)}`)
+    console.log(`ABCD = ${MatTotal[0][0]} ${MatTotal[0][1]} ${MatTotal[1][0]} ${MatTotal[1][1]}`);
+    if (math.abs(math.add(MatTotal[0][0], MatTotal[1][1])) > 2.0) {
+        return [false, lambda1, lambda2];
+    }
+    let oneOverQ = math.complex(math.divide((math.subtract(D,  A)), (2 * B)), 
+            math.divide(math.sqrt(math.subtract(1, math.multiply(0.25, math.multiply(math.add(A, D), math.add(A, D))),)), B));
+    let actualQ = math.divide(1, oneOverQ);
+    let nextQ = math.divide(math.add(math.multiply(actualQ, A), B), math.add(math.multiply(actualQ, C), D));
+    let diffQ = math.subtract(actualQ, nextQ);
+    console.log(`A = ${A}, B = ${B}, C = ${C}, D = ${D}`);
+    console.log(`SOL1 => Q = ${actualQ} 1/Q = ${oneOverQ} nextQ = ${nextQ} diff = ${math.abs(diffQ)}`);
+    
+    beamDist = 2.0 * B / (D - A);
+    beamWaist = Math.sqrt(lambda * Math.abs(B) / (Math.PI * Math.sqrt(1 - 0.25 * (A + D) * (A + D))));
+    console.log(`ORIG beamWaist = ${saveBeamParam}, beamDist = ${saveBeamDist}`);
+    console.log(`beamWaist = ${beamWaist}, beamDist = ${beamDist}, z = ${actualQ.re}`);
+
+    return [true, lambda1, lambda2, beamWaist, beamDist];
 }
 
 function  normalizePower(fx, power, dxf) {
@@ -1601,6 +1643,7 @@ function mainCanvasMouseMove(e) {
     const sel = document.getElementById("displayOption");
     let [x, y] = getClientCoordinates(e);
 
+
     //fronts = multiFronts[id - 1];
 
     let ix = Math.floor((x - drawSx) / drawW);
@@ -1611,14 +1654,14 @@ function mainCanvasMouseMove(e) {
             for (let i = 0; i < fi.length; i++) {
                 fr.push(fi[i].toPolar().r);
             }
-            drawVector(fr, true, "red", 1);
+            drawVector(fr, true, "red", 1, true);
         } else if (sel.value == "ArgE(x)") {
             fi = fronts[ix];
             fr = [];
             for (let i = 0; i < fi.length; i++) {
                 fr.push(fi[i].toPolar().phi);
             }
-            drawVector(fr, true, "purple", 1);
+            drawVector(fr, true, "purple", 1, true);
         } else if (sel.value == "M(x)") {
             drawMatDecomposition(ix);
         }
@@ -1634,9 +1677,16 @@ function mainCanvasMouseUp(e) {
     isMouseDownOnMain = false;
     const id = e.target.id;
 
+    let [x, y] = getClientCoordinates(e);
+    if (zoomHorizonalCener != (x - drawSx) / ( drawW / distStep)) {
+        zoomHorizonalCener = (x - drawSx) / ( drawW / distStep);
+        drawMultiMode();
+    }
+
     if (id == "funCanvasTime" || id == "funCanvasFrequency") {
         multiTimeCanvasMouseMove(e, true);
     }
+
 }
 
 

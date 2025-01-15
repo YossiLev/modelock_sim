@@ -5,9 +5,9 @@ import base64
 from fasthtml.common import *
 
 elements = [
-    [{"t": "L", "par":[0.3, 0.075]}, {"t": "L", "par":[0.45, 0.075]}, {"t": "X", "par":[0.85]}, ],
-    [{"t": "L", "par":[0.3, 0.075]}, {"t": "C", "par":[0.3735, 0.003]}, {"t": "L", "par":[0.45, 0.075]}, {"t": "X", "par":[0.85]}, ],
-    [{"t": "L", "par":[0.9, 0.075]}, {"t": "L", "par":[0.975, 2.000]}, {"t": "L", "par":[1.05, 0.075]}, {"t": "X", "par":[1.45]}, ],   
+    [{"t": "L", "par":[0.3, 0.075]}, {"t": "L", "par":[0.45, 0.075, 1.0]}, {"t": "X", "par":[0.85]}, {"t": "D", "par":[0.0]}, ],
+    [{"t": "L", "par":[0.3, 0.075]}, {"t": "C", "par":[0.3735, 0.003]}, {"t": "L", "par":[0.45, 0.075, 1.0]}, {"t": "X", "par":[0.85]}, {"t": "D", "par":[0.0]}, ],
+    [{"t": "L", "par":[0.9, 0.075]}, {"t": "L", "par":[0.975, 2.000, 0.5]}, {"t": "L", "par":[1.05, 0.075, 1.0]}, {"t": "X", "par":[1.45]}, {"t": "D", "par":[0.0]}, ],   
 ]
 
 def ver_func(l):
@@ -135,9 +135,9 @@ def generate_fun(data_obj, tab, offset = 0):
                 Div(initBeamType(), 
                     Button("Init", onclick="initElementsMultiMode(); initMultiMode(1);"),
                     Select(Option("All"), Option("1"), Option("2"), Option("3"), Option("4"), Option("5"), id="nMaxMatrices", **{'onchange':"nMaxMatricesChanged();"},),
-                    Button("Full", onclick="fullCavityMultiMode()"),
-                    Button("Roundtrip", onclick="roundtripMultiMode()"),
-                    Button("Delta graph", onclick="deltaGraphMultiMode()"),
+                    Button("Full", onclick="initElementsMultiMode(); initMultiMode(1);fullCavityMultiMode()"),
+                    Button("Roundtrip", onclick="initElementsMultiMode(); initMultiMode(1);roundtripMultiMode()"),
+                    Button("Delta graph", onclick="initElementsMultiMode(); initMultiMode(1);deltaGraphMultiMode()"),
                     Button("Switch view", onclick="switchViewMultiMode()"),
                     Input(type="number", id=f'initialRange', placeholder="range(m)", step="0.001", style="width:80px;", value=f'0.005'),
                     Button("Auto range", onclick="initElementsMultiMode(); autoRangeMultiMode();"),
@@ -206,9 +206,9 @@ def generate_fun(data_obj, tab, offset = 0):
                 Div(initBeamType(), 
                     Button("Init", onclick="initElementsMultiMode(); initMultiMode(4);"),
                     Select(Option("All"), Option("1"), Option("2"), Option("3"), Option("4"), Option("5"), id="nMaxMatrices", **{'onchange':"nMaxMatricesChanged();"},),
-                    Button("Full", onclick="fullCavityMultiMode()"),
-                    Button("Roundtrip", onclick="roundtripMultiMode()"),
-                    Button("Delta graph", onclick="deltaGraphMultiMode()"),
+                    Button("Full", onclick="initElementsMultiMode(); initMultiMode(4); fullCavityMultiMode()"),
+                    Button("Roundtrip", onclick="initElementsMultiMode(); initMultiMode(4); roundtripMultiMode()"),
+                    Button("Delta graph", onclick="initElementsMultiMode(); initMultiMode(4); deltaGraphMultiMode()"),
                     Button("Switch view", onclick="switchViewMultiMode()"),
                     Input(type="number", id=f'initialRange', placeholder="range(m)", step="0.001", style="width:80px;", value=f'0.005'),
                     Button("Auto range", onclick="initElementsMultiMode(); autoRangeMultiMode();"),

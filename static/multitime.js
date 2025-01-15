@@ -103,9 +103,9 @@ function timeCavityStep(step, redraw) {
 
     if (redraw) {
         drawMultiMode();
-        drawVector(gainReduction, true, "red", 1, "gainSat", "GainSat", 0);
-        drawVector(pumpGain0, false, "green", 1, "gainSat", "Pump", 0);
-        drawVector(sumPowerIx, true, "blue", 1, "meanPower", "Power", 0);
+        drawVector(gainReduction, true, "red", 1, false, "gainSat", "GainSat", 0);
+        drawVector(pumpGain0, false, "green", 1,  false,"gainSat", "Pump", 0);
+        drawVector(sumPowerIx, true, "blue", 1,  false,"meanPower", "Power", 0);
     }
 }
 function fftToFrequency() {
@@ -342,8 +342,8 @@ function multiTimeCanvasMouseMove(e, updateTest = false) {
     multiFronts[0] = [front];
     multiRanges[0] = [totalRange];
 
-    drawVector(xVec, true, "red", 1, "sampleX", "X", 0);
-    drawVector(yVec, true, "red", 1, "sampleY", "Y", 0);
+    drawVector(xVec, true, "red", 1, false, "sampleX", "X", 0);
+    drawVector(yVec, true, "red", 1, false, "sampleY", "Y", 0);
 
     if (updateTest) {
         const canvas = document.getElementById(`funCanvasTest`);

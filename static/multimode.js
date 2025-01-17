@@ -32,11 +32,12 @@ var isMouseDownOnGraph = false;
 var mouseOnGraphStart = 0;
 var mouseOnGraphEnd = 0;
 var drawOption = true;
-var drawMode = 1;
+var drawMode = 1; //
 var deltaGraphX, deltaGraphY,  deltaGraphYHalf, deltaGraphYCalc;
 var displayTemp = [[], []];
 var displayTempPrevious = [[], []];
 var presentedVectors = new Map();
+var stabilityGraph;
 
 function getFieldFloat(id, defaultValue) {
     const cont = document.getElementById(id);
@@ -319,10 +320,8 @@ function drawDeltaGraph(ctx) {
         let [cx, cy] = toCtxCoords(ctx, [x, y], [zoomX, zoomY], [deltaMinX, deltaMinY], [drawSx, 0]);
         ctx.fillRect(cx - 3, cy - 3, 6, 6);
     }
-
     drowShenets(ctx, "V", zoomY, deltaMinY);
     drowShenets(ctx, "H", zoomX, deltaMinX);
-
 }
 
 function drawFronts(canvas, ctx, fronts, ranges) {
@@ -369,6 +368,11 @@ function drawMultiMode() {
             drawDeltaGraph(ctx);
             return;
         }
+        if (drawMode == 4) {
+            stabilityGraph.plot(ctx, stabilityColor);
+            return;
+        }
+        
 
         drawFronts(canvas, ctx, multiFronts[index], multiRanges[index]);
 
@@ -452,25 +456,30 @@ function drawElements(index) {
     }
     const ctx = canvas.getContext("2d");
     ctx.fillStyle = `yellow`;
+    let globalDelta = elements.find((el) => el.t == "X").delta;
+
     for (let iEl = 0; iEl < elements.length; iEl++) {
+        let deltaFactor = elements[iEl].delta;
+        let pos = elements[iEl].par[0] + deltaFactor * globalDelta
         switch (elements[iEl].t) {
+            
             case "L":
                 ctx.fillStyle = `yellow`;
-                px = drawSx + (elements[iEl].par[0] - distStart - zoomHorizontalShift) / distStep * zoomHorizontalAmount * drawW ;
+                px = drawSx + (pos - distStart - zoomHorizontalShift) / distStep * zoomHorizontalAmount * drawW ;
                 ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);          
                 break;
             case "C":
                 ctx.fillStyle = `purple`;
-                px = drawSx + (elements[iEl].par[0] - distStart) / distStep * drawW ;
+                px = drawSx + (pos - distStart) / distStep * drawW ;
                 ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);          
-                px = drawSx + (elements[iEl].par[0] + elements[iEl].par[1] - distStart) / distStep * drawW ;
+                px = drawSx + (pos + elements[iEl].par[1] - distStart) / distStep * drawW ;
                 ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);
                 let spx = (elements[iEl].par[1] / 10);
                 ctx.strokeStyle = `purple`;
                 ctx.setLineDash([5, 3]);
                 ctx.beginPath();
                 for (let iL = 0; iL < 5; iL++) {
-                    px = drawSx + (elements[iEl].par[0] + (1 + 2 * iL) * spx - distStart) / distStep * drawW ;
+                    px = drawSx + (pos + (1 + 2 * iL) * spx - distStart) / distStep * drawW ;
                     ctx.moveTo(px, drawMid - 80 * zoomFactor);
                     ctx.lineTo(px, drawMid + 80 * zoomFactor);
                 }
@@ -702,12 +711,13 @@ function initElementsMultiMode() {
             break;
         }
         let elementType = elementTypeControl.innerHTML[0];
-        let lensDist = document.getElementById(`el${iEl}dist`);
-        if (lensDist == null) {
-            console.log(`Error ${lensDist}`)
+        let elDist = document.getElementById(`el${iEl}dist`);
+        let elDelta = getFieldFloat(`el${iEl}delta`);
+        if (elDist == null) {
+            console.log(`Error ${elDist}`)
             break;
         }
-        valDist = parseFloat(lensDist.value);
+        valDist = parseFloat(elDist.value);
         if (elementType == "L") {
             let lensFocal = document.getElementById(`el${iEl}focal`);
             if (lensFocal == null) {
@@ -715,7 +725,7 @@ function initElementsMultiMode() {
                 break;
             }
             valOther = parseFloat(lensFocal.value);
-            //console.log(`${lensDist.value} ${valDist}, ${lensFocal.value} ${valFocal}`)
+            //console.log(`${elDist.value} ${valDist}, ${lensFocal.value} ${valFocal}`)
             if (isNaN(valDist) || isNaN(valOther)) {
                 break;
             }
@@ -733,9 +743,7 @@ function initElementsMultiMode() {
             valOther = -1;
         }
 
-
-        elements.push({t: elementType, par: [valDist, valOther]});
-        //console.log(elements);
+        elements.push({t: elementType, par: [valDist, valOther], delta: elDelta});
         iEl++;
     } while(true);
 }
@@ -925,13 +933,20 @@ function getMatOnStep(dStep) {
     let prevLensPos = 0.0;
     let M = [[1, 0], [0, 1]];
     let rdStep = dStep;
-    while (iEl < elements.length && rdStep > elements[iEl].par[0] - prevLensPos) {
+    let globalDelta = elements.find((el) => el.t == "X").delta;
+
+    while (iEl < elements.length) {
+        let deltaFactor = elements[iEl].delta;
+        let pos = elements[iEl].par[0] + deltaFactor * globalDelta
+        if (rdStep < pos - prevLensPos) {
+            break;
+        }
         switch (elements[iEl].t) {
         case "L":
-            M = MMult(MDist(elements[iEl].par[0] - prevLensPos), M);
+            M = MMult(MDist(pos - prevLensPos), M);
             M = MMult(MLens(elements[iEl].par[1]), M);
-            rdStep -= elements[iEl].par[0] - prevLensPos;
-            prevLensPos = elements[iEl].par[0];
+            rdStep -= pos - prevLensPos;
+            prevLensPos = pos;
         }
         iEl++;
     }
@@ -943,12 +958,16 @@ function getMatOnRoundTrip(oneWay = false) {
     let iEl = 0;
     let prevLensPos = 0.0;
     let M = [[1, 0], [0, 1]];
+    let globalDelta = elements.find((el) => el.t == "X").delta;
+
     while (iEl < elements.length) {
+        let deltaFactor = elements[iEl].delta;
+        let pos = elements[iEl].par[0] + deltaFactor * globalDelta
         switch (elements[iEl].t) {
         case "L":
-            M = MMult(MDist(elements[iEl].par[0] - prevLensPos), M);
+            M = MMult(MDist(pos - prevLensPos), M);
             M = MMult(MLens(elements[iEl].par[1]), M);
-            prevLensPos = elements[iEl].par[0];
+            prevLensPos = pos;
             break;
         case "X": // end wall
             M = MMult(MDist(elements[iEl].par[0] - prevLensPos), M);
@@ -967,11 +986,13 @@ function getMatOnRoundTrip(oneWay = false) {
     }
 
     while (iEl >= 0) {
+        let deltaFactor = elements[iEl].delta;
+        let pos = elements[iEl].par[0] + deltaFactor * globalDelta
         switch (elements[iEl].t) {
         case "L":
-            M = MMult(MDist(prevLensPos - elements[iEl].par[0]), M);
+            M = MMult(MDist(prevLensPos - pos), M);
             M = MMult(MLens(elements[iEl].par[1]), M);
-            prevLensPos = elements[iEl].par[0];
+            prevLensPos = pos;
             break;
         }
         iEl--;
@@ -1122,7 +1143,7 @@ function fullCavityMultiMode() {
         let dx0 = r0 / L;
         let dStep = getDistanceOfStep(iStep);
         if (dStep < 0) {
-            fronts.push(fronts[0].map((x) => 0.0));
+            fronts.push(fronts[0].map((x) => math.complex(0.0)));
             ranges.push(r0);
             continue;
         }
@@ -1163,6 +1184,49 @@ function fullCavityMultiMode() {
     }
 
     drawMultiMode();
+}
+
+function calculateStability() {
+    drawMode = 4; // stability
+    stabilityGraph = new graph2d(300, 100, stabilityCalcX, stabilityCalcY, stabilityCalcVal);
+    drawMultiMode();
+}
+function stabilityCalcX(v) {
+    return (v - 10) * 0.0005 / 3; // delta
+}
+function stabilityCalcY(v) {
+    if (v == this.height - 1) return 20.0;
+    return (v - 5) * 0.005 ; // focal
+}
+function stabilityCalcVal(delta, focal) {
+    let origDelta = elements[3].delta;
+    let origFocal = elements[1].par[1];
+    elements[3].delta = delta;
+    elements[1].par[1] = focal;
+    let M  = getMatOnRoundTrip(false);
+    let A = M[0][0], B = M[0][1], C = M[1][0], D = M[1][1];
+    let V = Math.abs(A + D);
+
+    elements[3].delta = origDelta;
+    elements[1].par[1] = origFocal;
+    return V;
+}
+function stabilityColor(v) {
+    if (v < 2) {
+        return `rgba(${100 * v}, ${255}, ${100 * v}, 255)`;
+    } else {
+        return `rgba(${255}, ${Math.max(200 - 5 * v, 0)}, ${Math.max(200 - 5 * v, 0)}, 255)`;
+    }
+}
+function stabilityCanvasMouseMove(e) {
+    const canvas = document.getElementById(e.target.id);
+
+    const o = stabilityGraph.locate(canvas, ...getClientCoordinates(e));
+    let inner = `<div>A + D => ${o.val.toFixed(3)}</div><div>&delta; ${(o.x * 100.0).toFixed(2)}cm</div><div>focal = ${(o.y * 1000).toFixed(2)}mm</div>`
+
+    if (isMouseDownOnMain) {
+        moverShow(e, inner);
+    }
 }
 
 function calcPower(f) {
@@ -1656,6 +1720,9 @@ function mainCanvasMouseMove(e) {
     if (drawMode == 3) {
         return deltaCanvasMouseMove(e)
     }
+    if (drawMode == 4) {
+        return stabilityCanvasMouseMove(e)
+    }
     if (!isMouseDownOnMain) {
         return;
     }
@@ -1707,6 +1774,8 @@ function mainCanvasMouseDown(e) {
 function mainCanvasMouseUp(e) {
     isMouseDownOnMain = false;
     const id = e.target.id;
+
+    moverHide();
 
     let [x, y] = getClientCoordinates(e);
     if (zoomHorizontalCenter != (x - drawSx) / ( drawW / distStep)) {

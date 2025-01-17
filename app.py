@@ -27,6 +27,8 @@ app = FastHTML(ws_hdr=True, hdrs=(
         Link(rel="stylesheet", href="static/main.css", type="text/css"),
         Script(src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/3.3.0/math.min.js"),
         Script(src="static/localid.js"),
+        Script(src="static/mover.js"),
+        Script(src="static/graph2d.js"),
         Script(src="static/fourier.js"),
         Script(src="static/multimode.js"),
         Script(src="static/multitime.js"),

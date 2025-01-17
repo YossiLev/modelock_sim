@@ -5,9 +5,9 @@ import base64
 from fasthtml.common import *
 
 elements = [
-    [{"t": "L", "par":[0.3, 0.075]}, {"t": "L", "par":[0.45, 0.075, 1.0]}, {"t": "X", "par":[0.85]}, {"t": "D", "par":[0.0]}, ],
-    [{"t": "L", "par":[0.3, 0.075]}, {"t": "C", "par":[0.3735, 0.003]}, {"t": "L", "par":[0.45, 0.075, 1.0]}, {"t": "X", "par":[0.85]}, {"t": "D", "par":[0.0]}, ],
-    [{"t": "L", "par":[0.9, 0.075]}, {"t": "L", "par":[0.975, 2.000, 0.5]}, {"t": "L", "par":[1.05, 0.075, 1.0]}, {"t": "X", "par":[1.45]}, {"t": "D", "par":[0.0]}, ],   
+    [{"t": "L", "par":[0.3, 0.075]}, {"t": "L", "par":[0.45, 0.075, 1.0], "del": 1.0}, {"t": "X", "par":[0.85]}, ],
+    [{"t": "L", "par":[0.3, 0.075]}, {"t": "C", "par":[0.3735, 0.003]}, {"t": "L", "par":[0.45, 0.075, 1.0]}, {"t": "X", "par":[0.85]}, ],
+    [{"t": "L", "par":[0.9, 0.075]}, {"t": "L", "par":[0.975, 2.000, 0.5], "del": 0.5}, {"t": "L", "par":[1.05, 0.075, 1.0], "del": 1.0}, {"t": "X", "par":[1.45]}, ],   
 ]
 
 def ver_func(l):
@@ -39,36 +39,37 @@ def TabMaker(label, group, sel):
     return Div(label,  hx_post=group, hx_target="#fun", cls=f"tab {'tabselected' if sel else ''}", hx_vals='js:{localId: getLocalId()}'),
 
 def Element(el, s, tab):
+    par = el["par"]         
+    delta = el["del"] if "del" in el else 0.0
     match (el["t"]):
         case "X": # cavity length
-            pos = el["par"][0]
+            pos = par[0]
             return Div(
                 Span(f'X P:', id=f'type{s}'),
                 Input(type="number", id=f'el{s}dist', placeholder="0", step="0.01", style="width:50px;", value=f'{pos}'),
-                Button(NotStr("X"), escapse=False, hx_post=f'/removeElements/{tab}/{s}', hx_target="#fun", hx_vals='js:{localId: getLocalId()}'), 
+                Button(NotStr("X"), escapse=False, hx_post=f'/removeElements/{tab}/{s}', hx_target="#fun", hx_vals='js:{localId: getLocalId()}'),
+                Div(NotStr("Delta:"), Input(type="number", id=f'el{s}delta', placeholder="0", style="width:50px;", value='0.0')),
                 style="border: 1px solid red; display: inline-block; padding:2px;"
             )
             
         case "L": # lens
-            par = el["par"]              
             return Div(
                 Span(f'L{s + 1} P:', id=f'type{s}'),
                 Input(type="number", id=f'el{s}dist', placeholder="0", step="0.01", style="width:70px;", value=f'{par[0]}'),
                 Span("f:"),
                 Input(type="number", id=f'el{s}focal', placeholder="0", step="0.01", style="width:50px;", value=f'{par[1]}'),
                 Button(NotStr("X"), escapse=False, hx_post=f'/removeElements/{tab}/{s}', hx_target="#fun", hx_vals='js:{localId: getLocalId()}'), 
-
+                Div(NotStr("Delta factor:"), Input(type="number", id=f'el{s}delta', placeholder="0", style="width:50px;", value=f'{delta}')),
                 style="border: 1px solid red; display: inline-block; padding:2px;"
             )
         case "C": # crystal
-            par = el["par"]              
             return Div(
                 Span(f'C{s + 1} P:', id=f'type{s}'),
                 Input(type="number", id=f'el{s}dist', placeholder="0", step="0.01", style="width:70px;", value=f'{par[0]}'),
                 Span("L:"),
                 Input(type="number", id=f'el{s}length', placeholder="0", step="0.01", style="width:50px;", value=f'{par[1]}'),
                 Button(NotStr("X"), escapse=False, hx_post=f'/removeElements/{tab}{s}', hx_target="#fun", hx_vals='js:{localId: getLocalId()}'), 
-
+                Div(NotStr("Delta factor:"), Input(type="number", id=f'el{s}delta', placeholder="0", style="width:50px;", value=f'{delta}')),
                 style="border: 1px solid red; display: inline-block; padding:2px;"
             )
 
@@ -219,6 +220,7 @@ def generate_fun(data_obj, tab, offset = 0):
                     Button("Full", onclick="initElementsMultiMode(); initMultiMode(4); fullCavityMultiMode()"),
                     Button("Roundtrip", onclick="initElementsMultiMode(); initMultiMode(4); roundtripMultiMode()"),
                     Button("Delta graph", onclick="initElementsMultiMode(); initMultiMode(4); deltaGraphMultiMode()"),
+                    Button("Stability", onclick="initElementsMultiMode(); initMultiMode(4); calculateStability()"),
                     Button("Switch view", onclick="switchViewMultiMode()"),
                     Input(type="number", id=f'initialRange', placeholder="range(m)", step="0.001", style="width:80px;", value=f'0.005'),
                     Button("Auto range", onclick="initElementsMultiMode(); autoRangeMultiMode();"),

@@ -1188,15 +1188,15 @@ function fullCavityMultiMode() {
 
 function calculateStability() {
     drawMode = 4; // stability
-    stabilityGraph = new graph2d(300, 100, stabilityCalcX, stabilityCalcY, stabilityCalcVal);
+    stabilityGraph = new graph2d(300, 300, stabilityCalcX, stabilityCalcY, stabilityCalcVal);
     drawMultiMode();
 }
 function stabilityCalcX(v) {
-    return (v - 10) * 0.0005 / 3; // delta
+    return (v - 10) * 0.0005 ; // delta
 }
 function stabilityCalcY(v) {
     if (v == this.height - 1) return 20.0;
-    return (v - 5) * 0.005 ; // focal
+    return ((v - 100) / 300) * Math.abs((v - 100) / 300) ; // focal
 }
 function stabilityCalcVal(delta, focal) {
     let origDelta = elements[3].delta;
@@ -1582,10 +1582,10 @@ function doDeltaStep(delta, waist) {
     let fronts = multiFronts[0];
     let ranges = multiRanges[0];
 
-    let iElDelta = elements.findLastIndex((el) => el.t == "L");
+    let xEl = elements.find((el) => el.t == "X");
+    let origValue = xEl.delta;
 
-    const origValue = elements[iElDelta].par[0];
-    elements[iElDelta].par[0] += delta;
+    xEl.delta = delta;
     
     initMultiMode(1, waist);
 
@@ -1598,7 +1598,7 @@ function doDeltaStep(delta, waist) {
     console.log(`delta ${delta} A+D=${A+D}`);
 
     if (Math.abs(A + D) > 2.0 - 0.00001) {
-        elements[iElDelta].par[0] = origValue;
+        xEl.delta = origValue;
         return (waist);
     }
     let ad = 0.5 * (A + D);
@@ -1636,13 +1636,13 @@ function doDeltaStep(delta, waist) {
             let width = calcWidth(ff);
             deltaGraphYHalf.push(width * Math.abs(dxf) * 1.41421356237);
 
-            elements[iElDelta].par[0] = origValue;
+            xEl.delta = origValue;
             return (waist);
         }
 
     }
 
-    elements[1].par[0] = origValue;
+    xEl.delta = origValue;
     return (waist);
 }
 

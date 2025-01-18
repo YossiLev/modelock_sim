@@ -29,7 +29,7 @@ class graph2d {
             let ssy = h - 1 - (sy + dy * ih) - dy;
             line.forEach((val, iw) => {
                 ctx.fillStyle = fColor(val);
-                ctx.fillRect(sx + dx * iw, ssy, dx, dy);
+                ctx.fillRect(sx + dx * iw, ssy, dx, dy + 0.5);
             });
         });
     }

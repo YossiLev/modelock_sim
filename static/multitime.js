@@ -20,6 +20,8 @@ var dx0 = totalRange / nSamples;
 var scalarOne = math.complex(1);
 var nTimeSamplesOnes = Array.from({length: nTimeSamples}, (v) => scalarOne)
 var nSamplesOnes = Array.from({length: nSamples}, (v) => scalarOne)
+var ps1 = [];
+var ps2 = [];
 
 function initMultiTime() {
     workingTab = 3
@@ -106,6 +108,8 @@ function timeCavityStep(step, redraw) {
         drawVector(gainReduction, true, "red", 1, false, "gainSat", "GainSat", 0);
         drawVector(pumpGain0, false, "green", 1,  false,"gainSat", "Pump", 0);
         drawVector(sumPowerIx, true, "blue", 1,  false,"meanPower", "Power", 0);
+        drawVector(ps1, true, "red", 1, false, "kerrPhase", "Kerr", 0);
+        drawVector(ps2, false, "green", 1,  false,"kerrPhase", "Lens", 0);
     }
 }
 function fftToFrequency() {
@@ -123,15 +127,19 @@ function ifftToTime() {
 }
 
 function phaseChangeDuringKerr() {
-    let IklTimesI = math.complex(0, -Ikl * 10);
+    let IklTimesI = math.complex(0, Ikl * 500);
     sumPowerIx = [];
+    ps1 = [];
+    ps2 = [];
     for (let ix = 0; ix < nSamples; ix++) {
         let bin = multiTimeFronts[ix];
         let bin2 = math.abs(math.dotMultiply(bin, math.conj(bin)));
         sumPowerIx.push(math.sum(bin2));
-        //let phaseShift = math.multiply(IklTimesI, bin2);
+        let phaseShift1 = math.multiply(IklTimesI, bin2);
         let x = (ix - nSamples / 2) * dx0;
         let phaseShift = math.complex(0.0, - Math.PI / lambda / 0.0075 * x * x);
+        ps1.push(phaseShift1[0].im);
+        ps2.push(- Math.PI / lambda / 0.0075 * x * x);
         multiTimeFronts[ix] = math.dotMultiply(bin, math.exp(phaseShift));
     }
 }

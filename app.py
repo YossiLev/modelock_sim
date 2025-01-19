@@ -8,7 +8,7 @@ matplotlib.use('agg')
 import matplotlib.pyplot as plt
 from simulation import generate_all_charts
 from geometry import generate_canvas, generate_beam_params
-from fun import generate_fun
+from fun import generate_multimode
 from design import generate_design
 from iterations import generate_iterations, Iteration
 from cavity import CavityDataPartsKerr, CavityData
@@ -62,7 +62,7 @@ def menu_item(item_name, current_item):
 
 def content_table(current_page):
     global gen_data
-    menu_list = ["Design", "Simulation", "Geometry", "Iterations", "Fun", "Settings"]
+    menu_list = ["Design", "Simulation", "Geometry", "Iterations", "MultiMode", "Settings"]
     return Div(*[menu_item(x, current_page) for x in menu_list],
                 Div(F"n = {len(list(gen_data.keys()))}"),  cls="sideMenu")
 
@@ -117,10 +117,10 @@ def make_page(data_obj):
                     Button("Run", hx_ext="ws", ws_connect="/iterRun", ws_send=True, hx_target="#iterate", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
                     Button("Stop", hx_post="/iterStop", hx_target="#iterate", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
                     Div(generate_iterations(data_obj)), style="width:1100px"))
-        case "Fun":
-            return my_frame("Fun", 
+        case "MultiMode":
+            return my_frame("MultiMode", 
                 Div(
-                    Div(generate_fun(data_obj, 1), cls="box", style="background-color: rgb(208 245 254);", id="fun"), style="width:1100px"))
+                    Div(generate_multimode(data_obj, 1), cls="box", style="background-color: rgb(208 245 254);", id="fun"), style="width:1100px"))
         
         case _:
             return my_frame(current_tab, Div("not yet"))
@@ -414,7 +414,7 @@ def load(tabid: str, localId: str):
 
 @app.post("/tabfun/{tabid}")
 def load(tabid: str, localId: str):
-    return generate_fun(get_Data_obj(localId), int(tabid))
+    return generate_multimode(get_Data_obj(localId), int(tabid))
 
 @app.post("/moveonchart/{offset}")
 def load(offset: int, localId: str):
@@ -450,13 +450,13 @@ from fun import elements
 @app.post("/addElement/{tab}")
 def addlens(localId: str, tab: int):
     elements[tab - 1].append({"t": "L", "par":[0.2, 0.1]})
-    return generate_fun(get_Data_obj(localId), tab)
+    return generate_multimode(get_Data_obj(localId), tab)
 
 
 @app.post("/removeElements/{tab}/{index}")
 def addlens(index: int, localId: str, tab: int):
     elements[tab - 1].pop(index)
-    return generate_fun(get_Data_obj(localId), tab)
+    return generate_multimode(get_Data_obj(localId), tab)
 
 
 # uvicorn app:app --host 0.0.0.0 --port 443 --ssl-keyfile=sim_key.pem --ssl-certfile=sim_cert.pem

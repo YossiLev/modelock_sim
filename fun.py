@@ -135,7 +135,7 @@ def initBeamType(beamParamInit = 0.0005, beamDistInit = 0.0):
         style="display:inline-block;"
     )
 
-def generate_fun(data_obj, tab, offset = 0):
+def generate_multimode(data_obj, tab, offset = 0):
 
     images = []
     added = Div()

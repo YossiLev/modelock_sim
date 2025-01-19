@@ -6,8 +6,8 @@ from fasthtml.common import *
 
 elements = [
     [{"t": "L", "par":[0.3, 0.075]}, {"t": "L", "par":[0.45, 0.075, 1.0], "del": 1.0}, {"t": "X", "par":[0.85]}, ],
-    [{"t": "L", "par":[0.3, 0.075]}, {"t": "C", "par":[0.3735, 0.003]}, {"t": "L", "par":[0.45, 0.075, 1.0]}, {"t": "X", "par":[0.85]}, ],
-    [{"t": "L", "par":[0.9, 0.075]}, {"t": "L", "par":[0.975, 2.000, 0.5], "del": 0.5}, {"t": "L", "par":[1.05, 0.075, 1.0], "del": 1.0}, {"t": "X", "par":[1.45]}, ],   
+    [{"t": "L", "par":[0.9, 0.075]}, {"t": "C", "par":[0.9735, 0.003]}, {"t": "L", "par":[1.05, 0.075, 1.0]}, {"t": "X", "par":[1.55]}, ],
+    [{"t": "L", "par":[0.9, 0.075]}, {"t": "L", "par":[0.975, 2.000, 0.5], "del": 0.5}, {"t": "L", "par":[1.05, 0.075, 1.0], "del": 1.0}, {"t": "X", "par":[1.55]}, ],   
 ]
 
 def ver_func(l):
@@ -200,7 +200,7 @@ def generate_fun(data_obj, tab, offset = 0):
                     Select(Option("256"), Option("512"), Option("1024"), Option("2048"), Option("4096"), id="nSamples", **{'onchange':"nSamplesChanged();"},),
                 ),
                 Div(
-                    *[Element(el, i, tab) for i, el in enumerate(elements[0])],
+                    *[Element(el, i, tab) for i, el in enumerate(elements[2])],
                     Button(NotStr("&#43;"), escapse=False, hx_post="/addElement/2", hx_target="#fun", hx_vals='js:{localId: getLocalId()}'), 
                 ),
                 funCanvas("Time", width=1024, height=256, useZoom=False), 

@@ -129,7 +129,9 @@ function phaseChangeDuringKerr() {
         let bin = multiTimeFronts[ix];
         let bin2 = math.abs(math.dotMultiply(bin, math.conj(bin)));
         sumPowerIx.push(math.sum(bin2));
-        let phaseShift = math.multiply(IklTimesI, bin2);
+        //let phaseShift = math.multiply(IklTimesI, bin2);
+        let x = (ix - nSamples / 2) * dx0;
+        let phaseShift = math.complex(0.0, - Math.PI / lambda / 0.0075 * x * x);
         multiTimeFronts[ix] = math.dotMultiply(bin, math.exp(phaseShift));
     }
 }
@@ -174,8 +176,11 @@ function prepareGainPump() {
     
 }
 function prepareLinearFresnelHelpData() {
-    let MatSide = [[[-1.2947E+00, 4.8630E-03], [1.5111E+02, -1.3400E+00]],  // right
-                    [[1.1589E+00, 8.2207E-04], [2.9333E+02, 1.0709E+00]]];   // left
+    // let MatSide = [[[-1.2947E+00, 4.8630E-03], [1.5111E+02, -1.3400E+00]],  // right
+    //                 [[1.1589E+00, 8.2207E-04], [2.9333E+02, 1.0709E+00]]];   // left
+    let MatSide = [[[-0.2982666667, -0.006166766667], [147.7333333, -0.2982666667]],  // right
+                    [[0.3933333333, -0.002881666667], [293.3333333, 0.3933333333]]];   // left
+
     let matProg = [[1, 0.003], [0, 1]];
     fresnelData = [];
 
@@ -359,6 +364,7 @@ function progressMultiTime() {
     //     propogateMultiMode();
     // }
     initElementsMultiMode();
+    initMultiMode(3);
     fullCavityMultiMode();
     drawOption = true;
     drawMultiMode();

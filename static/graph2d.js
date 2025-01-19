@@ -28,7 +28,7 @@ class graph2d {
         this.vals.forEach((line, ih) => {
             let ssy = h - 1 - (sy + dy * ih) - dy;
             line.forEach((val, iw) => {
-                ctx.fillStyle = fColor(val);
+                ctx.fillStyle = fColor(val[0]);
                 ctx.fillRect(sx + dx * iw, ssy, dx, dy + 0.5);
             });
         });

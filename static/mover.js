@@ -5,15 +5,17 @@ function moverShow(e, innerHtml) {
         mover.id = 'globalMover';
         document.querySelector('body').appendChild(mover);
     }
+    let pos = e.target.getBoundingClientRect();
+
     mover.style.display = "block";
-    mover.style.position = "absolute";
+    mover.style.position = "fixed";
     mover.style.zIndex = "5";
     mover.style.background = "rgba(255, 255, 120, 0.6)";
     mover.style.padding = "5px";
     mover.style.borderRadius = "4px";
     mover.style.left = (e.clientX + 10) + 'px'; 
     mover.style.top = (e.clientY + 10) + 'px';
-    mover.style.pointerEvents = "none";
+    //mover.style.pointerEvents = "none";
     
     mover.innerHTML = innerHtml;
     console.log("mover up")
@@ -22,8 +24,11 @@ function moverShow(e, innerHtml) {
 function moverHide() {
     let mover = document.getElementById("globalMover");
     if (mover != null) {
-        mover.style.display = "none";
-        console.log("mover down")
+        
+        setTimeout(() => {
+            mover.style.display = "none";
+            console.log("mover down")
+        }, 2000);
 
     }
 }

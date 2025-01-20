@@ -39,32 +39,12 @@ var displayTempPrevious = [[], []];
 var presentedVectors = new Map();
 var stabilityGraph;
 
-function getFieldFloat(id, defaultValue) {
-    const cont = document.getElementById(id);
-    if (cont != null) {
-        const value = cont.value;
-        const numVal = parseFloat(value);
-        if (!isNaN(numVal)) {
-            return numVal;
-        }
-    }
 
-    return defaultValue;
-}
-
-function setFieldFloat(id, newValue) {
-    const cont = document.getElementById(id);
-    if (cont != null) {
-        cont.value = `${newValue}`;
-    }
-}
 var saveBeamParam, saveBeamDist;
 function getInitFront(pPar = - 1) {
     let waist0, beamDist, theta, waist, dx;
     const sel = document.getElementById("incomingFront");
-    //const par = document.getElementById("beamParam");
-    const rng = document.getElementById("initialRange");
-    initialRange = parseFloat(rng.value);
+    initialRange = getFieldFloat("initialRange");
     let vf = [];
     RayleighRange = 0.0;
     switch (sel.value) {
@@ -158,8 +138,7 @@ function apertureChanged() {
 }
 
 function nSamplesChanged() {
-    const val = document.getElementById("nSamples").value;
-    nSamples = parseInt(val);
+    nSamples = getFieldInt("nSamples");
     let step = 0.0003;
     initialRange =  math.sqrt(lambda * step * nSamples);
     setFieldFloat("initialRange", initialRange);
@@ -173,9 +152,9 @@ function nMaxMatricesChanged() {
         nMaxMatrices = parseInt(val);
     }
 }
+
 function nRoundsChanged() {
-    const val = document.getElementById("nRounds").value;
-    nRounds = parseInt(val);
+    nRounds = getFieldInt("nRounds");
 }
 
 function zoomMultiMode(z) {
@@ -372,7 +351,6 @@ function drawMultiMode() {
             stabilityGraph.plot(ctx, stabilityColor);
             return;
         }
-        
 
         drawFronts(canvas, ctx, multiFronts[index], multiRanges[index]);
 
@@ -542,21 +520,24 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowCha
     }
 
     let l = v.length;
-    if (l <= 0) {
-        return;
-    }
+    let fac;
     const prevCompare = document.getElementById('cbxPrevCompare')?.checked;
-    let fac = Math.max(Math.abs(Math.max(...v)), Math.abs(Math.min(...v)));
+    if (l > 0) {
+        fac = Math.max(Math.abs(Math.max(...v)), Math.abs(Math.min(...v)));
+        let vecObj = {vec: math.clone(v), w: pixelWidth, s: start, c: color, n: name, f: fac};
+        vectors.push(vecObj);
+        presentedVectors.set(id, vectors);
+    } else {
+        fac = 0;
+    }
+    l = vectors.reduce((p, c) => Math.max(p, c.vec.length), 0);
+    start = vectors.reduce((p, c) => Math.max(p, c.s), 0);
+
     const canvas = document.getElementById(id);
     const ctx = canvas.getContext("2d");
     if (allowChange && pixelWidth > (canvas.width - start) / l) {
         pixelWidth = (canvas.width - start) / l;
     }
-
-    let vecObj = {vec: math.clone(v), w: pixelWidth, s: start, c: color, n: name, f: fac};
-    vectors.push(vecObj);
-    presentedVectors.set(id, vectors);
-
 
     ctx.fillStyle = `white`;
     ctx.fillRect(0, 0, canvas.width, canvas.height);     
@@ -587,7 +568,9 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowCha
     if (fac > 0) {
         fac = 90 / fac
     }
-    vectors.forEach((vo) => {
+    let zoomVal = parseFloat(document.getElementById(`${id}-zoomVal`).innerHTML);
+    fac *= zoomVal;
+    vectors.forEach((vo, iVec) => {
         ctx.strokeStyle = vo.c;
         ctx.beginPath();
         ctx.moveTo(vo.s, 100 - Math.floor(fac * vo.vec[0]));
@@ -595,6 +578,8 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowCha
             ctx.lineTo(vo.s + i * pixelWidth, 100 - Math.floor(fac * vo.vec[i]));
         }
         ctx.stroke();
+
+        drawTextBG(ctx, `${vo.n}`, 20, 120 + (iVec + 1) * 16, vo.c);
     });
     if (prevCompare) {
         ctx.strokeStyle = 'green';
@@ -666,6 +651,19 @@ function drawMatDecomposition(ix, clear = true, color = "red") {
 
     }
 }
+
+function zoomGraph(id, change) {
+    console.log(`zoom ${id}, ${change}`);
+    val = parseFloat(document.getElementById(`${id}-zoomVal`).innerHTML);
+    if (change > 0) {
+        val *= 2;
+    } else {
+        val *= 0.5;
+    }
+    document.getElementById(`${id}-zoomVal`).innerHTML = val.toFixed(4);
+    drawVector([], false, "red", drawW, true, id, "", 0);
+
+}
 function drawGraph() {
     if (!drawOption) {
         return
@@ -718,31 +716,16 @@ function initElementsMultiMode() {
             break;
         }
         let elementType = elementTypeControl.innerHTML[0];
-        let elDist = document.getElementById(`el${iEl}dist`);
         let elDelta = getFieldFloat(`el${iEl}delta`);
-        if (elDist == null) {
-            console.log(`Error ${elDist}`)
-            break;
-        }
-        valDist = parseFloat(elDist.value);
+        let valDist = getFieldFloat(`el${iEl}dist`);
         if (elementType == "L") {
-            let lensFocal = document.getElementById(`el${iEl}focal`);
-            if (lensFocal == null) {
-                console.log(`Error ${lensFocal}`)
-                break;
-            }
-            valOther = parseFloat(lensFocal.value);
+            valOther = getFieldFloat(`el${iEl}focal`);
             //console.log(`${elDist.value} ${valDist}, ${lensFocal.value} ${valFocal}`)
             if (isNaN(valDist) || isNaN(valOther)) {
                 break;
             }
         } else if (elementType == "C") {
-            let crystalLength = document.getElementById(`el${iEl}length`);
-            if (crystalLength == null) {
-                console.log(`Error ${crystalLength}`)
-                break;
-            }
-            valOther = parseFloat(crystalLength.value);
+            valOther = getFieldFloat(`el${iEl}length`);
             if (isNaN(valDist) || isNaN(valOther)) {
                 break;
             }
@@ -761,7 +744,6 @@ function focusOnCrystal() {
             distStart = el.par[0] - distStep;
         }
     });
-
 }
 
 function initMultiMode(setWorkingTab = - 1, beamParam = - 1) {
@@ -769,20 +751,20 @@ function initMultiMode(setWorkingTab = - 1, beamParam = - 1) {
         workingTab = setWorkingTab
     }
     switch (workingTab) {
-        case 1:
+        case 1: // multimode
             drawW = 3;
             distStart = 0.0;
             distStep = 0.003;
             break
-        case 2:
+        case 2: // crysyal
             drawW = 30;
             focusOnCrystal();
             break;
-        case 3:
+        case 3: // multitime
             drawW = 3;
             distStep = 0.006;
             break;
-        case 4:
+        case 4: //test
             drawW = 3;
             distStep = 0.006;
             break
@@ -1235,59 +1217,6 @@ function fullCavityMultiMode() {
     }
 
     drawMultiMode();
-}
-
-function calculateStability() {
-    drawMode = 4; // stability
-    stabilityGraph = new graph2d(300, 300, stabilityCalcX, stabilityCalcY, stabilityCalcVal);
-    drawMultiMode();
-}
-function stabilityCalcX(v) {
-    return (v - 10) * 0.0005 ; // delta
-}
-function stabilityCalcY(v) {
-    if (v == this.height - 1) return 20.0;
-    return ((v - 100) / 300) * Math.abs((v - 100) / 300) ; // focal
-}
-function stabilityCalcVal(delta, focal) {
-    let origDelta = elements[3].delta;
-    let origFocal = elements[1].par[1];
-    elements[3].delta = delta;
-    elements[1].par[1] = focal;
-    let M  = getMatOnRoundTrip(false);
-    let A = M[0][0], B = M[0][1], C = M[1][0], D = M[1][1];
-    let V = Math.abs(A + D);
-    if (V < 2) {
-        let a = 0;
-    }
-    let asVec = analyzeStability(M);
-    elements[3].delta = origDelta;
-    elements[1].par[1] = origFocal;
-    return [V, asVec];
-}
-function stabilityColor(v) {
-    if (v < 2) {
-        return `rgba(${100 * v}, ${255}, ${100 * v}, 255)`;
-    } else {
-        return `rgba(${255}, ${Math.max(200 - 5 * v, 0)}, ${Math.max(200 - 5 * v, 0)}, 255)`;
-    }
-}
-function stabilityCanvasMouseMove(e) {
-    if (!isMouseDownOnMain) {
-        return;
-    }
-    const canvas = document.getElementById(e.target.id);
-
-    const o = stabilityGraph.locate(canvas, ...getClientCoordinates(e));
-    const waist = o.val[1][0] ? o.val[1][3] : -1.0;
-    if (o != null) {
-        let inner = `<div>A + D => ${o.val[0].toFixed(3)}</div>` + 
-            `<div>&delta; ${(o.x * 100.0).toFixed(2)}cm</div>` + 
-            `<div>focal = ${(o.y * 1000).toFixed(2)}mm</div>` + 
-            `<div>waist = ${waist.toFixed(6)}mm</div>` + 
-            `<div onclick="fullCavityNewParams(${o.x}, ${o.y}, ${waist});">Show</div>`
-            moverShow(e, inner);
-    }
 }
 
 function calcPower(f) {
@@ -1753,13 +1682,6 @@ function deltaGraphMultiMode() {
     drawMultiMode();
 }
 
-function getClientCoordinates(e) {
-    var bounds = e.target.getBoundingClientRect();
-    var x = e.clientX - bounds.left;
-    var y = e.clientY - bounds.top;
-    return [x, y];
-}
-
 function deltaCanvasMouseMove(e) {
     if (deltaGraphX.length < 5) {
         return;
@@ -1845,7 +1767,6 @@ function mainCanvasMouseUp(e) {
     let [x, y] = getClientCoordinates(e);
     if (zoomHorizontalCenter != (x - drawSx) / ( drawW / distStep)) {
         zoomHorizontalCenter = (x - drawSx) / ( drawW / distStep);
-        console.log(` zoomHorizontalAmount ${zoomHorizontalAmount}`)
         drawMultiMode();
     }
 
@@ -1854,7 +1775,6 @@ function mainCanvasMouseUp(e) {
     }
 
 }
-
 
 function graphCanvasMouseMove(e) {
     var bounds = e.target.getBoundingClientRect();
@@ -1893,12 +1813,12 @@ function graphCanvasMouseMove(e) {
     if (ix >= 0) {
         ctx.fillStyle = "black";
         
-        drawTextBG(ctx, (ix * vecObj.w).toFixed(6), 20, 120);
+        drawTextBG(ctx, (ix * vecObj.w).toFixed(2), 20, 120);
         for (let iVec = 0; iVec < vectors.length; iVec++) {
             let vecObj = vectors[iVec];
             if (vecObj.vec.length > ix) {
                 let val = vecObj.vec[ix];
-                drawTextBG(ctx, val.toFixed(8), 20, 120 + (iVec + 1) * 16, vecObj.c);
+                drawTextBG(ctx, `${vecObj.n} ${val.toFixed(8)}`, 20, 120 + (iVec + 1) * 16, vecObj.c);
             }
         }
     }
@@ -1917,18 +1837,4 @@ function graphCanvasMouseDown(e) {
 
 function graphCanvasMouseUp(e) {
     isMouseDownOnGraph = false;
-}
-
-function drawTextBG(ctx, txt, x, y, color = '#000', font = "10pt Courier") {
-    ctx.save();
-    ctx.font = font;
-    ctx.textBaseline = 'top';
-    ctx.fillStyle = '#fff';
-    var width = ctx.measureText(txt).width;
-    ctx.beginPath();
-    ctx.roundRect(x, y - 1, width, parseInt(font, 10) + 3, 3);
-    ctx.fill();
-    ctx.fillStyle = color;
-    ctx.fillText(txt, x, y);
-    ctx.restore();
 }

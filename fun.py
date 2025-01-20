@@ -99,10 +99,13 @@ def funCanvas(idd, width=1000, height=800, useZoom = True ):
                 ),
             ) if useZoom else Div(),
             Canvas(id=f"funCanvas{idd}", width=width, height=height, 
+                style="background-color: #f5f5f9; background-image: radial-gradient(circle at center center, #dcf68e, #f5f5f9), repeating-radial-gradient(circle at center center, #dcf68e, #dcf68e, 10px, transparent 20px, transparent 10px);background-blend-mode: multiply;",
                    **{'onmousemove':f"mainCanvasMouseMove(event);",
                       'onmousedown':f"mainCanvasMouseDown(event);",
                       'onmouseup':f"mainCanvasMouseUp(event);",
                       }),
+                      
+
         )
     )   
 def graphCanvas(id="graphCanvas", width=1000, height = 200, options=True):
@@ -116,7 +119,22 @@ def graphCanvas(id="graphCanvas", width=1000, height = 200, options=True):
             Label(Input(id="cbxPrevCompare", type='checkbox', name='Compare', checked=False), "Compare"))
             if options else "",
 
-            Canvas(id=id, width=width, height = height,
+            Div(
+                Button(
+                    Img(src="static/zoomin.png", alt="Zoom in", width="16", height="16"),
+                    cls="imgButton",
+                    onclick=f"zoomGraph('{id}', 1);"
+                ),
+                Button(
+                    Img(src="static/zoomout.png", alt="Zoom out", width="16", height="16"),
+                    cls="imgButton",
+                    onclick=f"zoomGraph('{id}', -1);"
+                ),
+                Span("1.0", id=f"{id}-zoomVal"),
+                style="position: absolute; float: left; z-index: 10;"
+            ),
+            Canvas(id=id, width=width, height = height, 
+                   style="background-color: #e5e5f7; background-image:  repeating-radial-gradient( circle at 0 0, transparent 0, #e5e5f7 10px ), repeating-linear-gradient( #444cf755, #444cf7 );",
                 **{'onmousemove':"graphCanvasMouseMove(event);",
                 'onmousedown':"graphCanvasMouseDown(event);",
                 'onmouseup':"graphCanvasMouseUp(event);",},
@@ -191,7 +209,7 @@ def generate_multimode(data_obj, tab, offset = 0):
                     Button("R", onclick="timeCavityStep(3, true)"),
                     Button("L", onclick="timeCavityStep(4, true)"),
                     Button("Full", onclick="timeCavityStep(5, true)"),
-                    Select(Option("0"), Option("1"), Option("2"), Option("3"), id="nRounds", **{'onchange':"nRoundsChanged();"}),
+                    Select(Option("0"), Option("1"), Option("2"), Option("3"), Option("4"), id="nRounds", **{'onchange':"nRoundsChanged();"}),
                     Button("Switch view", onclick="switchViewMultiMode()"),
                     Input(type="number", id=f'initialRange', placeholder="range(m)", step="0.0001", style="width:100px;", value=f'0.00024475293'),
                     Input(type="number", id=f'power', placeholder="power", step="1000000", style="width:80px;", value=f'30000000'),

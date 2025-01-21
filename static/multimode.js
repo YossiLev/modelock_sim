@@ -721,7 +721,6 @@ function initElementsMultiMode() {
         let valDist = getFieldFloat(`el${iEl}dist`);
         if (elementType == "L") {
             valOther = getFieldFloat(`el${iEl}focal`);
-            //console.log(`${elDist.value} ${valDist}, ${lensFocal.value} ${valFocal}`)
             if (isNaN(valDist) || isNaN(valOther)) {
                 break;
             }
@@ -778,121 +777,6 @@ function initMultiMode(setWorkingTab = - 1, beamParam = - 1) {
     multiRanges[0] = [initialRange];
     sfs = 0;
     drawMode = 1;
-    drawMultiMode();
-}
-
-/**
-Discrete Fourier transform (DFT).
-(the slowest possible implementation)
-Assumes `inpReal` and `inpImag` arrays have the same size.
-*/
-function dft(inp, ss) {
-    const out = [];
-    const sin = [];
-    const cos = [];
-    let inpReal = [];
-    let inpImag = [];
-    let s = ss * 1;
-  
-    const N = inp.length;
-    const twoPiByN = 2 * Math.PI / N;
-  
-    console.log("minus");
-    /* initialize Sin / Cos tables */
-    for (let k = 0; k < N; k++) {
-      inpReal.push(math.re(inp[k]));
-      inpImag.push(math.im(inp[k]));
-      const angle = - twoPiByN * k;
-      sin.push(Math.sin(angle));
-      cos.push(Math.cos(angle));
-    }
-  
-    for (let k = 0; k < N; k++) {
-      let sumReal = 0;
-      let sumImag = 0;
-      let nn = 0;
-      for (let iN = 0; iN < N; iN++) {
-        nm = (iN + N / 2) % N;
-        sumReal +=  inpReal[nm] * cos[nn] + inpImag[nm] * sin[nn];
-        sumImag += -inpReal[nm] * sin[nn] + inpImag[nm] * cos[nn];
-        nn = (nn + k) % N;
-      }
-      out.push(math.complex(sumReal * s, sumImag * s));
-    }
-    let o = [];
-    for (let k = 0; k < N; k++) {
-        o.push(out[(k + N / 2) % N]);
-    }
-    return o;
-}
-
-
-function propogateMultiMode() {
-    let fronts = multiFronts[0];
-    let ranges = multiRanges[0];
-
-    if (fronts.length <= 0) {
-        return;
-    }
-    let distS = 0.002;
-    lfs = fronts.length;
-    let dist = distS * (lfs - sfs);
-    fi = math.clone(fronts[sfs]);
-    let r = ranges[sfs];
-    let L = fi.length;
-    let dxi = r / L;
-    let dxf = lambda * dist / r;
-    let factor = math.divide(math.exp(math.complex(0, dist * Math.PI * 2 / lambda)), math.complex(dist));
-    let ff = Math.sqrt(1 / (dist * lambda * 2));
-    factor = math.complex(- ff, ff);
-    let coi = Math.PI * dxi * dxi / (dist * lambda);
-    console.log(`factor = ${factor}, lambda = ${lambda}`)
-
-    let cof = Math.PI * dxf * dxf / (dist * lambda);
-    console.log(`dxi = ${dxi}, dxf = ${dxf}, coi = ${coi}, cof = ${cof}, r = ${r}, dist = ${dist}`)
-
-    for (let i = 0; i < L; i++) {
-        let ii = i - L / 2;
-        fi[i] = math.multiply(fi[i], math.exp(math.complex(0, coi * ii * ii)))
-    }
-    ff = dft(fi, dxi);
-
-    for (let i = 0; i < L; i++) {
-        let ii = i - L / 2;
-        ff[i] = math.multiply(math.multiply(ff[i], factor), math.exp(math.complex(0, cof * ii * ii)))
-    }
-
-    fronts.push(ff);
-    ranges.push(L * dxf);
-
-    drawMultiMode();
-}
-
-function lensMultiMode() {
-    let fronts = multiFronts[0];
-    let ranges = multiRanges[0];
-
-    if (fronts.length <= 0) {
-        return;
-    }
-
-    fl = fronts.length
-    ff = math.clone(fronts[fl - 1]);
-    let r = ranges[fl - 1];
-    let L = fi.length;
-    let dx = r / L;
-
-    let z = L / 2.0;
-    for (let i = 0; i < L; i++) {
-        let factor = (i - z) * (i - z) * dx * dx
-        console.log(`i = ${i}, factor = ${factor}`);
-        ff[i] = math.multiply(ff[i], math.exp(math.complex(- factor * 10000,  - factor * 100000000)))
-    }
-
-    sfs = fl;
-    fronts.push(ff);
-    ranges.push(ranges[sfs - 1]);
-
     drawMultiMode();
 }
 

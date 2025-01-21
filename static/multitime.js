@@ -429,10 +429,7 @@ function multiTimeCanvasMouseMove(e, updateTest = false) {
 
 function progressMultiTime() {
     drawOption = false;
-    // sfs = 0;
-    // for (let i = 0; i < 10; i++) {
-    //     propogateMultiMode();
-    // }
+
     initElementsMultiMode();
     initMultiMode(3);
     fullCavityMultiMode();

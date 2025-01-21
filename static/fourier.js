@@ -377,3 +377,50 @@ function ifftx(inp) {
 
     return output;
 }
+
+
+/**
+Discrete Fourier transform (DFT).
+(the slowest possible implementation)
+Assumes `inpReal` and `inpImag` arrays have the same size.
+*/
+function dft(inp, ss) {
+    const out = [];
+    const sin = [];
+    const cos = [];
+    let inpReal = [];
+    let inpImag = [];
+    let s = ss * 1;
+  
+    const N = inp.length;
+    const twoPiByN = 2 * Math.PI / N;
+  
+    console.log("minus");
+    /* initialize Sin / Cos tables */
+    for (let k = 0; k < N; k++) {
+      inpReal.push(math.re(inp[k]));
+      inpImag.push(math.im(inp[k]));
+      const angle = - twoPiByN * k;
+      sin.push(Math.sin(angle));
+      cos.push(Math.cos(angle));
+    }
+  
+    for (let k = 0; k < N; k++) {
+      let sumReal = 0;
+      let sumImag = 0;
+      let nn = 0;
+      for (let iN = 0; iN < N; iN++) {
+        nm = (iN + N / 2) % N;
+        sumReal +=  inpReal[nm] * cos[nn] + inpImag[nm] * sin[nn];
+        sumImag += -inpReal[nm] * sin[nn] + inpImag[nm] * cos[nn];
+        nn = (nn + k) % N;
+      }
+      out.push(math.complex(sumReal * s, sumImag * s));
+    }
+    let o = [];
+    for (let k = 0; k < N; k++) {
+        o.push(out[(k + N / 2) % N]);
+    }
+    return o;
+}
+

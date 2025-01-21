@@ -130,7 +130,7 @@ def graphCanvas(id="graphCanvas", width=1000, height = 200, options=True):
                     cls="imgButton",
                     onclick=f"zoomGraph('{id}', -1);"
                 ),
-                Span("1.0", id=f"{id}-zoomVal"),
+                Span("1.0", id=f"{id}-zoomVal", style="display: none;"),
                 style="position: absolute; float: left; z-index: 10;"
             ),
             Canvas(id=id, width=width, height = height, 
@@ -211,6 +211,7 @@ def generate_multimode(data_obj, tab, offset = 0):
                     Button("Full", onclick="timeCavityStep(5, true)"),
                     Select(Option("0"), Option("1"), Option("2"), Option("3"), Option("4"), id="nRounds", **{'onchange':"nRoundsChanged();"}),
                     Button("Switch view", onclick="switchViewMultiMode()"),
+                    Button("New Cavity", onclick="refreshCacityMatrices()"),
                     Input(type="number", id=f'initialRange', placeholder="range(m)", step="0.0001", style="width:100px;", value=f'0.00024475293'),
                     Input(type="number", id=f'power', placeholder="power", step="1000000", style="width:80px;", value=f'30000000'),
                     Input(type="number", id=f'apreture', placeholder="apreture", step="0.00001", 

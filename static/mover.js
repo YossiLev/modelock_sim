@@ -26,7 +26,6 @@ function moverShow(e, innerHtml) {
     //mover.style.pointerEvents = "none";
     
     mover.innerHTML = innerHtml;
-    console.log("mover up")
 }
 
 function moverHide() {
@@ -35,7 +34,6 @@ function moverHide() {
         
         setTimeout(() => {
             mover.style.display = "none";
-            console.log("mover down")
         }, 2000);
 
     }

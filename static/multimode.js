@@ -39,6 +39,8 @@ var displayTempPrevious = [[], []];
 var presentedVectors = new Map();
 var stabilityGraph;
 
+let totalRightSide;
+let totalLeftSide;
 
 var saveBeamParam, saveBeamDist;
 function getInitFront(pPar = - 1) {
@@ -380,14 +382,14 @@ function drawMultiMode() {
                 drawTextBG(ctx, beamDist.toFixed(7), canvas.width - 80, 120);
             }
 
-            console.log("MLeft1");
-            console.log(MLeft1);
-            console.log("MLeft2");
-            console.log(MLeft2);
-            console.log("MRight1");
-            console.log(MRight1);
-            console.log("MRight2");
-            console.log(MRight2);
+            // console.log("MLeft1");
+            // console.log(MLeft1);
+            // console.log("MLeft2");
+            // console.log(MLeft2);
+            // console.log("MRight1");
+            // console.log(MRight1);
+            // console.log("MRight2");
+            // console.log(MRight2);
         }
 
         drowShenets(ctx, "V0", zoomFactor * basicZoomFactor);
@@ -653,7 +655,6 @@ function drawMatDecomposition(ix, clear = true, color = "red") {
 }
 
 function zoomGraph(id, change) {
-    console.log(`zoom ${id}, ${change}`);
     val = parseFloat(document.getElementById(`${id}-zoomVal`).innerHTML);
     if (change > 0) {
         val *= 2;
@@ -1518,6 +1519,10 @@ function roundtripMultiMode(waist = - 1) {
     }
 
     let M  = getMatOnRoundTrip(false);
+    totalRightSide = MMult(MRight2, MRight1);
+    totalLeftSide = MMult(MLeft2, MLeft1);
+    console.log(`RIGHT [[${totalRightSide[0][0]}, ${totalRightSide[0][1]} ], [${totalRightSide[1][0]}, ${totalRightSide[1][1]} ]]`);
+    console.log(`LEFT [[${totalLeftSide[0][0]}, ${totalLeftSide[0][1]} ], [${totalLeftSide[1][0]}, ${totalLeftSide[1][1]} ]]`);
     let A = M[0][0], B = M[0][1], C = M[1][0], D = M[1][1];
     let v = (A + D) / 2;
     //console.log(`A0 = ${A}, B0 = ${B}, C0 = ${C}, D0 = ${D}, v = ${v}`)

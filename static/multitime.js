@@ -6,12 +6,14 @@ var IntensitySaturationLevel = 400000000000000.0;
 var intensityTotalByIx = [];
 var factorGainByIx = [];
 var Ikl = 0.02;
-let IklTimesI = math.complex(0, Ikl * 80);
+let IklTimesI = math.complex(0, Ikl * 80 * 0.001);
 var rangeW = [];
 var spectralGain = [];
 var dispersion = [];
 var sumPowerIx = [];
 var gainReduction = [];
+var gainReductionWithOrigin = [];
+var gainReductionAfterAperture = [];
 var pumpGain0 = [];
 var multiTimeAperture  = [];
 var frequencyTotalMultFactor = [];
@@ -22,8 +24,26 @@ var dx0 = totalRange / nSamples;
 var scalarOne = math.complex(1);
 var nTimeSamplesOnes = Array.from({length: nTimeSamples}, (v) => scalarOne)
 var nSamplesOnes = Array.from({length: nSamples}, (v) => scalarOne)
+var kerrFocalLength = 0.0075;
 var ps1 = [];
 var ps2 = [];
+
+// let MatSide = [[[-1.2947E+00, 4.8630E-03], [1.5111E+02, -1.3400E+00]],  // right
+//                 [[1.1589E+00, 8.2207E-04], [2.9333E+02, 1.0709E+00]]];   // left
+
+// delta 0.0095 focal 0.0075
+//let MatSide = [[[-0.2982666667, -0.006166766667], [147.7333333, -0.2982666667]],  // right
+//                [[0.3933333333, -0.002881666667], [293.3333333, 0.3933333333]]];   // left
+
+// delta 0.005  focal 20.00
+let MatSide = [[[-0.6266666667, -0.0040666666677], [149.3333333,-0.6266666667]],  // right
+                [[-0.2666666667, -0.003166666667], [293.3333333, -0.2666666667]]];   // left
+
+
+function refreshCacityMatrices() {
+    MatSide = [math.clone(totalRightSide), math.clone(totalLeftSide)];
+    console.log(MatSide);
+}
 
 function initMultiTime() {
     workingTab = 3
@@ -61,7 +81,6 @@ function initGainByFrequency() {
     dispersion = math.exp(math.multiply(math.complex(0, - disp_par), math.square(rangeW)));
     let expW = math.exp(math.multiply(math.complex(0, - 2 * Math.PI), rangeW));
     frequencyTotalMultFactor = math.dotMultiply(expW, math.dotMultiply(spectralGain, dispersion));
-    console.log(frequencyTotalMultFactor);
 }
 
 function multiTimeRoundTrip(iCount) {
@@ -103,6 +122,11 @@ function coverRound(params) {
         drawMultiMode();
     }
 
+    if (params[0] <= 1) {
+        drawMultiMode();
+        return null;
+    }
+
     return [params[0] - 1];
 }
 
@@ -121,12 +145,15 @@ function timeCavityStep(step, redraw) {
             break;
     }
     const endTime = performance.now()
-    console.log(`Call to timeCavityStep took ${endTime - startTime} milliseconds`)
+    //console.log(`Call to timeCavityStep took ${endTime - startTime} milliseconds`)
 
     if (redraw) {
         drawMultiMode();
-        drawVector(gainReduction, true, "red", 1, false, "gainSat", "GainSat", 0);
-        drawVector(pumpGain0, false, "green", 1,  false,"gainSat", "Pump", 0);
+        drawVector(pumpGain0, true, "green", 1,  false,"gainSat", "Pump", 0);
+        drawVector(gainReduction, false, "red", 1, false, "gainSat", "PumpSat", 0);
+        drawVector(gainReductionWithOrigin, false, "blue", 1,  false,"gainSat", "Pump + 1", 0);
+        drawVector(gainReductionAfterAperture, false, "black", 1,  false,"gainSat", "with aper", 0);
+        drawVector(multiTimeAperture, false, "gray", 1,  false,"gainSat", "apertue", 0);
         drawVector(sumPowerIx, true, "blue", 1,  false,"meanPower", "Power", 0);
         drawVector(ps1, true, "red", 1, false, "kerrPhase", "Kerr", 0);
         drawVector(ps2, false, "green", 1,  false,"kerrPhase", "Lens", 0);
@@ -158,7 +185,7 @@ function phaseChangeDuringKerr() {
         let x = (ix - nSamples / 2) * dx0;
         let phaseShift = math.complex(0.0, - Math.PI / lambda / 0.0075 * x * x);
         ps1.push(phaseShift1[0].im);
-        ps2.push(- Math.PI / lambda / 0.0075 * x * x);
+        ps2.push(- Math.PI / lambda / kerrFocalLength * x * x);
         multiTimeFronts[ix] = math.dotMultiply(bin, math.exp(phaseShift1));
     }
 }
@@ -174,13 +201,13 @@ function spectralGainDispersion() {
 function linearCavityOneSide(side) {
     let Is = 200;
     gainReduction = math.dotMultiply(pumpGain0, math.dotDivide(nSamplesOnes, math.add(1, math.divide(sumPowerIx, Is * nTimeSamples)))).map((v) => v.re);
-    gainReduction = math.add(1, gainReduction);
-    gainReduction = math.dotMultiply(gainReduction, multiTimeAperture);
+    gainReductionWithOrigin = math.add(1, gainReduction);
+    gainReductionAfterAperture = math.dotMultiply(gainReductionWithOrigin, multiTimeAperture);
 
     let multiTimeFrontsTrans = math.transpose(multiTimeFronts) 
     for (let iTime = 0; iTime < nTimeSamples; iTime++) {
         let fr = multiTimeFrontsTrans[iTime];
-        fr = math.dotMultiply(fr, gainReduction);
+        fr = math.dotMultiply(fr, gainReductionAfterAperture);
         fresnelData[side].forEach((fresnelSideData) => {
             fr = math.dotMultiply(fr, fresnelSideData.vecs[0]);
             fr = fft(fr, fresnelSideData.dx);
@@ -193,7 +220,7 @@ function linearCavityOneSide(side) {
 }
 
 function prepareGainPump() {
-    let epsilon = 0.8;
+    let epsilon = 0.2;
     let pumpWidth = 0.000030;
     let g0 = 1 / mirrorLoss + epsilon;
     pumpGain0 = [];
@@ -215,10 +242,7 @@ function prepareAperture() {
 }
 
 function prepareLinearFresnelHelpData() {
-    // let MatSide = [[[-1.2947E+00, 4.8630E-03], [1.5111E+02, -1.3400E+00]],  // right
-    //                 [[1.1589E+00, 8.2207E-04], [2.9333E+02, 1.0709E+00]]];   // left
-    let MatSide = [[[-0.2982666667, -0.006166766667], [147.7333333, -0.2982666667]],  // right
-                    [[0.3933333333, -0.002881666667], [293.3333333, 0.3933333333]]];   // left
+
 
     let matProg = [[1, 0.003], [0, 1]];
     fresnelData = [];
@@ -246,14 +270,14 @@ function prepareLinearFresnelHelpData() {
 
         fresnelSideData =[];
         let dx = dx0;
-        console.log(`orig dx = ${dx}`);
+        //console.log(`orig dx = ${dx}`);
         [M1, M2].forEach((M, index) => {
             let loss = (index == 0 && indexSide == 1) ? mirrorLoss : 1; // left side mirror loss
             fresnelSideData.push(vectorsForFresnel(M, nSamples, dx, loss, M[0][0] < 0));
             dx = M[0][1] * lambda / (nSamples * dx);
-            console.log(`After step ${index + 1} dx = ${dx}`);
+            //console.log(`After step ${index + 1} dx = ${dx}`);
         })
-        console.log(fresnelSideData);
+        //console.log(fresnelSideData);
 
         fresnelData.push(fresnelSideData);
     });

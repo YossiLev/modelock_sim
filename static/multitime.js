@@ -1,5 +1,6 @@
 var nTimeSamples = 1024;
 var multiTimeFronts = [];
+var multiTimeFrontsSaves = [[], [], [], []];
 var multiFrequencyFronts = [];
 var factorGain = [];
 var IntensitySaturationLevel = 400000000000000.0;
@@ -27,6 +28,9 @@ var nSamplesOnes = Array.from({length: nSamples}, (v) => scalarOne)
 var kerrFocalLength = 0.0075;
 var ps1 = [];
 var ps2 = [];
+var contentOption = 0;
+var contentOptionVals = ["F", "1", "2", "3", "4"];
+
 
 // let MatSide = [[[-1.2947E+00, 4.8630E-03], [1.5111E+02, -1.3400E+00]],  // right
 //                 [[1.1589E+00, 8.2207E-04], [2.9333E+02, 1.0709E+00]]];   // left
@@ -45,6 +49,14 @@ function refreshCacityMatrices() {
     console.log(MatSide);
 }
 
+function updateContentOptions() {
+    let options = contentOptionVals.map((v, i) => {
+        style=`"margin: 3px; padding: 2px; border: 1px solid black; border-radius: 2px; background:${i == contentOption ? "yellow": "white"};"`
+        return `<div onclick="contentOption = ${i}; updateContentOptions(); drawMultiTime();" style=${style}>${v}</div>`
+    }).join("");
+    document.getElementById("FrequencyCanvasOptions").innerHTML = options;
+}
+
 function initMultiTime() {
     workingTab = 3
     multiTimeFronts = [];
@@ -58,6 +70,8 @@ function initMultiTime() {
         }
     }
 
+    updateContentOptions();
+ 
     prepareLinearFresnelHelpData();
 
     prepareGainPump();
@@ -97,6 +111,8 @@ function multiTimeRoundTrip(iCount) {
         console.log(`${iCount} - ${((endTime - startTime) * 0.001).toFixed(3)} mean=${meanMean}`);
     }
 
+
+
     [0, 1].forEach((side) => {
         phaseChangeDuringKerr();
         // phaseChangeDuringKerr (V)
@@ -115,6 +131,8 @@ function multiTimeRoundTrip(iCount) {
 function coverRound(params) {
     if (params[0] <= 0) {
         drawMultiMode();
+        const endTime = performance.now()
+        console.log(`Call to full took ${endTime - startTime} milliseconds`)
         return null;
     }
     multiTimeRoundTrip(1);
@@ -124,6 +142,8 @@ function coverRound(params) {
 
     if (params[0] <= 1) {
         drawMultiMode();
+        const endTime = performance.now()
+        console.log(`Call to full took ${endTime - startTime} milliseconds`)
         return null;
     }
 
@@ -131,6 +151,7 @@ function coverRound(params) {
 }
 
 var startTime;
+var startTimeFull;
 function timeCavityStep(step, redraw) {
     startTime = performance.now()
 
@@ -141,6 +162,7 @@ function timeCavityStep(step, redraw) {
         case 4: linearCavityOneSide(1); break;
         case 6: math.range(0, Math.pow(10, nRounds)).forEach((x)=> multiTimeRoundTrip(x)); break;
         case 5:
+            startTimeFull = performance.now()
             doCover(coverRound, [Math.pow(10, nRounds)]);
             break;
     }
@@ -153,10 +175,10 @@ function timeCavityStep(step, redraw) {
         drawVector(gainReduction, false, "red", 1, false, "gainSat", "PumpSat", 0);
         drawVector(gainReductionWithOrigin, false, "blue", 1,  false,"gainSat", "Pump + 1", 0);
         drawVector(gainReductionAfterAperture, false, "black", 1,  false,"gainSat", "with aper", 0);
-        drawVector(multiTimeAperture, false, "gray", 1,  false,"gainSat", "apertue", 0);
+        drawVector(multiTimeAperture, false, "gray", 1,  false,"gainSat", "aperture", 0);
         drawVector(sumPowerIx, true, "blue", 1,  false,"meanPower", "Power", 0);
-        drawVector(ps1, true, "red", 1, false, "kerrPhase", "Kerr", 0);
-        drawVector(ps2, false, "green", 1,  false,"kerrPhase", "Lens", 0);
+        drawVector(ps1, true, "red", 1, false, "kerrPhase", "Kerr", 0, "hello");
+        drawVector(ps2, false, "green", 1,  false,"kerrPhase", "Lens", 0, `f=${kerrFocalLength}`);
     }
 }
 function fftToFrequency() {
@@ -199,6 +221,8 @@ function spectralGainDispersion() {
 }
 
 function linearCavityOneSide(side) {
+    multiTimeFrontsSaves[side * 2] = math.clone(multiTimeFronts);
+
     let Is = 200;
     gainReduction = math.dotMultiply(pumpGain0, math.dotDivide(nSamplesOnes, math.add(1, math.divide(sumPowerIx, Is * nTimeSamples)))).map((v) => v.re);
     gainReductionWithOrigin = math.add(1, gainReduction);
@@ -217,6 +241,7 @@ function linearCavityOneSide(side) {
         multiTimeFrontsTrans[iTime] = fr;
     }
     multiTimeFronts = math.transpose(multiTimeFrontsTrans) 
+    multiTimeFrontsSaves[side * 2 + 1] = math.clone(multiTimeFronts);
 }
 
 function prepareGainPump() {
@@ -307,11 +332,15 @@ function drawMultiTime() {
         return
     }
 
-    drawTimeFronts(1, document.getElementById("funCanvasTime"));
-    drawTimeFronts(2, document.getElementById("funCanvasFrequency"));
+    drawTimeFronts(multiTimeFronts, document.getElementById("funCanvasTime"));
+    if (contentOption == 0) {
+        drawTimeFronts(multiFrequencyFronts, document.getElementById("funCanvasFrequency"));
+    } else {
+        drawTimeFronts(multiTimeFrontsSaves[contentOption - 1], document.getElementById("funCanvasFrequency"));
+    }
 }
 
-function drawTimeFronts(domainOption, canvas) {
+function drawTimeFronts(fs, canvas) {
 
     const ctx = canvas.getContext("2d");
     drawMid = canvas.height / 2;
@@ -321,7 +350,6 @@ function drawTimeFronts(domainOption, canvas) {
     var id = ctx.getImageData(0, 0, canvasWidth, canvasHeight);
     var pixels = id.data;
     
-    let fs = (domainOption == 1) ? multiTimeFronts : multiFrequencyFronts;
     let maxV, maxS, meanV, meanS, meanMean, totalSumPower;
 
     if (viewOption == 1) {
@@ -393,12 +421,9 @@ function drawTimeFronts(domainOption, canvas) {
 
 function multiTimeCanvasMouseMove(e, updateTest = false) {
     id = e.target.id;
-    let fs = (id == "funCanvasTime") ? multiTimeFronts : multiFrequencyFronts;
+    let fs = (id == "funCanvasTime") ? multiTimeFronts : 
+        (contentOption == 0 ? multiFrequencyFronts : multiTimeFrontsSaves[contentOption - 1]);
     let [x, y] = getClientCoordinates(e);
-
-    // var bounds = e.target.getBoundingClientRect();
-    // var x = e.clientX - bounds.left;
-    // var y = e.clientY - bounds.top;
 
     let front = math.transpose(fs)[x];
     let xVec, yVec;
@@ -415,10 +440,10 @@ function multiTimeCanvasMouseMove(e, updateTest = false) {
     let front2 = math.abs(math.dotMultiply(front, math.conj(front)));
     ps1 = math.multiply(IklTimesI.im, front2);
 
-    drawVector(xVec, true, "red", 1, false, "sampleX", "by-X", 0);
+    drawVector(xVec, true, "red", 1, false, "sampleX", "by-X", 0, `w=${calcWidth(xVec).toFixed(2)}`);
     drawVector(yVec, true, "red", 1, false, "sampleY", "by-Y", 0);
     drawVector(ps1, true, "red", 1, false, "kerrPhase", "Kerr", 0);
-    drawVector(ps2, false, "green", 1,  false,"kerrPhase", "Lens", 0);
+    drawVector(ps2, false, "green", 1,  false,"kerrPhase", "Lens", 0, `f=${kerrFocalLength}`);
 
     if (updateTest) {
         const canvas = document.getElementById(`funCanvasTest`);

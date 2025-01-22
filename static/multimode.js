@@ -510,7 +510,7 @@ function vecWaistFromQ(v) {
 
 var drawVectorComparePrevious = [];
 
-function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowChange= false, id="graphCanvas", name = "", start=drawSx ) {
+function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowChange = false, id = "graphCanvas", name = "", start = drawSx, message = "") {
     if (!drawOption) {
         return
     }
@@ -526,7 +526,7 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowCha
     const prevCompare = document.getElementById('cbxPrevCompare')?.checked;
     if (l > 0) {
         fac = Math.max(Math.abs(Math.max(...v)), Math.abs(Math.min(...v)));
-        let vecObj = {vec: math.clone(v), w: pixelWidth, s: start, c: color, n: name, f: fac};
+        let vecObj = {vec: math.clone(v), w: pixelWidth, ch:allowChange,  s: start, c: color, n: name, f: fac, m: message};
         vectors.push(vecObj);
         presentedVectors.set(id, vectors);
     } else {
@@ -534,10 +534,12 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowCha
     }
     l = vectors.reduce((p, c) => Math.max(p, c.vec.length), 0);
     start = vectors.reduce((p, c) => Math.max(p, c.s), 0);
+    let change = vectors.reduce((p, c) => p || c.ch, false);
+    pixelWidth = vectors.reduce((p, c) => Math.max(p, c.w), 0);
 
     const canvas = document.getElementById(id);
     const ctx = canvas.getContext("2d");
-    if (allowChange && pixelWidth > (canvas.width - start) / l) {
+    if (change && pixelWidth > (canvas.width - start) / l) {
         pixelWidth = (canvas.width - start) / l;
     }
 
@@ -583,6 +585,7 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowCha
 
         drawTextBG(ctx, `${vo.n}`, 20, 120 + (iVec + 1) * 16, vo.c);
     });
+    document.getElementById(`${id}-message`).innerHTML = vectors.map((c) => c.m).filter((c) => c.length > 0).join("</br>");
     if (prevCompare) {
         ctx.strokeStyle = 'green';
         ctx.beginPath();
@@ -910,8 +913,9 @@ function getMatOnRoundTrip(oneWay = false) {
 function calcWidth(v) {
     let l = v.length;
     let N = 0; sumX = 0; sumX2 = 0;
+    let va = math.abs(v)
     for (let i = 0; i < l; i++) {
-        let val = v[i].toPolar().r;
+        let val = va[i];
         N += val;
         sumX += i * val;
         sumX2 += i * i * val;

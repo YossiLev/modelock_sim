@@ -133,11 +133,16 @@ def graphCanvas(id="graphCanvas", width=1000, height = 200, options=True):
                 Span("1.0", id=f"{id}-zoomVal", style="display: none;"),
                 style="position: absolute; float: left; z-index: 10;"
             ),
-            Canvas(id=id, width=width, height = height, 
+            Div(Span("", id=f"{id}-message", style=""),
+                style=f"position: absolute; z-index: 5; width: {width}px; text-align: right;"
+            ),
+            Canvas(
+                id=id, width=width, height = height, 
                    style="background-color: #e5e5f7; background-image:  repeating-radial-gradient( circle at 0 0, transparent 0, #e5e5f7 10px ), repeating-linear-gradient( #444cf755, #444cf7 );",
                 **{'onmousemove':"graphCanvasMouseMove(event);",
                 'onmousedown':"graphCanvasMouseDown(event);",
                 'onmouseup':"graphCanvasMouseUp(event);",},
+                
             )
         )
     )    
@@ -148,8 +153,8 @@ def initBeamType(beamParamInit = 0.0005, beamDistInit = 0.0):
             Option("Gaussian shift"), Option("Delta"), Option("Zero"),                               
             id="incomingFront"
         ),
-        Input(type="number", id=f'beamParam', placeholder="beam", step="0.0001", style="width:120px;", value=f'{beamParamInit}'),
-        Input(type="number", id=f'beamDist', placeholder="dist", step="0.0001", style="width:120px;", value=f'{beamDistInit}'),
+        Input(type="number", id=f'beamParam', placeholder="beam", step="0.0001", style="width:90px;", value=f'{beamParamInit}'),
+        Input(type="number", id=f'beamDist', placeholder="dist", step="0.0001", style="width:90px;", value=f'{beamDistInit}'),
         style="display:inline-block;"
     )
 
@@ -204,7 +209,7 @@ def generate_multimode(data_obj, tab, offset = 0):
                 Div(initBeamType(beamParamInit = 0.00003, beamDistInit = 0.0), 
                     Button("Init", onclick="initElementsMultiMode(); initMultiTime();"),
                     Button("Phase", onclick="timeCavityStep(1, true)"),
-                    Input(type="number", id=f'phase', placeholder="phase", step="0.0001", style="width:100px;", value=f'0.0001'),
+                    Input(type="number", id=f'phase', placeholder="phase", step="0.0001", style="width:60px;", value=f'0.0001'),
                     Button("Gain", onclick="timeCavityStep(2, true)"),
                     Button("R", onclick="timeCavityStep(3, true)"),
                     Button("L", onclick="timeCavityStep(4, true)"),
@@ -212,9 +217,9 @@ def generate_multimode(data_obj, tab, offset = 0):
                     Select(Option("0"), Option("1"), Option("2"), Option("3"), Option("4"), id="nRounds", **{'onchange':"nRoundsChanged();"}),
                     Button("Switch view", onclick="switchViewMultiMode()"),
                     Button("New Cavity", onclick="refreshCacityMatrices()"),
-                    Input(type="number", id=f'initialRange', placeholder="range(m)", step="0.0001", style="width:100px;", value=f'0.00024475293'),
+                    Input(type="number", id=f'initialRange', title="The range of the wave front (meters)", step="0.0001", style="width:100px;", value=f'0.00024475293'),
                     Input(type="number", id=f'power', placeholder="power", step="1000000", style="width:80px;", value=f'30000000'),
-                    Input(type="number", id=f'apreture', placeholder="apreture", step="0.00001", 
+                    Input(type="number", id=f'apreture', title="Width of a Gaussian aperture (meters)", 
                            style="width:70px;", value=f'0.000056', name="name", **{'onchange':"apertureChanged();"},),
                     Select(Option("256"), Option("512"), Option("1024"), Option("2048"), Option("4096"), id="nSamples", **{'onchange':"nSamplesChanged();"},),
                 ),
@@ -223,7 +228,7 @@ def generate_multimode(data_obj, tab, offset = 0):
                     Button(NotStr("&#43;"), escapse=False, hx_post="/addElement/2", hx_target="#fun", hx_vals='js:{localId: getLocalId()}'), 
                 ),
                 funCanvas("Time", width=1024, height=256, useZoom=False), 
-                funCanvas("Frequency", width=1024, height=256, useZoom=False),
+                FlexN([funCanvas("Frequency", width=1024, height=256, useZoom=False), Div(id="FrequencyCanvasOptions")]),
                 FlexN([graphCanvas(id="gainSat", width=256, height = 200, options=False), 
                        graphCanvas(id="meanPower", width=256, height = 200, options=False),
                        graphCanvas(id="sampleX", width=256, height = 200, options=False),

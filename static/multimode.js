@@ -59,7 +59,8 @@ function getInitFront(pPar = - 1) {
             saveBeamParam = waist0;
             saveBeamDist = beamDist;
             dx = initialRange / nSamples;
-            x0 = nSamples / 2 * dx;
+            console.log(`on creeate range=${initialRange} dx = ${dx}`)
+            x0 = (nSamples - 1) / 2 * dx;
             for (let i = 0; i < nSamples; i++) {
                 let px = i * dx;
                 let x = (px - x0);
@@ -78,7 +79,7 @@ function getInitFront(pPar = - 1) {
             saveBeamDist = beamDist;
             dx = initialRange / nSamples;
 
-            x0 = nSamples / 2 * dx;
+            x0 = (nSamples / 2 - 1) * dx;
             for (let i = 0; i < nSamples; i++) {
                 let px = i * dx;
                 let x = (px - x0);

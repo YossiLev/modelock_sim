@@ -7,19 +7,25 @@ nav {
   color: #fff;
  }
 
- .checkbtn {
+.checkbtn {
   font-size: 1.5rem;
   color: white;
   cursor: pointer;
- }
+}
 
- .dropMenu {
+table, th, td {
+  border: 1px solid rgb(111, 154, 247);
+  border-collapse: collapse;
+  padding: 2px;
+}
+
+.dropMenu {
   position: absolute;
   background: rgb(213 236 242);;
   overflow: hidden;
   height:0px;
   transition: height 0.25s ease;
- }
+}
 .B:checked ~ .dropMenu {
   height:120px;
 }

@@ -37,6 +37,6 @@ function doCoverX(func, params, counter) {
         moverShow(null, inner);
         setTimeout(doCoverX, 1, func, nextParams, counter + 1);
     } else {
-        moverHide();
+        moverHide(1);
     }
 }

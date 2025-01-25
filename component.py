@@ -202,6 +202,7 @@ class TiSapphs(SimComponent):
         self.kerr_par = 4 * self.length * self.n2
 
         self.Ikl = self.kerr_par / self.nLenses / 50
+        print(f"Ikl = {self.Ikl}")
 
     def draw(self, draw, mapper, beam):
         d1 = rotAngle((5 * 0.001, 3 * 0.001), beam.angle)

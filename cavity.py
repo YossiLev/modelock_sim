@@ -27,6 +27,8 @@ class CavityData():
         print(f"aa matlab {matlab}")
         self.matlab = matlab
         self.step = 0
+        self.recorded_data = [["Time", "Power", "Width", "Lensing Right", "Lensing Left", "Total Mat"]]
+        self.recorded_data_indices = []
 
         pass
 
@@ -106,7 +108,15 @@ class CavityData():
     
     def get_state_analysis(self):
         return {}
+
+    def get_recorded_data(self):
+        return self.recorded_data
     
+    def get_record_steps(self, index):
+        self.recorded_data = [["Time", "Power", "Width", "Lensing Right", "Lensing Left", "Total Mat"],
+                              *[[str(x), "-", "-", "-", "-", "-"] for x in range(5)]]
+
+  
     def simulation_step(self):
         self.step = self.step + 1
         pass
@@ -359,9 +369,31 @@ class CavityDataPartsKerr(CavityDataParts):
 
         self.phaseShift = np.angle(self.Ew[self.cbuf, :])
 
+    def get_record_steps(self, index):
+        powerChart = self.get_state()[0]
+        index = np.argmax(powerChart.y) + index
+        print("in record step", index)
+        self.recorded_data = [["Time", "Step", "Power", "Width", "Lensing Right", "Power", "Width", "Lensing Left"],]
+        self.recorded_data_indices = list(range(max(0, index - 4), min(self.n, index + 4), 1))
+        self.recorded_data_raw = []
+        self.simulation_step()
+            
+        for i in range(len(self.recorded_data_indices)):
+            lens = [0, 0]
+            for s in range(5):
+                v = [f"{self.recorded_data_indices[i]}", f"{s + 1}"]
+                for side in range(2):
+                    g = self.recorded_data_raw[s + 5 * side]
+                    v = v + [f"{g[1][i]:.4e}", f"{g[2][i]:.4e}", f"{g[3][i]:.4e}"]
+                    lens[side] += 1.0 / g[3][i]
+                self.recorded_data.append(v)
+            v = [f"{self.recorded_data_indices[i]}", "T", "", "", f"{(1 / lens[0]):.4e}", "", "", f"{(1 / lens[1]):.4e}"]
+            self.recorded_data.append(v)
+            
+        self.recorded_data_indices = []
+
     def simulation_step(self):
         super().simulation_step()
-
         sim = self
 
         phiKerr = lambda Itxx, Wxx: np.exp((1j * sim.Ikl * Itxx) / (sim.lambda_ * Wxx**2)) # non-linear instantenous phase accumulated due to Kerr effect

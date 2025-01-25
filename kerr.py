@@ -91,15 +91,21 @@ def MLSpatial_gain(sim):
         wt = WaistOfQ(qt)
         et = phiKerr(p, w) * e
 
-        return qt, wt, et
+        return qt, wt, et, p, Feff
     
-    def thickKerrSteps(qp, Wp, Ep, Ikl, fullStep, steps, M = None):
+    def thickKerrSteps(sim, qp, Wp, Ep, Ikl, fullStep, steps, M = None):
+        ind = sim.recorded_data_indices
         for iStep in range(len(steps)):
-            qp, Wp, Ep = thinKerr(qp, Wp, Ep, Ikl, steps[iStep] * fullStep, M if iStep == len(steps) - 1 else None)
+            qp, Wp, Ep, pP, fP = thinKerr(qp, Wp, Ep, Ikl, steps[iStep] * fullStep, M if iStep == len(steps) - 1 else None)
+            if (len(ind) > 0):
+                wV = [Wp[i] for i in ind]
+                pV = [pP[i] for i in ind]
+                fV = [fP[i] for i in ind]
+                sim.recorded_data_raw.append([iStep, pV, wV, fV])
         return qp, Wp, Ep
 
-    qp, Wp, Ep = thickKerrSteps(qp, Wp, Ep, Ikl, fullStep, steps, MRight)
-    qp, Wp, Ep = thickKerrSteps(qp, Wp, Ep, Ikl, fullStep, steps, MLeft)
+    qp, Wp, Ep = thickKerrSteps(sim, qp, Wp, Ep, Ikl, fullStep, steps, MRight)
+    qp, Wp, Ep = thickKerrSteps(sim, qp, Wp, Ep, Ikl, fullStep, steps, MLeft)
 
     # #print(f"**** s- {qp[0]}")
     # for i in range(N - 1):

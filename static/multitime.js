@@ -1,13 +1,13 @@
 var nTimeSamples = 1024;
 var multiTimeFronts = [];
-var multiTimeFrontsSaves = [[], [], [], []];
+var multiTimeFrontsSaves = [[], [], [], [], [], []];
 var multiFrequencyFronts = [];
 var factorGain = [];
 var IntensitySaturationLevel = 400000000000000.0;
 var intensityTotalByIx = [];
 var factorGainByIx = [];
 var Ikl = 0.02;
-let IklTimesI = math.complex(0, Ikl * 80 * 0.001);
+let IklTimesI = math.complex(0, Ikl * 80 * 0.000000001);
 var rangeW = [];
 var spectralGain = [];
 var dispersion = [];
@@ -29,19 +29,19 @@ var kerrFocalLength = 0.0075;
 var ps1 = [];
 var ps2 = [];
 var contentOption = 0;
-var contentOptionVals = ["F", "1", "2", "3", "4"];
+var contentOptionVals = ["F", "1", "2", "3", "4", "5", "6"];
 
 
-// let MatSide = [[[-1.2947E+00, 4.8630E-03], [1.5111E+02, -1.3400E+00]],  // right
-//                 [[1.1589E+00, 8.2207E-04], [2.9333E+02, 1.0709E+00]]];   // left
+let MatSide = [[[-1.2947E+00, 4.8630E-03], [1.5111E+02, -1.3400E+00]],  // right
+                 [[1.1589E+00, 8.2207E-04], [2.9333E+02, 1.0709E+00]]];   // left
 
 // delta 0.0095 focal 0.0075
 //let MatSide = [[[-0.2982666667, -0.006166766667], [147.7333333, -0.2982666667]],  // right
 //                [[0.3933333333, -0.002881666667], [293.3333333, 0.3933333333]]];   // left
 
 // delta 0.005  focal 20.00
-let MatSide = [[[-0.6266666667, -0.0040666666677], [149.3333333,-0.6266666667]],  // right
-                [[-0.2666666667, -0.003166666667], [293.3333333, -0.2666666667]]];   // left
+//let MatSide = [[[-0.6266666667, -0.0040666666677], [149.3333333,-0.6266666667]],  // right
+//                [[-0.2666666667, -0.003166666667], [293.3333333, -0.2666666667]]];   // left
 
 
 function refreshCacityMatrices() {
@@ -87,7 +87,7 @@ function initMultiTime() {
 
 function initGainByFrequency() {
     let specGain = math.complex(200);
-    let disp_par = 0.5e-3 * 2 * Math.PI / specGain;    
+    let disp_par = 0 * 0.5e-3 * 2 * Math.PI / specGain;    
     rangeW = math.range(- nTimeSamples / 2 , nTimeSamples / 2).toArray().map((v) => math.complex(v + 0.0));
     let ones = rangeW.map((v) => math.complex(1.0));
     let mid = math.dotDivide(rangeW, rangeW.map((v) => specGain));
@@ -114,7 +114,7 @@ function multiTimeRoundTrip(iCount) {
 
 
     [0, 1].forEach((side) => {
-        phaseChangeDuringKerr();
+        phaseChangeDuringKerr(side);
         // phaseChangeDuringKerr (V)
 
         spectralGainDispersion();
@@ -195,7 +195,20 @@ function ifftToTime() {
     }
 }
 
-function phaseChangeDuringKerr() {
+function phaseChangeDuringKerr(side) {
+
+    let multiTimeFrontsTrans = math.transpose(multiTimeFronts) 
+    for (let iTime = 0; iTime < nTimeSamples; iTime++) {
+        let fr = multiTimeFrontsTrans[iTime];
+        let pFrBefore = math.sum(math.dotMultiply(fr, math.conj(fr)));
+        let frAfter = math.dotMultiply(fr, multiTimeAperture);
+        let pFrAfter = math.sum(math.dotMultiply(frAfter, math.conj(frAfter)));
+        fr = math.multiply(frAfter, Math.sqrt(pFrBefore / pFrAfter));
+        multiTimeFrontsTrans[iTime] = fr;
+    }
+    multiTimeFronts = math.transpose(multiTimeFrontsTrans) 
+    multiTimeFrontsSaves[side * 3 + 0] = math.clone(multiTimeFronts);
+
     sumPowerIx = [];
     ps1 = [];
     ps2 = [];
@@ -221,17 +234,24 @@ function spectralGainDispersion() {
 }
 
 function linearCavityOneSide(side) {
-    multiTimeFrontsSaves[side * 2] = math.clone(multiTimeFronts);
+    multiTimeFrontsSaves[side * 3 + 1] = math.clone(multiTimeFronts);
 
-    let Is = 200;
+    let Is = 200 * 6520;
     gainReduction = math.dotMultiply(pumpGain0, math.dotDivide(nSamplesOnes, math.add(1, math.divide(sumPowerIx, Is * nTimeSamples)))).map((v) => v.re);
-    gainReductionWithOrigin = math.add(1, gainReduction);
-    gainReductionAfterAperture = math.dotMultiply(gainReductionWithOrigin, multiTimeAperture);
+    gainReductionWithOrigin = math.multiply(0.6, math.add(1, gainReduction));
+    //gainReductionAfterAperture = math.dotMultiply(gainReductionWithOrigin, multiTimeAperture);
 
     let multiTimeFrontsTrans = math.transpose(multiTimeFronts) 
+
     for (let iTime = 0; iTime < nTimeSamples; iTime++) {
         let fr = multiTimeFrontsTrans[iTime];
-        fr = math.dotMultiply(fr, gainReductionAfterAperture);
+        // let pFrBefore = math.sum(math.dotMultiply(fr, math.conj(fr)));
+        // let frAfter = math.dotMultiply(fr, multiTimeAperture);
+        // let pFrAfter = math.sum(math.dotMultiply(frAfter, math.conj(frAfter)));
+        // fr = math.multiply(frAfter, Math.sqrt(pFrBefore / pFrAfter));
+        // pFrAfter = math.sum(math.dotMultiply(frAfter, math.conj(frAfter)))
+
+        fr = math.dotMultiply(fr, gainReductionWithOrigin);
         fresnelData[side].forEach((fresnelSideData) => {
             fr = math.dotMultiply(fr, fresnelSideData.vecs[0]);
             fr = fft(fr, fresnelSideData.dx);
@@ -241,7 +261,7 @@ function linearCavityOneSide(side) {
         multiTimeFrontsTrans[iTime] = fr;
     }
     multiTimeFronts = math.transpose(multiTimeFrontsTrans) 
-    multiTimeFrontsSaves[side * 2 + 1] = math.clone(multiTimeFronts);
+    multiTimeFrontsSaves[side * 3 + 2] = math.clone(multiTimeFronts);
 }
 
 function prepareGainPump() {
@@ -258,7 +278,7 @@ function prepareGainPump() {
 
 function prepareAperture() {
     multiTimeAperture  = [];
-    let apertureWidth = 0.000056;
+    let apertureWidth = 0.000056 * 0.3;
     for (let ix = 0; ix < nSamples; ix++) {
         let x = (ix - nSamples / 2) * dx0;
         let xw = x / apertureWidth;
@@ -267,8 +287,6 @@ function prepareAperture() {
 }
 
 function prepareLinearFresnelHelpData() {
-
-
     let matProg = [[1, 0.003], [0, 1]];
     fresnelData = [];
 
@@ -350,7 +368,7 @@ function drawTimeFronts(fs, canvas) {
     var id = ctx.getImageData(0, 0, canvasWidth, canvasHeight);
     var pixels = id.data;
     
-    let maxV, maxS, meanV, meanS, meanMean, totalSumPower;
+    let maxV, maxS, meanV, meanS, meanMean, totalSumPower, meanH, maxH;
 
     if (viewOption == 1) {
         fs = math.abs(fs);
@@ -359,8 +377,10 @@ function drawTimeFronts(fs, canvas) {
         maxV = math.max(fs, 0);
         maxS = math.max(maxV);
         meanV = math.mean(fs, 0);
-        meanS = math.max(meanV);
+        console.log(meanV);
+        meanS = math.max(meanV) * nSamples;
         meanMean = math.mean(meanV);
+        //maxH = math.max(meanH) * nSamples;
     }
 
     let sum0;
@@ -414,8 +434,9 @@ function drawTimeFronts(fs, canvas) {
         //     ctx.lineTo(iTime, y);
         // }
         // ctx.stroke();
-        drawTextBG(ctx, (meanMean).toFixed(6), 10, 10);
-        drawTextBG(ctx, (totalSumPower).toFixed(1), 10, 30);
+        drawTextBG(ctx, (meanS).toFixed(1), 10, 10);
+        drawTextBG(ctx, (meanMean).toFixed(1), 10, 30);
+        drawTextBG(ctx, (totalSumPower).toFixed(1), 10, 50);
     }
 }
 
@@ -440,10 +461,20 @@ function multiTimeCanvasMouseMove(e, updateTest = false) {
     let front2 = math.abs(math.dotMultiply(front, math.conj(front)));
     ps1 = math.multiply(IklTimesI.im, front2);
 
-    drawVector(xVec, true, "red", 1, false, "sampleX", "by-X", 0, `w=${calcWidth(xVec).toFixed(2)}`);
+    let pw = math.sum(math.dotMultiply(xVec, xVec));
+    let width = calcWidth(xVec)
+    let waist = width * dx0 * 2.0 * 1.414;
+    console.log(`total range ${totalRange} dx0 = ${dx0} widthunit = ${width}`);
+    let Ikl = 1.44E-24;
+    let focal = (waist ** 4) / (Ikl * pw)
+    ps3 = xVec.map((dumx, ix) => (- Math.PI / lambda / focal * ((ix - nSamples / 2) * dx0) * ((ix - nSamples / 2) * dx0)));
+
+    drawVector(xVec, true, "red", 1, false, "sampleX", "by-X", 0, 
+        `t=${x}</br>Wa=${(waist*1000000).toFixed(0)}mic</br>p=${pw.toExponential(4)}</br>f=${focal.toFixed(4)}`);
     drawVector(yVec, true, "red", 1, false, "sampleY", "by-Y", 0);
     drawVector(ps1, true, "red", 1, false, "kerrPhase", "Kerr", 0);
     drawVector(ps2, false, "green", 1,  false,"kerrPhase", "Lens", 0, `f=${kerrFocalLength}`);
+    drawVector(ps3, false, "blue", 1,  false,"kerrPhase", "LensW", 0, `f=${focal.toFixed(4)}`);
 
     if (updateTest) {
         const canvas = document.getElementById(`funCanvasTest`);

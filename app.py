@@ -7,7 +7,7 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
 from simulation import generate_all_charts
-from geometry import generate_canvas, generate_beam_params
+from geometry import generate_geometry, generate_beam_params
 from fun import generate_multimode
 from design import generate_design
 from iterations import generate_iterations, Iteration
@@ -98,7 +98,7 @@ def make_page(data_obj):
         case "Geometry":
             return my_frame("Geometry", 
                 Div(
-                    Div(generate_canvas(data_obj, 1), cls="box", style="background-color: rgb(208 245 254);", id="geometry"), style="width:1100px"))
+                    Div(generate_geometry(data_obj, 1), cls="box", style="background-color: rgb(208 245 254);", id="geometry"), style="width:1100px"))
         case "Design":
             return my_frame("Design",
                 Div(
@@ -413,15 +413,21 @@ def load(id: str, localId: str):
 
 @app.post("/tabgeo/{tabid}")
 def load(tabid: str, localId: str):
-    return generate_canvas(get_Data_obj(localId), int(tabid))
+    return generate_geometry(get_Data_obj(localId), int(tabid))
 
 @app.post("/tabfun/{tabid}")
 def load(tabid: str, localId: str):
     return generate_multimode(get_Data_obj(localId), int(tabid))
 
-@app.post("/moveonchart/{offset}")
+@app.post("/moveonchart/{offset}/{tab}")
+def load(offset: int, tab: int, localId: str):
+    return generate_geometry(get_Data_obj(localId), tab, offset)
+
+@app.post("/recordstep/{offset}")
 def load(offset: int, localId: str):
-    return generate_canvas(get_Data_obj(localId), 3, offset)
+    sim = get_sim_obj(localId)
+    sim.get_record_steps(offset)
+    return generate_geometry(get_Data_obj(localId), 4, offset)
 
 @app.post("/beamParams/{tabid}")
 def parameter_num(tabid: str, localId: str, beam_x: str, beam_theta: str):
@@ -446,7 +452,7 @@ def parameter_num(tabid: str, localId: str, beam_x: str, beam_theta: str):
         sim.beam_theta_error = True
     
     sim.build_beam_geometry()
-    return generate_canvas(dataObj, int(tabid))
+    return generate_geometry(dataObj, int(tabid))
 
 from fun import elements
 

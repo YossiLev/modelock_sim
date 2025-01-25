@@ -6,19 +6,6 @@ import numpy as np
 from fasthtml.common import *
 from cavity import CavityData
 
-# def draw_arc(draw, R, P, angle_s, angle_e):
-#     if R > 0:
-#         box = [(P[0] - 2 * R, P[1] - R), (P[0], P[1] + R)]
-#     else:
-#         box = [(P[0], P[1] + R), (P[0] - 2 * R, P[1] - R)]
-
-#     draw.arc(box, angle_s, angle_e, (255, 0, 0))
-
-# def draw_lens(draw, R, T, P):
-#     angle = math.degrees(np.arccos((R - T / 2) / R))
-#     draw_arc(draw, R, (P[0] + T / 2, P[1]), -angle, angle)
-#     draw_arc(draw, - R, (P[0] - T / 2, P[1]), 180-angle, 180 + angle)
-
 def generate_beam_params(sim, tab):
     return  Div(Form(
         Span("X"), Input(type="text", name="beam_x", value=str(sim.str_beam_x), 
@@ -32,7 +19,11 @@ def generate_beam_params(sim, tab):
         , id="beamParams", style="padding:3px;"
     )
 
-def generate_canvas(data_obj, tab, offset = 0):
+def geometry_tab(label, index, tab):
+    cl = f"tab {'tabselected' if tab == index else ''}"
+    return Div(label, hx_post=f"tabgeo/{index}", hx_target="#geometry", cls=cl, hx_vals='js:{localId: getLocalId()}')
+
+def generate_geometry(data_obj, tab, offset = 0):
 
     images = []
     added = Div()
@@ -59,10 +50,30 @@ def generate_canvas(data_obj, tab, offset = 0):
                 draw = ImageDraw.Draw(images[- 1])
                 sim.draw_cavity(draw, aligned = True, keep_aspect = False)
                 added = Div(
-                        Button(">", hx_post=f"/moveonchart/{offset + 1}", hx_trigger="click, keyup[key=='ArrowRight'] from:body", hx_target="#geometry", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML"), 
-                        Button("<", hx_post=f"/moveonchart/{offset - 1}", hx_trigger="click, keyup[key=='ArrowLeft'] from:body", hx_target="#geometry", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML"), 
+                        Button(">", hx_post=f"/moveonchart/{offset + 1}/3", hx_trigger="click, keyup[key=='ArrowRight'] from:body", hx_target="#geometry", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML"), 
+                        Button("<", hx_post=f"/moveonchart/{offset - 1}/3", hx_trigger="click, keyup[key=='ArrowLeft'] from:body", hx_target="#geometry", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML"), 
                         style="padding:0px 3px;")
+            case 4:
+                images.append(Image.new('RGB', (1024, 256), (225, 255, 255)))
+                draw = ImageDraw.Draw(images[- 1])
+                powerChart = sim.get_state()[0]
+                mxArg = np.argmax(powerChart.y) + offset
+                powerChart.draw(draw, markX = [mxArg])
+                table_data = sim.get_recorded_data()
 
+                added = Div(
+                            Div(
+                                Button(">", hx_post=f"/moveonchart/{offset + 1}/4", hx_trigger="click, keyup[key=='ArrowRight'] from:body", hx_target="#geometry", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML"), 
+                                Button("<", hx_post=f"/moveonchart/{offset - 1}/4", hx_trigger="click, keyup[key=='ArrowLeft'] from:body", hx_target="#geometry", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML"), 
+                                Button("Step", hx_post=f"/recordstep/{offset}", hx_trigger="click", hx_target="#geometry", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML"), 
+                                style="padding:0px 3px;"
+                            ),
+                            Table( 
+                                Thead(Tr(*[Th(h, scope="col") for h in table_data[0]])),  
+                                Tbody(*[Tr(*[Td(d) for d in r]) for r in table_data[1:]]),
+                                border=1,
+                            )
+                        )
 
     my_base64_jpgData = []
     for image in images:
@@ -71,9 +82,13 @@ def generate_canvas(data_obj, tab, offset = 0):
         my_stringIOBytes.seek(0)
         my_base64_jpgData.append(base64.b64encode(my_stringIOBytes.read()))
 
-    return Div(Div(Div("Real view",  hx_post="/tabgeo/1", hx_target="#geometry", cls=f"tab {'tabselected' if tab == 1 else ''}", hx_vals='js:{localId: getLocalId()}'),
-        Div("Align & stretch", hx_post="tabgeo/2", hx_target="#geometry", cls=f"tab {'tabselected' if tab == 2 else ''}", hx_vals='js:{localId: getLocalId()}'),
-        Div("Peak beam", hx_post="tabgeo/3", hx_target="#geometry", cls=f"tab {'tabselected' if tab == 3 else ''}", hx_vals='js:{localId: getLocalId()}')),
+    return Div(
+        Div(
+            geometry_tab("Real view", 1, tab),
+            geometry_tab("Align & stretch", 2, tab),
+            geometry_tab("Peak beam", 3, tab),
+            geometry_tab("Test step", 4, tab),
+        ),
         added,
         *[Div(Img(src=f'data:image/jpg;base64,{str(jpgData, "utf-8")}') for jpgData in my_base64_jpgData)], id="geometryCanvas"
     )

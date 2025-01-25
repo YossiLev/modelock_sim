@@ -28,13 +28,13 @@ function moverShow(e, innerHtml) {
     mover.innerHTML = innerHtml;
 }
 
-function moverHide() {
+function moverHide(delay = 2000) {
     let mover = document.getElementById("globalMover");
     if (mover != null) {
         
         setTimeout(() => {
             mover.style.display = "none";
-        }, 2000);
+        }, delay);
 
     }
 }

@@ -85,7 +85,7 @@ function getInitFront(pPar = - 1) {
                 let x = (px - x0);
                 xw = x / waist;
                 let fVal = math.add(math.exp(math.complex(- xw * xw, - theta * x * x)), 
-                    math.complex((Math.random() * 2 - 1) * 0.1, (Math.random() * 2 + 1) * 0.1));
+                    math.complex((Math.random() * 2 - 1) * 0.05, (Math.random() * 2 + 1) * 0.05));
                 vf.push(fVal);
             }
             break;

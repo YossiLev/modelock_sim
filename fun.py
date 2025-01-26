@@ -222,6 +222,10 @@ def generate_multimode(data_obj, tab, offset = 0):
                     Input(type="number", id=f'apreture', title="Width of a Gaussian aperture (meters)", 
                            style="width:70px;", value=f'0.000056', name="name", **{'onchange':"apertureChanged();"},),
                     Select(Option("256"), Option("512"), Option("1024"), Option("2048"), Option("4096"), id="nSamples", **{'onchange':"nSamplesChanged();"},),
+                    Button(">", onclick="shiftFronts(- 5);"),
+                    Button("<", onclick="shiftFronts(5);"),
+                    Button(">>", onclick="shiftFronts(- 50);"),
+                    Button("<<", onclick="shiftFronts(50);"),
                 ),
                 Div(
                     *[Element(el, i, tab) for i, el in enumerate(elements[2])],

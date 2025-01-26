@@ -7,7 +7,7 @@ var IntensitySaturationLevel = 400000000000000.0;
 var intensityTotalByIx = [];
 var factorGainByIx = [];
 var Ikl = 0.02;
-let IklTimesI = math.complex(0, Ikl * 80 * 0.000000001);
+let IklTimesI = math.complex(0, Ikl * 160 * 0.000000001);
 var rangeW = [];
 var spectralGain = [];
 var dispersion = [];
@@ -29,8 +29,8 @@ var kerrFocalLength = 0.0075;
 var ps1 = [];
 var ps2 = [];
 var contentOption = 0;
-var contentOptionVals = ["F", "1", "2", "3", "4", "5", "6"];
-
+var contentOptionVals = ["F", "1", "2", "3", "4", "5", "6", "M"];
+var matrices = [];
 
 let MatSide = [[[-1.2947E+00, 4.8630E-03], [1.5111E+02, -1.3400E+00]],  // right
                  [[1.1589E+00, 8.2207E-04], [2.9333E+02, 1.0709E+00]]];   // left
@@ -64,7 +64,8 @@ function initMultiTime() {
         multiTimeFronts.push([]);
     }
     for (let iTime = 0; iTime < nTimeSamples; iTime++) {
-        let fr = getInitFront(beamParam);
+        let rnd = math.complex((Math.random() * 2 - 1), (Math.random() * 2 - 1));
+        let fr = math.multiply(rnd, getInitFront(beamParam));
         for (let i = 0; i < nSamples; i++) {
             multiTimeFronts[i].push(fr[i]);
         }
@@ -87,7 +88,7 @@ function initMultiTime() {
 
 function initGainByFrequency() {
     let specGain = math.complex(200);
-    let disp_par = 0 * 0.5e-3 * 2 * Math.PI / specGain;    
+    let disp_par = 0.5e-3 * 2 * Math.PI / specGain;    
     rangeW = math.range(- nTimeSamples / 2 , nTimeSamples / 2).toArray().map((v) => math.complex(v + 0.0));
     let ones = rangeW.map((v) => math.complex(1.0));
     let mid = math.dotDivide(rangeW, rangeW.map((v) => specGain));
@@ -110,8 +111,6 @@ function multiTimeRoundTrip(iCount) {
 
         console.log(`${iCount} - ${((endTime - startTime) * 0.001).toFixed(3)} mean=${meanMean}`);
     }
-
-
 
     [0, 1].forEach((side) => {
         phaseChangeDuringKerr(side);
@@ -266,7 +265,7 @@ function linearCavityOneSide(side) {
 
 function prepareGainPump() {
     let epsilon = 0.2;
-    let pumpWidth = 0.000030;
+    let pumpWidth = 0.000030 * 0.5;
     let g0 = 1 / mirrorLoss + epsilon;
     pumpGain0 = [];
     for (let ix = 0; ix < nSamples; ix++) {
@@ -278,11 +277,11 @@ function prepareGainPump() {
 
 function prepareAperture() {
     multiTimeAperture  = [];
-    let apertureWidth = 0.000056 * 0.3;
+    let apertureWidth = 0.000056 * 0.5 * 0.75;
     for (let ix = 0; ix < nSamples; ix++) {
         let x = (ix - nSamples / 2) * dx0;
         let xw = x / apertureWidth;
-        multiTimeAperture.push(math.exp(- 0.5 * xw * xw));
+        multiTimeAperture.push(math.exp(- xw * xw));
     }
 }
 
@@ -353,6 +352,9 @@ function drawMultiTime() {
     drawTimeFronts(multiTimeFronts, document.getElementById("funCanvasTime"));
     if (contentOption == 0) {
         drawTimeFronts(multiFrequencyFronts, document.getElementById("funCanvasFrequency"));
+    } else if (contentOption == 7) {
+        calcMatrices();
+        drawMatrices(document.getElementById("funCanvasFrequency"));
     } else {
         drawTimeFronts(multiTimeFrontsSaves[contentOption - 1], document.getElementById("funCanvasFrequency"));
     }
@@ -377,7 +379,6 @@ function drawTimeFronts(fs, canvas) {
         maxV = math.max(fs, 0);
         maxS = math.max(maxV);
         meanV = math.mean(fs, 0);
-        console.log(meanV);
         meanS = math.max(meanV) * nSamples;
         meanMean = math.mean(meanV);
         //maxH = math.max(meanH) * nSamples;
@@ -442,6 +443,9 @@ function drawTimeFronts(fs, canvas) {
 
 function multiTimeCanvasMouseMove(e, updateTest = false) {
     id = e.target.id;
+    if (contentOption == 7) {
+        return;
+    }
     let fs = (id == "funCanvasTime") ? multiTimeFronts : 
         (contentOption == 0 ? multiFrequencyFronts : multiTimeFrontsSaves[contentOption - 1]);
     let [x, y] = getClientCoordinates(e);
@@ -465,8 +469,8 @@ function multiTimeCanvasMouseMove(e, updateTest = false) {
     let width = calcWidth(xVec)
     let waist = width * dx0 * 2.0 * 1.414;
     console.log(`total range ${totalRange} dx0 = ${dx0} widthunit = ${width}`);
-    let Ikl = 1.44E-24;
-    let focal = (waist ** 4) / (Ikl * pw)
+    let IklLocal = 1.44E-24;
+    let focal = (waist ** 4) / (IklLocal * pw)
     ps3 = xVec.map((dumx, ix) => (- Math.PI / lambda / focal * ((ix - nSamples / 2) * dx0) * ((ix - nSamples / 2) * dx0)));
 
     drawVector(xVec, true, "red", 1, false, "sampleX", "by-X", 0, 
@@ -483,6 +487,64 @@ function multiTimeCanvasMouseMove(e, updateTest = false) {
     }
 }
 
+function shiftFronts(s) {
+    s += nTimeSamples;
+    let multiTimeFrontsTrans = math.transpose(multiTimeFronts) 
+    let newMultiTimeFrontsTrans = []
+    for (let iTime = 0; iTime < nTimeSamples; iTime++) {
+        newMultiTimeFrontsTrans.push(multiTimeFrontsTrans[(iTime + s) % nTimeSamples])
+    }
+    multiTimeFronts = math.transpose(newMultiTimeFrontsTrans) 
+}
+
+function calcMatrices() {
+    let IklLocal = 1.44E-24;
+
+    let frontsForLens = [math.transpose(multiTimeFrontsSaves[0]), 
+                    math.transpose(multiTimeFrontsSaves[3])];
+    let lenses = frontsForLens.map((frs) => frs.map((fr) => {
+        let absfr = math.abs(fr);
+        let pw = math.sum(math.dotMultiply(absfr, absfr));
+        let width = calcWidth(absfr);
+        let waist = width * dx0 * 2.0 * 1.414;
+        let focal = (waist ** 4) / (IklLocal * pw);
+        return focal;
+    }));
+    
+    matrices = lenses[0].map((dum, i) => {
+        let mat = MMult(MatSide[0], MLens(lenses[0][i]));
+        mat = MMult(MLens(lenses[1][i]), mat);
+        mat = MMult(MatSide[1], mat);
+        return mat;
+    });
+}
+
+function drawMatrices(canvas) {
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    let fac = 80;
+    ctx.stroke();
+    ctx.strokeStyle = 'red';
+    ctx.beginPath();
+    ctx.moveTo(0, canvas.height - 1 - Math.floor(fac * 2.0));
+    ctx.lineTo(canvas.width, canvas.height - 1 - Math.floor(fac * 2.0));
+    ctx.stroke();
+
+    ctx.strokeStyle = 'blue';
+    ctx.beginPath();
+    matrices.forEach((m, i) => {
+        let val = Math.abs(m[0][0] + m[1][1]);
+        if (i == 0) {
+            ctx.moveTo(i, canvas.height - 1 - Math.floor(fac * val));
+        } else {
+            ctx.lineTo(i, canvas.height - 1 - Math.floor(fac * val));
+        }
+    });
+    ctx.stroke();
+
+}
 function progressMultiTime() {
     drawOption = false;
 

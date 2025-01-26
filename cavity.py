@@ -372,7 +372,6 @@ class CavityDataPartsKerr(CavityDataParts):
     def get_record_steps(self, index):
         powerChart = self.get_state()[0]
         index = np.argmax(powerChart.y) + index
-        print("in record step", index)
         self.recorded_data = [["Time", "Step", "Power", "Width", "Lensing Right", "Power", "Width", "Lensing Left"],]
         self.recorded_data_indices = list(range(max(0, index - 4), min(self.n, index + 4), 1))
         self.recorded_data_raw = []

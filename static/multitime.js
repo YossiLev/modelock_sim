@@ -28,7 +28,8 @@ var nSamplesOnes = Array.from({length: nSamples}, (v) => scalarOne)
 var kerrFocalLength = 0.0075;
 var ps1 = [];
 var ps2 = [];
-var contentOption = 0;
+var timeContentOption = 0;
+var freqContentOption = 0;
 var contentOptionVals = ["F", "1", "2", "3", "4", "5", "6", "M"];
 var matrices = [];
 
@@ -51,8 +52,13 @@ function refreshCacityMatrices() {
 
 function updateContentOptions() {
     let options = contentOptionVals.map((v, i) => {
-        style=`"margin: 3px; padding: 2px; border: 1px solid black; border-radius: 2px; background:${i == contentOption ? "yellow": "white"};"`
-        return `<div onclick="contentOption = ${i}; updateContentOptions(); drawMultiTime();" style=${style}>${v}</div>`
+        style=`"margin: 3px; padding: 2px; border: 1px solid black; border-radius: 2px; background:${i == timeContentOption ? "yellow": "white"};"`
+        return `<div onclick="timeContentOption = ${i}; updateContentOptions(); drawMultiTime();" style=${style}>${v}</div>`
+    }).join("");
+    document.getElementById("TimeCanvasOptions").innerHTML = options;
+    options = contentOptionVals.map((v, i) => {
+        style=`"margin: 3px; padding: 2px; border: 1px solid black; border-radius: 2px; background:${i == freqContentOption ? "yellow": "white"};"`
+        return `<div onclick="freqContentOption = ${i}; updateContentOptions(); drawMultiTime();" style=${style}>${v}</div>`
     }).join("");
     document.getElementById("FrequencyCanvasOptions").innerHTML = options;
 }
@@ -130,8 +136,8 @@ function multiTimeRoundTrip(iCount) {
 function coverRound(params) {
     if (params[0] <= 0) {
         drawMultiMode();
-        const endTime = performance.now()
-        console.log(`Call to full took ${endTime - startTime} milliseconds`)
+        const endTime = performance.now();
+        console.log(`Call to full took ${((endTime - startTime)/1000).toFixed(3)} s`)
         return null;
     }
     multiTimeRoundTrip(1);
@@ -142,7 +148,7 @@ function coverRound(params) {
     if (params[0] <= 1) {
         drawMultiMode();
         const endTime = performance.now()
-        console.log(`Call to full took ${endTime - startTime} milliseconds`)
+        console.log(`Call to full took ${((endTime - startTime)/1000).toFixed(3)} s`)
         return null;
     }
 
@@ -166,7 +172,6 @@ function timeCavityStep(step, redraw) {
             break;
     }
     const endTime = performance.now()
-    //console.log(`Call to timeCavityStep took ${endTime - startTime} milliseconds`)
 
     if (redraw) {
         drawMultiMode();
@@ -235,7 +240,7 @@ function spectralGainDispersion() {
 function linearCavityOneSide(side) {
     multiTimeFrontsSaves[side * 3 + 1] = math.clone(multiTimeFronts);
 
-    let Is = 200 * 6520;
+    let Is = 200 * 3520;
     gainReduction = math.dotMultiply(pumpGain0, math.dotDivide(nSamplesOnes, math.add(1, math.divide(sumPowerIx, Is * nTimeSamples)))).map((v) => v.re);
     gainReductionWithOrigin = math.multiply(0.6, math.add(1, gainReduction));
     //gainReductionAfterAperture = math.dotMultiply(gainReductionWithOrigin, multiTimeAperture);
@@ -277,7 +282,7 @@ function prepareGainPump() {
 
 function prepareAperture() {
     multiTimeAperture  = [];
-    let apertureWidth = 0.000056 * 0.5 * 0.75;
+    let apertureWidth = 0.000056 * 0.5 * 0.4;
     for (let ix = 0; ix < nSamples; ix++) {
         let x = (ix - nSamples / 2) * dx0;
         let xw = x / apertureWidth;
@@ -344,20 +349,23 @@ function SatGain() {
     }
 }
 
+function drawTimeFrontsWidthOptions(opt, canvas) {
+    if (opt == 0) {
+        drawTimeFronts(multiFrequencyFronts, canvas);
+    } else if (opt == 7) {
+        calcMatrices();
+        drawMatrices(canvas);
+    } else {
+        drawTimeFronts(multiTimeFrontsSaves[opt - 1], canvas);
+    }    
+}
+
 function drawMultiTime() {
     if (!drawOption) {
         return
     }
-
-    drawTimeFronts(multiTimeFronts, document.getElementById("funCanvasTime"));
-    if (contentOption == 0) {
-        drawTimeFronts(multiFrequencyFronts, document.getElementById("funCanvasFrequency"));
-    } else if (contentOption == 7) {
-        calcMatrices();
-        drawMatrices(document.getElementById("funCanvasFrequency"));
-    } else {
-        drawTimeFronts(multiTimeFrontsSaves[contentOption - 1], document.getElementById("funCanvasFrequency"));
-    }
+    drawTimeFrontsWidthOptions(timeContentOption, document.getElementById("funCanvasTime"));
+    drawTimeFrontsWidthOptions(freqContentOption, document.getElementById("funCanvasFrequency"));
 }
 
 function drawTimeFronts(fs, canvas) {
@@ -443,12 +451,16 @@ function drawTimeFronts(fs, canvas) {
 
 function multiTimeCanvasMouseMove(e, updateTest = false) {
     id = e.target.id;
-    if (contentOption == 7) {
+    if (freqContentOption == 7) {
         return;
     }
-    let fs = (id == "funCanvasTime") ? multiTimeFronts : 
-        (contentOption == 0 ? multiFrequencyFronts : multiTimeFrontsSaves[contentOption - 1]);
+    let opt = id == "funCanvasTime" ? timeContentOption: freqContentOption;
     let [x, y] = getClientCoordinates(e);
+    
+    if (opt == 7) {
+        return;
+    }
+    let fs = (timeContentOption == 0 ? multiFrequencyFronts : multiTimeFrontsSaves[opt - 1]);
 
     let front = math.transpose(fs)[x];
     let xVec, yVec;
@@ -459,8 +471,8 @@ function multiTimeCanvasMouseMove(e, updateTest = false) {
         xVec = front.map((v) => v.toPolar().phi);
         yVec = fs[y].map((v) => v.toPolar().phi);
     }
-    multiFronts[0] = [front];
-    multiRanges[0] = [totalRange];
+    // multiFronts[0] = [front];
+    // multiRanges[0] = [totalRange];
 
     let front2 = math.abs(math.dotMultiply(front, math.conj(front)));
     ps1 = math.multiply(IklTimesI.im, front2);
@@ -470,11 +482,11 @@ function multiTimeCanvasMouseMove(e, updateTest = false) {
     let waist = width * dx0 * 2.0 * 1.414;
     console.log(`total range ${totalRange} dx0 = ${dx0} widthunit = ${width}`);
     let IklLocal = 1.44E-24;
-    let focal = (waist ** 4) / (IklLocal * pw)
+    let focal = (waist ** 4) / (IklLocal * pw);
     ps3 = xVec.map((dumx, ix) => (- Math.PI / lambda / focal * ((ix - nSamples / 2) * dx0) * ((ix - nSamples / 2) * dx0)));
+    let message = `t=${x}</br>Wa=${(waist*1000000).toFixed(0)}mic</br>p=${pw.toExponential(4)}</br>f=${focal.toFixed(4)}`;
 
-    drawVector(xVec, true, "red", 1, false, "sampleX", "by-X", 0, 
-        `t=${x}</br>Wa=${(waist*1000000).toFixed(0)}mic</br>p=${pw.toExponential(4)}</br>f=${focal.toFixed(4)}`);
+    drawVector(xVec, true, "red", 1, false, "sampleX", "by-X", 0, message);
     drawVector(yVec, true, "red", 1, false, "sampleY", "by-Y", 0);
     drawVector(ps1, true, "red", 1, false, "kerrPhase", "Kerr", 0);
     drawVector(ps2, false, "green", 1,  false,"kerrPhase", "Lens", 0, `f=${kerrFocalLength}`);

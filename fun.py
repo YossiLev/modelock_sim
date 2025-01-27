@@ -231,7 +231,7 @@ def generate_multimode(data_obj, tab, offset = 0):
                     *[Element(el, i, tab) for i, el in enumerate(elements[2])],
                     Button(NotStr("&#43;"), escapse=False, hx_post="/addElement/2", hx_target="#fun", hx_vals='js:{localId: getLocalId()}'), 
                 ),
-                funCanvas("Time", width=1024, height=256, useZoom=False), 
+                FlexN([funCanvas("Time", width=1024, height=256, useZoom=False), Div(id="TimeCanvasOptions")]),
                 FlexN([funCanvas("Frequency", width=1024, height=256, useZoom=False), Div(id="FrequencyCanvasOptions")]),
                 FlexN([graphCanvas(id="gainSat", width=256, height = 200, options=False), 
                        graphCanvas(id="meanPower", width=256, height = 200, options=False),

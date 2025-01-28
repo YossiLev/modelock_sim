@@ -174,6 +174,11 @@ function zoomMultiMode(z) {
             zoomHorizontalAmount = zoomHorizontalAmount / 1.5;
             racalcHorizontalZoom(); 
             break;
+        case   20: 
+            zoomHorizontalShift = 0;
+            zoomHorizontalAmount = 1;
+            racalcHorizontalZoom(); 
+            break;
     }
     
     drawMultiMode();
@@ -329,7 +334,7 @@ function drawFronts(canvas, ctx, fronts, ranges) {
     }
 }
 
-function drawMultiMode() {
+function drawMultiMode(startDraw = 0.0) {
     if (!drawOption) {
         return;
     }
@@ -358,7 +363,7 @@ function drawMultiMode() {
         drawFronts(canvas, ctx, multiFronts[index], multiRanges[index]);
 
         if (drawMode == 1) {
-            drawElements(index + 1);
+            drawElements(index + 1, startDraw);
             displayTemp[index].forEach((el, i, a) => {
                 drawTextBG(ctx, el.toFixed(7), canvas.width - 80, canvas.height - 28 - 16 * ((a.length - i)));
             });
@@ -431,7 +436,7 @@ function drawMultiMode() {
     }
 }
 
-function drawElements(index) {
+function drawElements(index, startDraw) {
     if (!drawOption) {
         return
     }
@@ -445,41 +450,76 @@ function drawElements(index) {
     const ctx = canvas.getContext("2d");
     ctx.fillStyle = `yellow`;
     let globalDelta = elements.find((el) => el.t == "X").delta;
+    let cavityLength = elements.find((el) => el.t == "X").par[0];
 
-    for (let iEl = 0; iEl < elements.length; iEl++) {
-        let deltaFactor = elements[iEl].delta;
-        let pos = elements[iEl].par[0] + deltaFactor * globalDelta
-        switch (elements[iEl].t) {
-            
-            case "L":
-                ctx.fillStyle = `yellow`;
-                px = drawSx + (pos - distStart - zoomHorizontalShift) / distStep * zoomHorizontalAmount * drawW ;
-                ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);          
-                break;
-            case "C":
-                ctx.fillStyle = `purple`;
-                px = drawSx + (pos - distStart) / distStep * drawW ;
-                ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);          
-                px = drawSx + (pos + elements[iEl].par[1] - distStart) / distStep * drawW ;
-                ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);
-                let spx = (elements[iEl].par[1] / 10);
-                ctx.strokeStyle = `purple`;
-                ctx.setLineDash([5, 3]);
-                ctx.beginPath();
-                for (let iL = 0; iL < 5; iL++) {
-                    px = drawSx + (pos + (1 + 2 * iL) * spx - distStart) / distStep * drawW ;
-                    ctx.moveTo(px, drawMid - 80 * zoomFactor);
-                    ctx.lineTo(px, drawMid + 80 * zoomFactor);
-                }
-                ctx.stroke();
-                break;
-            case "X":
-                ctx.fillStyle = `blue`;
-                //px = drawSx + (elements[iEl].par[0] - distStart) / distStep * drawW ;
-                px = drawSx + (elements[iEl].par[0] - distStart - zoomHorizontalShift) / distStep * zoomHorizontalAmount * drawW ;
-                ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);          
-                break;
-                
+    for (let r = 0; r < 7; r += 2) {
+        for (let iEl = 0; iEl < elements.length; iEl++) {
+            let deltaFactor = elements[iEl].delta;
+            let pos = elements[iEl].par[0] + deltaFactor * globalDelta
+            switch (elements[iEl].t) {
+                case "L":
+                    ctx.fillStyle = `yellow`;
+                    px = drawSx + (pos - distStart - zoomHorizontalShift - startDraw + cavityLength * r) / distStep * zoomHorizontalAmount * drawW ;
+                    ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);          
+                    break;
+                case "C":
+                    ctx.fillStyle = `purple`;
+                    px = drawSx + (pos - distStart- startDraw + cavityLength * r) / distStep * drawW ;
+                    ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);          
+                    px = drawSx + (pos + elements[iEl].par[1] - distStart - startDraw + cavityLength * r) / distStep * drawW ;
+                    ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);
+                    let spx = (elements[iEl].par[1] / 10);
+                    ctx.strokeStyle = `purple`;
+                    ctx.setLineDash([5, 3]);
+                    ctx.beginPath();
+                    for (let iL = 0; iL < 5; iL++) {
+                        px = drawSx + (pos + (1 + 2 * iL) * spx - distStart- startDraw + cavityLength * r) / distStep * drawW ;
+                        ctx.moveTo(px, drawMid - 80 * zoomFactor);
+                        ctx.lineTo(px, drawMid + 80 * zoomFactor);
+                    }
+                    ctx.stroke();
+                    break;
+                case "X":
+                    ctx.fillStyle = `blue`;
+                    //px = drawSx + (elements[iEl].par[0] - distStart) / distStep * drawW ;
+                    px = drawSx + (elements[iEl].par[0] - distStart - zoomHorizontalShift - startDraw + cavityLength * r) / distStep * zoomHorizontalAmount * drawW ;
+                    ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);          
+                    break;
+            }
+        }
+        for (let iEl = elements.length - 1; iEl >= 0; iEl--) {
+            let deltaFactor = elements[iEl].delta;
+            let pos = elements[iEl].par[0] + deltaFactor * globalDelta
+            switch (elements[iEl].t) {
+                case "L":
+                    ctx.fillStyle = `yellow`;
+                    px = drawSx + (- pos - distStart - zoomHorizontalShift - startDraw + cavityLength * (r + 2)) / distStep * zoomHorizontalAmount * drawW ;
+                    ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);          
+                    break;
+                case "C":
+                    ctx.fillStyle = `purple`;
+                    px = drawSx + (- pos - distStart- startDraw + cavityLength * (r + 2)) / distStep * drawW ;
+                    ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);          
+                    px = drawSx + (- pos + elements[iEl].par[1] - distStart - startDraw + cavityLength * (r + 2)) / distStep * drawW ;
+                    ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);
+                    let spx = (elements[iEl].par[1] / 10);
+                    ctx.strokeStyle = `purple`;
+                    ctx.setLineDash([5, 3]);
+                    ctx.beginPath();
+                    for (let iL = 0; iL < 5; iL++) {
+                        px = drawSx + (- pos + (1 + 2 * iL) * spx - distStart- startDraw + cavityLength * (r + 2)) / distStep * drawW ;
+                        ctx.moveTo(px, drawMid - 80 * zoomFactor);
+                        ctx.lineTo(px, drawMid + 80 * zoomFactor);
+                    }
+                    ctx.stroke();
+                    break;
+                case "X":
+                    ctx.fillStyle = `blue`;
+                    //px = drawSx + (elements[iEl].par[0] - distStart) / distStep * drawW ;
+                    px = drawSx + (- elements[iEl].par[0] - distStart - zoomHorizontalShift - startDraw + cavityLength * (r + 2)) / distStep * zoomHorizontalAmount * drawW ;
+                    ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);          
+                    break;
+            }
         }
     }
 }
@@ -811,6 +851,9 @@ function MMultInv(m, m2) {
 
     return  [[a, b], [c, d]];
 }
+function MInv(m) {
+    return [[m[1][1], - m[0][1]], [- m[1][0], m[0][0]]];
+}
 
 let elements = [];
 let distStep = 0.003;
@@ -909,6 +952,69 @@ function getMatOnRoundTrip(oneWay = false) {
     MLeft1 = MMultInv(M, MMid);
 
     return M;
+}
+
+function getMatDistanceForever(dist) {
+    let M = [[1, 0], [0, 1]];
+    let globalDelta = elements.find((el) => el.t == "X").delta;
+
+    while (true) {
+        let iEl = 0;
+        let prevLensPos = 0.0, pos;
+            while (iEl < elements.length) {
+            switch (elements[iEl].t) {
+            case "L":
+                pos = elements[iEl].par[0] + elements[iEl].delta * globalDelta
+                if (dist < pos - prevLensPos) {
+                    M = MMult(MDist(dist), M);
+                    return M;
+                }
+                M = MMult(MDist(pos - prevLensPos), M);
+                M = MMult(MLens(elements[iEl].par[1]), M);
+                dist -= pos - prevLensPos;
+                prevLensPos = pos;
+                break;
+            case "X": // end wall
+                pos = elements[iEl].par[0];
+                if (dist < pos - prevLensPos) {
+                    M = MMult(MDist(dist), M);
+                    return M;
+                }
+                M = MMult(MDist(pos - prevLensPos), M);
+                dist -= pos - prevLensPos;
+                prevLensPos = pos;
+                break;
+            }
+            if (elements[iEl].t == "X") {
+                iEl--;
+                break;
+            }
+            iEl++;
+        }
+
+        while (iEl >= 0) {
+            switch (elements[iEl].t) {
+            case "L":
+                pos = elements[iEl].par[0] + elements[iEl].delta * globalDelta
+                if (dist < prevLensPos - pos) {
+                    M = MMult(MDist(dist), M);
+                    return M;
+                }
+                M = MMult(MDist(prevLensPos - pos), M);
+                M = MMult(MLens(elements[iEl].par[1]), M);
+                dist -= prevLensPos - pos;
+                prevLensPos = pos;
+                break;
+            }
+            iEl--;
+        }
+        if (dist < prevLensPos) {
+            M = MMult(MDist(dist), M);
+            return M;
+        }
+        dist -= prevLensPos;
+        M = MMult(MDist(prevLensPos), M);
+    }
 }
 
 function calcWidth(v) {
@@ -1047,7 +1153,7 @@ function fullCavityNewParams(delta, focal, waist) {
     fullCavityMultiMode();
 }
 
-function fullCavityMultiMode() {
+function fullCavityMultiMode(startDist = 0.0) {
     drawMode = 1;
     
     let fronts = multiFronts[0];
@@ -1057,6 +1163,10 @@ function fullCavityMultiMode() {
         return;
     }
     
+    let MStartDistInv = [[1, 0], [0, 1]];
+    if (startDist > 0.000001) {
+        MStartDistInv = MInv(getMatDistanceForever(startDist));
+    }
     vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0]; vecW = [0], vecWaist = [0], vecQ[0] = math.complex(0, RayleighRange), vecMats = [];
     
     for (let iStep = 1; iStep < 400; iStep++) {
@@ -1064,14 +1174,14 @@ function fullCavityMultiMode() {
         let r0 = ranges[0];
         let L = f0.length;
         let dx0 = r0 / L;
-        let dStep = getDistanceOfStep(iStep);
+        let dStep = getDistanceOfStep(iStep) + startDist;
         if (dStep < 0) {
             fronts.push(fronts[0].map((x) => math.complex(0.0)));
             ranges.push(r0);
             continue;
         }
 
-        let MS = getMatOnStep(dStep);
+        let MS = MMult(getMatDistanceForever(dStep), MStartDistInv);
 
         let [mats, isBack] = getMatricesAtDistFromStart(MS, dStep, r0);
 

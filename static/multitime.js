@@ -282,7 +282,7 @@ function prepareGainPump() {
 
 function prepareAperture() {
     multiTimeAperture  = [];
-    let apertureWidth = 0.000056 * 0.5 * 0.4;
+    let apertureWidth = 0.000056 * 0.4;
     for (let ix = 0; ix < nSamples; ix++) {
         let x = (ix - nSamples / 2) * dx0;
         let xw = x / apertureWidth;
@@ -471,8 +471,10 @@ function multiTimeCanvasMouseMove(e, updateTest = false) {
         xVec = front.map((v) => v.toPolar().phi);
         yVec = fs[y].map((v) => v.toPolar().phi);
     }
-    // multiFronts[0] = [front];
-    // multiRanges[0] = [totalRange];
+    if (opt % 7 != 0) {
+        multiFronts[0] = [front];
+        multiRanges[0] = [totalRange];
+    }
 
     let front2 = math.abs(math.dotMultiply(front, math.conj(front)));
     ps1 = math.multiply(IklTimesI.im, front2);
@@ -557,12 +559,22 @@ function drawMatrices(canvas) {
     ctx.stroke();
 
 }
-function progressMultiTime() {
+function progressMultiTime(direction) {
     drawOption = false;
 
     initElementsMultiMode();
+
+    let globalDelta = elements.find((el) => el.t == "X").delta;
+    let rightLength = elements.find((el) => el.t == "X").par[0];
+
+    let crsitalPosition = elements[1].par[0] + elements[1].delta * globalDelta;
+
     initMultiMode(3);
-    fullCavityMultiMode();
+
+    let startCalc = direction == 2 ? crsitalPosition + 0.000001 : rightLength + rightLength - crsitalPosition + 0.000001;
+    
+    fullCavityMultiMode(startCalc);
+
     drawOption = true;
-    drawMultiMode();
+    drawMultiMode(startCalc);
 }

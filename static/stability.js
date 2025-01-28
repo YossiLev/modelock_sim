@@ -43,11 +43,13 @@ function stabilityCanvasMouseMove(e) {
     const o = stabilityGraph.locate(canvas, ...getClientCoordinates(e));
     if (o != null) {
         const waist = o.val[1][0] ? o.val[1][3] : -1.0;
+        const R = o.val[1][0] ? o.val[1][4] : -1.0;
 
         let inner = `<div>A + D => ${o.val[0].toFixed(3)}</div>` + 
             `<div>&delta; ${(o.x * 100.0).toFixed(2)}cm</div>` + 
             `<div>focal = ${(o.y * 1000).toFixed(2)}mm</div>` + 
             `<div>waist = ${waist.toFixed(6)}mm</div>` + 
+            `<div>R = ${R.toFixed(4)}M</div>` + 
             `<button type="button" onclick="fullCavityNewParams(${o.x}, ${o.y}, ${waist});">Show</button>`
             moverShow(e, inner);
     }

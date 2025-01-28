@@ -97,6 +97,11 @@ def funCanvas(idd, width=1000, height=800, useZoom = True ):
                     cls="imgButton",
                     onclick="zoomMultiMode(-2);"
                 ),
+                Button(
+                    Img(src="static/z0w.png", alt="Zoom out", title="Reset horizontal stretch", width="24", height="24"),
+                    cls="imgButton",
+                    onclick="zoomMultiMode(20);"
+                ),
             ) if useZoom else Div(),
             Canvas(id=f"funCanvas{idd}", width=width, height=height, 
                 style="background-color: #f5f5f9; background-image: radial-gradient(circle at center center, #dcf68e, #f5f5f9), repeating-radial-gradient(circle at center center, #dcf68e, #dcf68e, 10px, transparent 20px, transparent 10px);background-blend-mode: multiply;",
@@ -239,7 +244,8 @@ def generate_multimode(data_obj, tab, offset = 0):
                        graphCanvas(id="kerrPhase", width=256, height = 200, options=False),
                 ]),
                 graphCanvas(id="sampleY", width=1024, height = 200, options=False),
-                Button("Progress", onclick="progressMultiTime()"),
+                Button("Progress left", onclick="progressMultiTime(1)"),
+                Button("Progress right", onclick="progressMultiTime(2)"),
                 funCanvas("Test", width=1400, height=256, useZoom=True), 
             )
         case 4:

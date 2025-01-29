@@ -16,6 +16,8 @@ def SatGain(Ew, w, g0, Is, Wp):
         g = g0 / (1 +  Imean / (Is * factor))
     else:
         g = g0 / (1 + Imean / Is)
+
+    print(F"Wmin = {Wmin}, wp = {Wp}, IMean = {Imean}, g = {g} ")
     return g
 
 def MLSpatial_gain(sim):
@@ -78,6 +80,34 @@ def MLSpatial_gain(sim):
     MLeft = distance(fullStep * edgeFactor) @ distance(sim.FMD + deltaPoint - sim.L / 2) @ lens(sim.FM) @ distance(sim.L2) @ \
             distance(sim.L2) @ lens(sim.FM) @ distance(sim.FMD + deltaPoint - sim.L / 2)
     
+    # fullStep = 0.0006
+    # edgeFactor  = 0.5
+    # RMD = 0.075
+    # deltaPlane= - 0.00075
+    # delta point = 0.00075
+    # L = 0.003
+    # RM = 0.150
+    # L1 = 0.5
+    # FMD = 0.075
+    # FM = 0.075
+    # L2 = 0.9
+
+    #           dist(0.0003)                     dist (0.075 + 0.00075 - 1e-10 - 0.0015 = 0.0742499999)      MCur(0.150) 
+    #MRight = distance(fullStep * edgeFactor) @ distance(sim.RMD - sim.deltaPlane - 1e-10 - sim.L / 2) @ Mcur(sim.RM) @ \
+    #              dist(0.5 + 0.5)                  MCur(0.150)          dist (0.075 - 0.00075 - 1e-10 - 0.0015 = 0.0727499999) 
+    #        distance(sim.L1) @ distance(sim.L1) @ Mcur(sim.RM) @ distance(sim.RMD + sim.deltaPlane - 1e-10 - sim.L / 2)
+
+    #           dist(0.0003)                   dist (0.075 + 0.00075 - 0.0015 = 0.07425)     L(0.075)    dist (0.9)
+    #MLeft = distance(fullStep * edgeFactor) @ distance(sim.FMD + deltaPoint - sim.L / 2) @ lens(sim.FM) @ distance(sim.L2) @ \
+    #         dist(0.9)            L(0.075)     dist (0.075 + 0.00075 - 0.0015 = 0.07425) 
+    #        distance(sim.L2) @ lens(sim.FM) @ distance(sim.FMD + deltaPoint - sim.L / 2)
+
+    # D(0.0003) D(0.0742499999) L(0.075) D(1)   L(0.075) D(0.0727499999)
+    # D(0.0003) D(0.07425)      L(0.075) D(1.8) L(0.075) D(0.07425)
+    
+
+
+
     # print("MRight", MRight)
     # print("MLeft", MLeft)
 

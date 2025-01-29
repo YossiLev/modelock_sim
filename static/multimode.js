@@ -1141,6 +1141,7 @@ function racalcHorizontalZoom() {
 }
 
 function fullCavityNewParams(delta, focal, waist) {
+    console.log(` ======== delta = ${delta}, focal = ${focal}, waist = ${waist}`)
     setFieldFloat("el1focal", focal);
     setFieldFloat("el3delta", delta);
     if (waist > 0) {

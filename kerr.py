@@ -101,7 +101,8 @@ def MLSpatial_gain(sim):
                 wV = [Wp[i] for i in ind]
                 pV = [pP[i] for i in ind]
                 fV = [fP[i] for i in ind]
-                sim.recorded_data_raw.append([iStep, pV, wV, fV])
+                qV = [qp[i] for i in ind]
+                sim.recorded_data_raw.append([iStep, pV, wV, fV, qV])
         return qp, Wp, Ep
 
     qp, Wp, Ep = thickKerrSteps(sim, qp, Wp, Ep, Ikl, fullStep, steps, MRight)

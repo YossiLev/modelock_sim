@@ -372,7 +372,7 @@ class CavityDataPartsKerr(CavityDataParts):
     def get_record_steps(self, index):
         powerChart = self.get_state()[0]
         index = np.argmax(powerChart.y) + index
-        self.recorded_data = [["Time", "Step", "Power", "Width", "Lensing Right", "Power", "Width", "Lensing Left"],]
+        self.recorded_data = [["Time", "Step", "Power", "Width", "QR", "Qi", "Lensing Right", "Power", "Width", "QR", "Qi", "Lensing Left"],]
         self.recorded_data_indices = list(range(max(0, index - 4), min(self.n, index + 4), 1))
         self.recorded_data_raw = []
         self.simulation_step()
@@ -383,10 +383,13 @@ class CavityDataPartsKerr(CavityDataParts):
                 v = [f"{self.recorded_data_indices[i]}", f"{s + 1}"]
                 for side in range(2):
                     g = self.recorded_data_raw[s + 5 * side]
-                    v = v + [f"{g[1][i]:.4e}", f"{g[2][i]:.4e}", f"{g[3][i]:.4e}"]
+                    qres = 1.0 / g[4][i]
+                    r = 1.0 / qres.real
+                    w2 = - self.lambda_ / qres.imag / np.pi
+                    v = v + [f"{g[1][i]:.4e}", f"{g[2][i]:.4e}", f"{r:.4e}", f"{w2:.4e}", f"{g[3][i]:.4e}"]
                     lens[side] += 1.0 / g[3][i]
                 self.recorded_data.append(v)
-            v = [f"{self.recorded_data_indices[i]}", "T", "", "", f"{(1 / lens[0]):.4e}", "", "", f"{(1 / lens[1]):.4e}"]
+            v = [f"{self.recorded_data_indices[i]}", "T", "", "", "", "", f"{(1 / lens[0]):.4e}", "", "", "", "", f"{(1 / lens[1]):.4e}"]
             self.recorded_data.append(v)
             
         self.recorded_data_indices = []

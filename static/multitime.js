@@ -1,10 +1,14 @@
 /*
-- counter for number of steps
+v counter for number of steps
 - side report on progress record power, lensing, A+D, etc.
 - automatic cosideration of design data on screen.
 - go back to calculation of full gaussian rather thatn pixels
 - add prints for minimum maximum of graphs
 - update all data including xVec yVec on every update
+- fixing in the the frequancy domain
+- remove phases that carry no intensity
+- working in 2D (squre the fine on width deviation)
+- Fresnel in rings (Bessel)
 -  
 */
 var stepsCounter = 0;
@@ -119,7 +123,7 @@ function initGainByFrequency() {
     spectralGain = math.dotDivide(ones, math.add(math.square(mid), 1));
     dispersion = math.exp(math.multiply(math.complex(0, - disp_par), math.square(rangeW)));
     let expW = math.exp(math.multiply(math.complex(0, - 2 * Math.PI), rangeW));
-    frequencyTotalMultFactor = math.dotMultiply(expW, math.dotMultiply(spectralGain, dispersion));
+    frequencyTotalMultFactor = math.multiply(0.5, math.add(1.0, math.dotMultiply(expW, math.dotMultiply(spectralGain, dispersion))));
 }
 
 function multiTimeRoundTrip(iCount) {

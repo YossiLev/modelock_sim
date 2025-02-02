@@ -424,3 +424,51 @@ function dft(inp, ss) {
     return o;
 }
 
+// 2D fourier in polar coordinates with circular symmetry
+
+ 
+// Accurate approximation for J_0 (Zeroth-order Bessel function of the first kind)
+function j0(x) {
+    if (x === 0) return 1; // J_0(0) = 1
+    const maxTerms = 20; // Number of terms in the series expansion
+    const x2 = (x / 2) ** 2;
+    let sum = 0;
+    let term = 1; // Initial term for k=0
+    for (let k = 0; k < maxTerms; k++) {
+      if (k > 0) {
+        term *= -x2 / (k * k); // Compute the next term in the series
+      }
+      sum += term;
+      if (Math.abs(term) < 1e-10) break; // Stop if the term is negligible
+    }
+    return sum;
+  }
+  
+  // Trapezoidal integration method
+  function integrateTrapezoidal(y, x) {
+    let sum = 0;
+    for (let i = 0; i < x.length - 1; i++) {
+      sum += 0.5 * (y[i] + y[i + 1]) * (x[i + 1] - x[i]);
+    }
+    return sum;
+  }
+  
+  // Radial Fourier Transform
+  function radialFourierTransform(f_r, r, R) {
+    const F_R = R.map(R_val => {
+      const integrand = r.map((r_val, i) => f_r[i] * j0(2 * Math.PI * R_val * r_val) * r_val);
+      return integrateTrapezoidal(integrand, r);
+    });
+    return F_R;
+  }
+  
+  // Example usage
+//   const r = Array.from({ length: 100 }, (_, i) => (i / 10)); // Radial positions from 0 to 10
+//   const f_r = r.map(r_val => Math.exp(-r_val ** 2)); // Example function: Gaussian exp(-r^2)
+//   const R = Array.from({ length: 100 }, (_, i) => (i / 10)); // Radial frequencies from 0 to 10
+  
+//   const F_R = radialFourierTransform(f_r, r, R);
+  
+//   console.log("Radial frequencies (R):", R);
+//   console.log("Fourier transform (F(R)):", F_R);
+  

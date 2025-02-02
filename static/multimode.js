@@ -388,14 +388,6 @@ function drawMultiMode(startDraw = 0.0) {
                 drawTextBG(ctx, beamDist.toFixed(7), canvas.width - 80, 120);
             }
 
-            // console.log("MLeft1");
-            // console.log(MLeft1);
-            // console.log("MLeft2");
-            // console.log(MLeft2);
-            // console.log("MRight1");
-            // console.log(MRight1);
-            // console.log("MRight2");
-            // console.log(MRight2);
         }
 
         drowShenets(ctx, "V0", zoomFactor * basicZoomFactor);

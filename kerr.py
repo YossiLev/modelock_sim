@@ -88,12 +88,23 @@ def MLSpatial_gain(sim):
     # L = 0.003
     # RM = 0.150
     # L1 = 0.5
-    # FMD = 0.075
+    # FMD = 0.075   // 0.08281
     # FM = 0.075
     # L2 = 0.9
+    print(f"fullStep = {fullStep}")
+    print(f"edgeFactor = {edgeFactor}")
+    print(f"RMD = {sim.RMD}")
+    print(f"deltaPlane = {sim.deltaPlane}")
+    print(f"delta point = {deltaPoint}")
+    print(f"L = {sim.L}")
+    print(f"RM = {sim.RM}")
+    print(f"L1 = {sim.L1}")
+    print(f"FMD = {sim.FMD}")
+    print(f"FM = {sim.FM}")
+    print(f"L2 = {sim.L2}")
 
-    #           dist(0.0003)                     dist (0.075 + 0.00075 - 1e-10 - 0.0015 = 0.0742499999)      MCur(0.150) 
-    #MRight = distance(fullStep * edgeFactor) @ distance(sim.RMD - sim.deltaPlane - 1e-10 - sim.L / 2) @ Mcur(sim.RM) @ \
+    #           dist(0.0003)                     dist (0.075 - 0.00075 - 1e-10 - 0.0015 = 0.0727499999)      MCur(0.150) 
+    #MRight = distance(fullStep * edgeFactor) @ distance(sim.RMD + sim.deltaPlane - 1e-10 - sim.L / 2) @ Mcur(sim.RM) @ \
     #              dist(0.5 + 0.5)                  MCur(0.150)          dist (0.075 - 0.00075 - 1e-10 - 0.0015 = 0.0727499999) 
     #        distance(sim.L1) @ distance(sim.L1) @ Mcur(sim.RM) @ distance(sim.RMD + sim.deltaPlane - 1e-10 - sim.L / 2)
 
@@ -102,14 +113,12 @@ def MLSpatial_gain(sim):
     #         dist(0.9)            L(0.075)     dist (0.075 + 0.00075 - 0.0015 = 0.07425) 
     #        distance(sim.L2) @ lens(sim.FM) @ distance(sim.FMD + deltaPoint - sim.L / 2)
 
-    # D(0.0003) D(0.0742499999) L(0.075) D(1)   L(0.075) D(0.0727499999)
-    # D(0.0003) D(0.07425)      L(0.075) D(1.8) L(0.075) D(0.07425)
-    
+    # MRight = D(0.0003) D(0.0727499999) L(0.075) D(1)   L(0.075) D(0.0727499999)
+    # MLeft  = D(0.0003) D(0.07425)      L(0.075) D(1.8) L(0.075) D(0.07425)
 
 
-
-    # print("MRight", MRight)
-    # print("MLeft", MLeft)
+    print("MRight", MRight)
+    print("MLeft", MLeft)
 
     def thinKerr(q, w, e, Ikl, dist, M = None):
         p = np.abs(e) ** 2

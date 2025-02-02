@@ -33,6 +33,7 @@ var gainFactor = 0.50;
 var IsFactor = 200 * 352000;
 var pumpGain0 = [];
 var multiTimeAperture  = [];
+var multiTimeApertureVal = 0.000056;
 var frequencyTotalMultFactor = [];
 var mirrorLoss = 0.95;
 var fresnelData = [];
@@ -60,10 +61,16 @@ let MatSide = [[[-1.2947E+00, 4.8630E-03], [1.5111E+02, -1.3400E+00]],  // right
 //let MatSide = [[[-0.6266666667, -0.0040666666677], [149.3333333,-0.6266666667]],  // right
 //                [[-0.2666666667, -0.003166666667], [293.3333333, -0.2666666667]]];   // left
 
-
+function fixMat(M) {
+    return MMult(MDist(0.00120), MMult(M, MDist(0.00150)))
+}
 function refreshCacityMatrices() {
-    MatSide = [math.clone(totalRightSide), math.clone(totalLeftSide)];
+    //MatSide = [fixMat(math.clone(totalRightSide)), fixMat(math.clone(totalLeftSide))];
+    MatSide = [fixMat(MatSide[0]), fixMat(MatSide[1])];
     console.log(MatSide);
+
+    let TT = MMult(MatSide[0], MatSide[1]);
+    console.log(TT);
 }
 
 function updateContentOptions() {
@@ -82,16 +89,19 @@ function updateContentOptions() {
 function initMultiTime() {
     workingTab = 3
     multiTimeFronts = [];
+    multiFrequencyFronts = [];
     multiTimeFrontsSaves = [[], [], [], [], [], []];
     updateStepsCounter(0);
     for (let i = 0; i < nSamples; i++) {
         multiTimeFronts.push([]);
+        multiFrequencyFronts.push([]);
     }
     for (let iTime = 0; iTime < nTimeSamples; iTime++) {
         let rnd = math.complex((Math.random() * 2 - 1), (Math.random() * 2 - 1));
         let fr = math.multiply(rnd, getInitFront(beamParam));
         for (let i = 0; i < nSamples; i++) {
             multiTimeFronts[i].push(fr[i]);
+            multiFrequencyFronts[i].push(math.complex(0));
         }
     }
 
@@ -115,11 +125,18 @@ function initMultiTime() {
 }
 
 function initGainByFrequency() {
+    // all the contribution to the frequency domain are collected together
+    //
+    // spectralGain[wi] = 1 / (1 + ((wi - n/2) / 200 )^2)
+    //
+    // dispersion[wi] = exp(-i * disp_par * wi^2)
+    //
+    //  
     let specGain = math.complex(200);
     let disp_par = 0.5e-3 * 2 * Math.PI / specGain;    
     rangeW = math.range(- nTimeSamples / 2 , nTimeSamples / 2).toArray().map((v) => math.complex(v + 0.0));
-    let ones = rangeW.map((v) => math.complex(1.0));
-    let mid = math.dotDivide(rangeW, rangeW.map((v) => specGain));
+    let ones = rangeW.map((_) => math.complex(1.0));
+    let mid = math.dotDivide(rangeW, rangeW.map((_) => specGain));
     spectralGain = math.dotDivide(ones, math.add(math.square(mid), 1));
     dispersion = math.exp(math.multiply(math.complex(0, - disp_par), math.square(rangeW)));
     let expW = math.exp(math.multiply(math.complex(0, - 2 * Math.PI), rangeW));
@@ -173,14 +190,6 @@ function coverRound(params) {
     multiTimeRoundTrip(1);
     if (params[0] % 2 == 0) {
         drawMultiMode();
-        drawVector(pumpGain0, true, "green", 1,  false,"gainSat", "Pump", 0);
-        drawVector(gainReduction, false, "red", 1, false, "gainSat", "PumpSat", 0);
-        drawVector(gainReductionWithOrigin, false, "blue", 1,  false,"gainSat", "Pump + 1", 0);
-        drawVector(gainReductionAfterAperture, false, "black", 1,  false,"gainSat", "with aper", 0);
-        drawVector(multiTimeAperture, false, "gray", 1,  false,"gainSat", "aperture", 0);
-        drawVector(sumPowerIx, true, "blue", 1,  false,"meanPower", "Power", 0);
-        drawVector(ps1, true, "red", 1, false, "kerrPhase", "Kerr", 0, "hello");
-        drawVector(ps2, false, "green", 1,  false,"kerrPhase", "Lens", 0, `f=${kerrFocalLength}`);
     }
 
     if (params[0] <= 1) {
@@ -213,27 +222,21 @@ function timeCavityStep(step, redraw) {
 
     if (redraw) {
         drawMultiMode();
-        drawVector(pumpGain0, true, "green", 1,  false,"gainSat", "Pump", 0);
-        drawVector(gainReduction, false, "red", 1, false, "gainSat", "PumpSat", 0);
-        drawVector(gainReductionWithOrigin, false, "blue", 1,  false,"gainSat", "Pump + 1", 0);
-        drawVector(gainReductionAfterAperture, false, "black", 1,  false,"gainSat", "with aper", 0);
-        drawVector(multiTimeAperture, false, "gray", 1,  false,"gainSat", "aperture", 0);
-        drawVector(sumPowerIx, true, "blue", 1,  false,"meanPower", "Power", 0);
-        drawVector(ps1, true, "red", 1, false, "kerrPhase", "Kerr", 0, "hello");
-        drawVector(ps2, false, "green", 1,  false,"kerrPhase", "Lens", 0, `f=${kerrFocalLength}`);
     }
 }
 function fftToFrequency() {
-    multiFrequencyFronts = [];
     for (let ix = 0; ix < nSamples; ix++) {
-        multiFrequencyFronts.push(fft(multiTimeFronts[ix], 1.0));
+        if (sumPowerIx[ix] > 0.000001) {
+            multiFrequencyFronts[ix] = fft(multiTimeFronts[ix], 1.0);
+        }
     }
 }
 
 function ifftToTime() {
-    multiTimeFronts = [];
     for (let ix = 0; ix < nSamples; ix++) {
-        multiTimeFronts.push(ifft(multiFrequencyFronts[ix], 1.0));
+        if (sumPowerIx[ix] > 0.000001) {
+            multiTimeFronts[ix] = ifft(multiFrequencyFronts[ix], 1.0);
+        }
     }
 }
 
@@ -270,7 +273,9 @@ function phaseChangeDuringKerr(side) {
 function spectralGainDispersion() {
     fftToFrequency();
     for (let ix = 0; ix < nSamples; ix++) {
-        multiFrequencyFronts[ix] = math.dotMultiply(multiFrequencyFronts[ix], frequencyTotalMultFactor);  // rrrrrrrrrrr
+        if (sumPowerIx[ix] > 0.000001) {
+            multiFrequencyFronts[ix] = math.dotMultiply(multiFrequencyFronts[ix], frequencyTotalMultFactor);  // rrrrrrrrrrr
+        }
     }
     ifftToTime();
 }
@@ -320,7 +325,7 @@ function prepareGainPump() {
 
 function prepareAperture() {
     multiTimeAperture  = [];
-    let apertureWidth = 0.000056 * 0.4;
+    let apertureWidth = multiTimeApertureVal * 0.4;
     for (let ix = 0; ix < nSamples; ix++) {
         let x = (ix - nSamples / 2) * dx0;
         let xw = x / apertureWidth;
@@ -408,10 +413,21 @@ function drawMultiTime() {
     }
     drawTimeFrontsWithOptions(timeContentOption, document.getElementById("funCanvasTime"));
     drawTimeFrontsWithOptions(freqContentOption, document.getElementById("funCanvasFrequency"));
+    drawVector(pumpGain0, true, "green", 1,  false,"gainSat", "Pump", 0);
+    drawVector(gainReduction, false, "red", 1, false, "gainSat", "PumpSat", 0);
+    drawVector(gainReductionWithOrigin, false, "blue", 1,  false,"gainSat", "Pump + 1", 0);
+    drawVector(gainReductionAfterAperture, false, "black", 1,  false,"gainSat", "with aper", 0);
+    drawVector(multiTimeAperture, false, "gray", 1,  false,"gainSat", "aperture", 0);
+    drawVector(sumPowerIx, true, "blue", 1,  false,"meanPower", "Power", 0);
+    drawVector(ps1, true, "red", 1, false, "kerrPhase", "Kerr", 0, "hello");
+    drawVector(ps2, false, "green", 1,  false,"kerrPhase", "Lens", 0, `f=${kerrFocalLength}`);
 }
 
 function drawTimeFronts(fs, canvas) {
 
+    if (fs == null) {
+        return;
+    }
     const ctx = canvas.getContext("2d");
     drawMid = canvas.height / 2;
 
@@ -629,6 +645,6 @@ function isFactorChanged() {
 }
 
 function multiTimeApertureChanged() {
-    IsFactor = getFieldFloat('isFactor', IsFactor);
+    multiTimeApertureVal = getFieldFloat('aperture', multiTimeApertureVal);
     prepareAperture();
 }

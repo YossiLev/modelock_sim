@@ -224,7 +224,7 @@ def generate_multimode(data_obj, tab, offset = 0):
                     Button("New Cavity", onclick="refreshCacityMatrices()"),
                     Input(type="number", id=f'initialRange', title="The range of the wave front (meters)", step="0.0001", style="width:100px;", value=f'0.00024475293'),
                     Input(type="number", id=f'power', placeholder="power", step="1000000", style="width:80px;", value=f'30000000'),
-                    Input(type="number", id=f'apreture', title="Width of a Gaussian aperture (meters)", 
+                    Input(type="number", id=f'aperture', title="Width of a Gaussian aperture (meters)", 
                            style="width:80px;", value=f'0.000056', **{'onchange':"multiTimeApertureChanged();"},),
                     Input(type="number", id=f'gainFactor', title="Gain factor)", 
                            style="width:50px;", value=f'0.6', **{'onchange':"gainFactorChanged();"},),

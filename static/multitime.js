@@ -1,12 +1,12 @@
 /*
 v counter for number of steps
 - side report on progress record power, lensing, A+D, etc.
-- automatic cosideration of design data on screen.
-- go back to calculation of full gaussian rather thatn pixels
+v automatic cosideration of design data on screen.
+- go back to calculation of full gaussian rather than pixels
 - add prints for minimum maximum of graphs
 - update all data including xVec yVec on every update
 - fixing in the the frequancy domain
-- remove phases that carry no intensity
+v remove phases that carry no intensity
 - working in 2D (squre the fine on width deviation)
 - Fresnel in rings (Bessel)
 -  
@@ -29,11 +29,16 @@ var sumPowerIx = [];
 var gainReduction = [];
 var gainReductionWithOrigin = [];
 var gainReductionAfterAperture = [];
+var gainReductionAfterDiffraction = [];
 var gainFactor = 0.50;
+var dispersionFactor = 1.0;
+var lensingFactor = 1.0;
 var IsFactor = 200 * 352000;
 var pumpGain0 = [];
 var multiTimeAperture  = [];
 var multiTimeApertureVal = 0.000056;
+var multiTimeDiffraction  = [];
+var multiTimeDiffractionVal = 0.000030;
 var frequencyTotalMultFactor = [];
 var mirrorLoss = 0.95;
 var fresnelData = [];
@@ -47,7 +52,10 @@ var ps1 = [];
 var ps2 = [];
 var timeContentOption = 0;
 var freqContentOption = 0;
+var timeContentView = 0;
+var freqContentView = 0;
 var contentOptionVals = ["F", "1", "2", "3", "4", "5", "6", "M"];
+var contentViewVals = ["Am", "ph"];
 var matrices = [];
 
 let MatSide = [[[-1.2947E+00, 4.8630E-03], [1.5111E+02, -1.3400E+00]],  // right
@@ -64,26 +72,48 @@ let MatSide = [[[-1.2947E+00, 4.8630E-03], [1.5111E+02, -1.3400E+00]],  // right
 function fixMat(M) {
     return MMult(MDist(0.00120), MMult(M, MDist(0.00150)))
 }
-function refreshCacityMatrices() {
-    //MatSide = [fixMat(math.clone(totalRightSide)), fixMat(math.clone(totalLeftSide))];
-    MatSide = [fixMat(MatSide[0]), fixMat(MatSide[1])];
-    console.log(MatSide);
 
-    let TT = MMult(MatSide[0], MatSide[1]);
-    console.log(TT);
+function calcCurrentCavityMatrices() {
+    initElementsMultiMode();
+    getMatOnRoundTrip();
+    totalRightSide = MMult(MRight2, MRight1);
+    totalLeftSide = MMult(MLeft2, MLeft1);
+    refreshCavityMatrices();
+}
+
+function calcOriginalSimMatrices() {
+    let MLong = MMultV(MDist(0.0005), MDist(0.081818181), MLens(0.075), MDist(0.9), MDist(0.9), MLens(0.075), MDist(0.081818181), MDist(0.0005));
+    let MShort = MMultV(MDist(0.0005), MDist(0.075), MLens(0.075), MDist(0.5), MDist(0.5), MLens(0.075), MDist(0.075), MDist(0.0005));
+
+    MatSide = [MShort, MLong];
+}
+
+function refreshCavityMatrices() {
+    MatSide = [math.clone(totalRightSide), math.clone(totalLeftSide)];
+    console.log(MatSide);
 }
 
 function updateContentOptions() {
     let options = contentOptionVals.map((v, i) => {
-        style=`"margin: 3px; padding: 2px; border: 1px solid black; border-radius: 2px; background:${i == timeContentOption ? "yellow": "white"};"`
+        style=`"margin: 2px; padding: 2px; border: 1px solid black; border-radius: 2px; background:${i == timeContentOption ? "yellow": "white"};"`
         return `<div onclick="timeContentOption = ${i}; updateContentOptions(); drawMultiTime();" style=${style}>${v}</div>`
     }).join("");
     document.getElementById("TimeCanvasOptions").innerHTML = options;
     options = contentOptionVals.map((v, i) => {
-        style=`"margin: 3px; padding: 2px; border: 1px solid black; border-radius: 2px; background:${i == freqContentOption ? "yellow": "white"};"`
+        style=`"margin: 2px; padding: 2px; border: 1px solid black; border-radius: 2px; background:${i == freqContentOption ? "yellow": "white"};"`
         return `<div onclick="freqContentOption = ${i}; updateContentOptions(); drawMultiTime();" style=${style}>${v}</div>`
     }).join("");
     document.getElementById("FrequencyCanvasOptions").innerHTML = options;
+    options = contentViewVals.map((v, i) => {
+        style=`"margin: 2px; padding: 2px; border: 1px solid black; border-radius: 2px; background:${i == timeContentView ? "yellow": "white"};"`
+        return `<div onclick="timeContentView = ${i}; updateContentOptions(); drawMultiTime();" style=${style}>${v}</div>`
+    }).join("");
+    document.getElementById("TimeCanvasViews").innerHTML = options;
+    options = contentViewVals.map((v, i) => {
+        style=`"margin: 2px; padding: 2px; border: 1px solid black; border-radius: 2px; background:${i == freqContentView ? "yellow": "white"};"`
+        return `<div onclick="freqContentView = ${i}; updateContentOptions(); drawMultiTime();" style=${style}>${v}</div>`
+    }).join("");
+    document.getElementById("FrequencyCanvasViews").innerHTML = options;    
 }
 
 function initMultiTime() {
@@ -133,7 +163,7 @@ function initGainByFrequency() {
     //
     //  
     let specGain = math.complex(200);
-    let disp_par = 0.5e-3 * 2 * Math.PI / specGain;    
+    let disp_par = dispersionFactor * 0.5e-3 * 2 * Math.PI / specGain;    
     rangeW = math.range(- nTimeSamples / 2 , nTimeSamples / 2).toArray().map((v) => math.complex(v + 0.0));
     let ones = rangeW.map((_) => math.complex(1.0));
     let mid = math.dotDivide(rangeW, rangeW.map((_) => specGain));
@@ -242,26 +272,30 @@ function ifftToTime() {
 
 function phaseChangeDuringKerr(side) {
 
-    let multiTimeFrontsTrans = math.transpose(multiTimeFronts) 
-    for (let iTime = 0; iTime < nTimeSamples; iTime++) {
-        let fr = multiTimeFrontsTrans[iTime];
-        let pFrBefore = math.sum(math.dotMultiply(fr, math.conj(fr)));
-        let frAfter = math.dotMultiply(fr, multiTimeAperture);
-        let pFrAfter = math.sum(math.dotMultiply(frAfter, math.conj(frAfter)));
-        fr = math.multiply(frAfter, Math.sqrt(pFrBefore / pFrAfter));
-        multiTimeFrontsTrans[iTime] = fr;
+    if (side == 0) {
+        let multiTimeFrontsTrans = math.transpose(multiTimeFronts) 
+        for (let iTime = 0; iTime < nTimeSamples; iTime++) {
+            let fr = multiTimeFrontsTrans[iTime];
+            let pFrBefore = math.sum(math.dotMultiply(fr, math.conj(fr)));
+            let frAfter = math.dotMultiply(fr, multiTimeAperture);
+            let pFrAfter = math.sum(math.dotMultiply(frAfter, math.conj(frAfter)));
+            fr = math.multiply(frAfter, Math.sqrt(pFrBefore / pFrAfter));
+            multiTimeFrontsTrans[iTime] = fr;
+        }
+        multiTimeFronts = math.transpose(multiTimeFrontsTrans) 
     }
-    multiTimeFronts = math.transpose(multiTimeFrontsTrans) 
+
     multiTimeFrontsSaves[side * 3 + 0] = math.clone(multiTimeFronts);
 
     sumPowerIx = [];
     ps1 = [];
     ps2 = [];
+    let totalKerrLensing = math.multiply(lensingFactor, IklTimesI)
     for (let ix = 0; ix < nSamples; ix++) {
         let bin = multiTimeFronts[ix];
         let bin2 = math.abs(math.dotMultiply(bin, math.conj(bin)));
         sumPowerIx.push(math.sum(bin2));
-        let phaseShift1 = math.multiply(IklTimesI, bin2);
+        let phaseShift1 = math.multiply(totalKerrLensing, bin2);
         let x = (ix - nSamples / 2) * dx0;
         let phaseShift = math.complex(0.0, - Math.PI / lambda / 0.0075 * x * x);
         ps1.push(phaseShift1[0].im);
@@ -271,13 +305,25 @@ function phaseChangeDuringKerr(side) {
 }
 
 function spectralGainDispersion() {
-    fftToFrequency();
+
+
+    let multiFrequencyFrontsT = fft(multiTimeFronts[nSamples / 2], 1.0);
+    multiFrequencyFrontsT = math.dotMultiply(multiFrequencyFrontsT, frequencyTotalMultFactor);  // rrrrrrrrrrr
+
+    let multiTimeFrontsT = ifft(multiFrequencyFrontsT, 1.0);
+
+    let div = math.dotDivide(multiTimeFrontsT, multiTimeFronts[nSamples / 2]);
     for (let ix = 0; ix < nSamples; ix++) {
-        if (sumPowerIx[ix] > 0.000001) {
-            multiFrequencyFronts[ix] = math.dotMultiply(multiFrequencyFronts[ix], frequencyTotalMultFactor);  // rrrrrrrrrrr
-        }
+        multiTimeFronts[ix] = math.dotMultiply(div, multiTimeFronts[ix]);
     }
-    ifftToTime();
+    
+    fftToFrequency();
+    // for (let ix = 0; ix < nSamples; ix++) {
+    //     if (sumPowerIx[ix] > 0.000001) {
+    //         multiFrequencyFronts[ix] = math.dotMultiply(multiFrequencyFronts[ix], frequencyTotalMultFactor);  // rrrrrrrrrrr
+    //     }
+    // }
+    // ifftToTime();
 }
 
 function linearCavityOneSide(side) {
@@ -286,7 +332,7 @@ function linearCavityOneSide(side) {
     let Is = IsFactor; // 200 * 352000 / 2;
     gainReduction = math.dotMultiply(pumpGain0, math.dotDivide(nSamplesOnes, math.add(1, math.divide(sumPowerIx, Is * nTimeSamples)))).map((v) => v.re);
     gainReductionWithOrigin = math.multiply(gainFactor, math.add(1, gainReduction));
-    //gainReductionAfterAperture = math.dotMultiply(gainReductionWithOrigin, multiTimeAperture);
+    gainReductionAfterDiffraction = gainReductionWithOrigin;// test remove diffraction math.dotMultiply(gainReductionWithOrigin, multiTimeDiffraction);
 
     let multiTimeFrontsTrans = math.transpose(multiTimeFronts) 
 
@@ -298,7 +344,7 @@ function linearCavityOneSide(side) {
         // fr = math.multiply(frAfter, Math.sqrt(pFrBefore / pFrAfter));
         // pFrAfter = math.sum(math.dotMultiply(frAfter, math.conj(frAfter)))
 
-        fr = math.dotMultiply(fr, gainReductionWithOrigin);
+        fr = math.dotMultiply(fr, gainReductionAfterDiffraction);
         fresnelData[side].forEach((fresnelSideData) => {
             fr = math.dotMultiply(fr, fresnelSideData.vecs[0]);
             fr = fft(fr, fresnelSideData.dx);
@@ -331,6 +377,15 @@ function prepareAperture() {
         let xw = x / apertureWidth;
         multiTimeAperture.push(math.exp(- xw * xw));
     }
+
+    multiTimeDiffraction  = [];
+    let diffractionWidth = multiTimeDiffractionVal;
+    for (let ix = 0; ix < nSamples; ix++) {
+        let x = (ix - nSamples / 2) * dx0;
+        let xw = x / diffractionWidth;
+        multiTimeDiffraction.push(math.exp(- xw * xw));
+    }
+    
 }
 
 function prepareLinearFresnelHelpData() {
@@ -392,17 +447,17 @@ function SatGain() {
     }
 }
 
-function drawTimeFrontsWithOptions(opt, canvas) {
+function drawTimeFrontsWithOptions(opt, view, canvas) {
     if (opt == 0) {
-        drawTimeFronts(multiFrequencyFronts, canvas);
+        drawTimeFronts(multiFrequencyFronts, view, canvas);
     } else if (opt == 7) {
         calcMatrices();
         drawMatrices(canvas);
     } else {
         if (multiTimeFrontsSaves[opt - 1].length > 0) {
-            drawTimeFronts(multiTimeFrontsSaves[opt - 1], canvas);
+            drawTimeFronts(multiTimeFrontsSaves[opt - 1], view, canvas);
         } else {
-            drawTimeFronts(multiTimeFronts, canvas);
+            drawTimeFronts(multiTimeFronts, view, canvas);
         }
     }    
 }
@@ -411,19 +466,19 @@ function drawMultiTime() {
     if (!drawOption) {
         return
     }
-    drawTimeFrontsWithOptions(timeContentOption, document.getElementById("funCanvasTime"));
-    drawTimeFrontsWithOptions(freqContentOption, document.getElementById("funCanvasFrequency"));
+    drawTimeFrontsWithOptions(timeContentOption, timeContentView, document.getElementById("funCanvasTime"));
+    drawTimeFrontsWithOptions(freqContentOption, freqContentView, document.getElementById("funCanvasFrequency"));
     drawVector(pumpGain0, true, "green", 1,  false,"gainSat", "Pump", 0);
     drawVector(gainReduction, false, "red", 1, false, "gainSat", "PumpSat", 0);
     drawVector(gainReductionWithOrigin, false, "blue", 1,  false,"gainSat", "Pump + 1", 0);
-    drawVector(gainReductionAfterAperture, false, "black", 1,  false,"gainSat", "with aper", 0);
+    drawVector(gainReductionAfterDiffraction, false, "black", 1,  false,"gainSat", "with Diff", 0);
     drawVector(multiTimeAperture, false, "gray", 1,  false,"gainSat", "aperture", 0);
     drawVector(sumPowerIx, true, "blue", 1,  false,"meanPower", "Power", 0);
     drawVector(ps1, true, "red", 1, false, "kerrPhase", "Kerr", 0, "hello");
     drawVector(ps2, false, "green", 1,  false,"kerrPhase", "Lens", 0, `f=${kerrFocalLength}`);
 }
 
-function drawTimeFronts(fs, canvas) {
+function drawTimeFronts(fs, view, canvas) {
 
     if (fs == null) {
         return;
@@ -438,7 +493,7 @@ function drawTimeFronts(fs, canvas) {
     
     let maxV, maxS, meanV, meanS, meanMean, totalSumPower, meanH, maxH;
 
-    if (viewOption == 1) {
+    if (view == 0) {
         fs = math.abs(fs);
         fs = math.dotMultiply(fs, fs);
         totalSumPower = math.sum(fs);
@@ -452,7 +507,7 @@ function drawTimeFronts(fs, canvas) {
 
     let sum0;
     for (let i = 0; i < nSamples; i++) {
-        if (viewOption == 1) {
+        if (view == 0) {
             if (i == 0) {
                 sum0 = math.clone(fs[i]);
             } else {
@@ -460,9 +515,9 @@ function drawTimeFronts(fs, canvas) {
             }
         }
         let off = i * nTimeSamples * 4;
-        let line = (viewOption == 1) ? math.dotDivide(fs[i], maxS): fs[i];
+        let line = (view == 0) ? math.dotDivide(fs[i], maxS): fs[i];
         for (let iTime = 0; iTime < nTimeSamples; iTime++) {
-            if (viewOption == 1) {
+            if (view == 0) {
                 c = Math.floor(line[iTime] * 255.0);
             } else {
                 c = Math.floor((line[iTime].toPolar().phi / (2 * Math.PI) + 0.5) * 255.0);
@@ -475,7 +530,7 @@ function drawTimeFronts(fs, canvas) {
     }
 
     ctx.putImageData(id, 0, 0);
-    if (viewOption == 1) {
+    if (view == 0) {
         let maxSum0 = math.max(sum0);
         factor = (canvas.height - 10) / maxSum0;
         sum0 = math.multiply(sum0, factor);
@@ -511,6 +566,7 @@ function multiTimeCanvasMouseMove(e, updateTest = false) {
     id = e.target.id;
 
     let opt = id == "funCanvasTime" ? timeContentOption: freqContentOption;
+    let view  = id == "funCanvasTime" ? timeContentView: freqContentView;
     if (opt == 7) {
         return;
     }
@@ -523,7 +579,7 @@ function multiTimeCanvasMouseMove(e, updateTest = false) {
 
     let front = math.transpose(fs)[x];
     let xVec, yVec;
-    if (viewOption == 1) {
+    if (view == 0) {
         xVec = math.abs(front);
         yVec = math.abs(fs[y]);
     } else {
@@ -531,12 +587,13 @@ function multiTimeCanvasMouseMove(e, updateTest = false) {
         yVec = fs[y].map((v) => v.toPolar().phi);
     }
     if (opt % 7 != 0) {
-        multiFronts[0] = [front];
+        multiFronts[0] = [math.clone(front)];
         multiRanges[0] = [totalRange];
     }
 
     let front2 = math.abs(math.dotMultiply(front, math.conj(front)));
-    ps1 = math.multiply(IklTimesI.im, front2);
+    let totalKerrLensing = math.multiply(lensingFactor, IklTimesI)
+    ps1 = math.multiply(totalKerrLensing.im, front2);
 
     let pw = math.sum(math.dotMultiply(xVec, xVec));
     let width = calcWidth(xVec)
@@ -639,6 +696,14 @@ function progressMultiTime(direction) {
 
 function gainFactorChanged() {
     gainFactor = getFieldFloat('gainFactor', gainFactor);
+}
+
+function dispersionFactorChanged() {
+    dispersionFactor = getFieldFloat('dispersionFactor', dispersionFactor);
+    initGainByFrequency();
+}
+function lensingFactorChanged() {
+    lensingFactor = getFieldFloat('lensingFactor', lensingFactor);
 }
 function isFactorChanged() {
     IsFactor = getFieldFloat('isFactor', IsFactor);

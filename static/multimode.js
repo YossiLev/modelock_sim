@@ -827,6 +827,11 @@ function MDist(d) {
 function MLens(f) {
     return [[1, 0], [- 1/ f, 1]];
 }
+
+function MMultV(...Ms) {
+    return Ms.reduce((acc, v) => MMult(v, acc), [[1.0, 0.0], [0.0, 1.0]]);
+}
+
 function MMult(m, m2) {
     a = m[0][0] * m2[0][0] + m[0][1] * m2[1][0];
     b = m[0][0] * m2[0][1] + m[0][1] * m2[1][1];
@@ -1156,9 +1161,11 @@ function fullCavityMultiMode(startDist = 0.0) {
         return;
     }
     
-    let MStartDistInv = [[1, 0], [0, 1]];
+    let MS0, MStartDistInv = [[1, 0], [0, 1]];
     if (startDist > 0.000001) {
         MStartDistInv = MInv(getMatDistanceForever(startDist));
+        MS0 = MMult(getMatDistanceForever(startDist + 2 * 0.982318181), MStartDistInv);
+        console.log("MS0 ", MS0)
     }
     vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0]; vecW = [0], vecWaist = [0], vecQ[0] = math.complex(0, RayleighRange), vecMats = [];
     
@@ -1174,7 +1181,14 @@ function fullCavityMultiMode(startDist = 0.0) {
             continue;
         }
 
-        let MS = MMult(getMatDistanceForever(dStep), MStartDistInv);
+        let MS; 
+        if (iStep < 15) {
+            MS = MMult(getMatDistanceForever(startDist), MStartDistInv);
+        } else if (iStep < 30) {
+            MS = math.clone(MS0);
+        } else {
+            MS = MMult(getMatDistanceForever(dStep), MStartDistInv);
+        }
 
         let [mats, isBack] = getMatricesAtDistFromStart(MS, dStep, r0);
 
@@ -1712,7 +1726,7 @@ function mainCanvasMouseMove(e) {
     }
     const id = e.target.id;
     let fronts = []
-    if (id == "funCanvas1") {
+    if (id == "funCanvas1" || id == "funCanvasTest") {
         fronts = multiFronts[0];
     } else if (id == "funCanvas2") {
         fronts = multiFronts[1];

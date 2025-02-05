@@ -109,8 +109,9 @@ def MLSpatial_gain(sim):
     #        distance(sim.L1) @ distance(sim.L1) @ Mcur(sim.RM) @ distance(sim.RMD + sim.deltaPlane - 1e-10 - sim.L / 2)
 
     #           dist(0.0003)                   dist (0.075 + 0.00075 - 0.0015 = 0.07425)     L(0.075)    dist (0.9)
+    #           dist(0.0003)                   dist (0.08281 + 0.00075 - 0.0015 = 0.08206)     L(0.075)    dist (0.9)
     #MLeft = distance(fullStep * edgeFactor) @ distance(sim.FMD + deltaPoint - sim.L / 2) @ lens(sim.FM) @ distance(sim.L2) @ \
-    #         dist(0.9)            L(0.075)     dist (0.075 + 0.00075 - 0.0015 = 0.07425) 
+    #         dist(0.9)            L(0.075)     dist (0.08281 + 0.00075 - 0.0015 = 0.08206) 
     #        distance(sim.L2) @ lens(sim.FM) @ distance(sim.FMD + deltaPoint - sim.L / 2)
 
     # MRight = D(0.0003) D(0.0727499999) L(0.075) D(1)   L(0.075) D(0.0727499999)

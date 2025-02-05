@@ -7,7 +7,8 @@ from fasthtml.common import *
 elements = [
     [{"t": "L", "par":[0.3, 0.075]}, {"t": "L", "par":[0.45, 0.075, 1.0], "del": 1.0}, {"t": "X", "par":[0.85]}, ],
     [{"t": "L", "par":[0.9, 0.075]}, {"t": "C", "par":[0.9735, 0.003]}, {"t": "L", "par":[1.05, 0.075, 1.0]}, {"t": "X", "par":[1.55]}, ],
-    [{"t": "L", "par":[0.9, 0.075]}, {"t": "L", "par":[0.975, 2.000, 0.5], "del": 0.5}, {"t": "L", "par":[1.05, 0.075, 1.0], "del": 1.0}, {"t": "X", "par":[1.55]}, ],   
+    [{"t": "L", "par":[0.9, 0.075]}, {"t": "L", "par":[0.982318181, 10.000, 0.5], "del": 0.5}, 
+        {"t": "L", "par":[1.057818181, 0.075, 1.0], "del": 1.0}, {"t": "X", "par":[1.557818181]}, ],   
 ]
 
 def ver_func(l):
@@ -33,7 +34,7 @@ def draw_multimode(draw: ImageDraw):
     draw_single_front(draw, 30, 30, 10, 2, 256, ver_func(256))
 
 def FlexN(v):
-    return Div(*v, style="display: flex; gap: 10px;")
+    return Div(*v, style="display: flex; gap: 3px;")
 
 def TabMaker(label, group, sel):
     return Div(label,  hx_post=group, hx_target="#fun", cls=f"tab {'tabselected' if sel else ''}", hx_vals='js:{localId: getLocalId()}'),
@@ -221,13 +222,20 @@ def generate_multimode(data_obj, tab, offset = 0):
                     Button("Full", onclick="timeCavityStep(5, false)"),
                     Select(Option("0"), Option("1"), Option("2"), Option("3"), Option("4"), id="nRounds", **{'onchange':"nRoundsChanged();"}),
                     Button("Switch view", onclick="switchViewMultiMode()"),
-                    Button("New Cavity", onclick="refreshCacityMatrices()"),
+                    Button("New Cavity", onclick="refreshCavityMatrices()"),
+                    Button("CavSim Orig", onclick="calcOriginalSimMatrices()"),
+                    Button("This Cavity", onclick="calcCurrentCavityMatrices()"),
+
                     Input(type="number", id=f'initialRange', title="The range of the wave front (meters)", step="0.0001", style="width:100px;", value=f'0.00024475293'),
                     Input(type="number", id=f'power', placeholder="power", step="1000000", style="width:80px;", value=f'30000000'),
                     Input(type="number", id=f'aperture', title="Width of a Gaussian aperture (meters)", 
                            style="width:80px;", value=f'0.000056', **{'onchange':"multiTimeApertureChanged();"},),
                     Input(type="number", id=f'gainFactor', title="Gain factor)", 
                            style="width:50px;", value=f'0.6', **{'onchange':"gainFactorChanged();"},),
+                    Input(type="number", id=f'dispersionFactor', title="Dispersion factor)", 
+                           style="width:50px;", value=f'1.0', **{'onchange':"dispersionFactorChanged();"},),
+                    Input(type="number", id=f'lensingFactor', title="Lensing factor)", 
+                           style="width:50px;", value=f'1.0', **{'onchange':"lensingFactorChanged();"},),
                     Input(type="number", id=f'isFactor', title="Intensity saturation factor", 
                            style="width:120px;", value=f'{200 * 352000}', **{'onchange':"isFactorChanged();"},),
                     Select(Option("256"), Option("512"), Option("1024"), Option("2048"), Option("4096"), id="nSamples", **{'onchange':"nSamplesChanged();"},),
@@ -242,8 +250,8 @@ def generate_multimode(data_obj, tab, offset = 0):
                     *[Element(el, i, tab) for i, el in enumerate(elements[2])],
                     Button(NotStr("&#43;"), escapse=False, hx_post="/addElement/2", hx_target="#fun", hx_vals='js:{localId: getLocalId()}'), 
                 ),
-                FlexN([funCanvas("Time", width=1024, height=256, useZoom=False), Div(id="TimeCanvasOptions")]),
-                FlexN([funCanvas("Frequency", width=1024, height=256, useZoom=False), Div(id="FrequencyCanvasOptions")]),
+                FlexN([funCanvas("Time", width=1024, height=256, useZoom=False), Div(id="TimeCanvasOptions"), Div(id="TimeCanvasViews")]),
+                FlexN([funCanvas("Frequency", width=1024, height=256, useZoom=False), Div(id="FrequencyCanvasOptions"), Div(id="FrequencyCanvasViews")]),
                 FlexN([graphCanvas(id="gainSat", width=256, height = 200, options=False), 
                        graphCanvas(id="meanPower", width=256, height = 200, options=False),
                        graphCanvas(id="sampleX", width=256, height = 200, options=False),
@@ -252,7 +260,8 @@ def generate_multimode(data_obj, tab, offset = 0):
                 graphCanvas(id="sampleY", width=1024, height = 200, options=False),
                 Button("Progress left", onclick="progressMultiTime(1)"),
                 Button("Progress right", onclick="progressMultiTime(2)"),
-                funCanvas("Test", width=1400, height=256, useZoom=True), 
+                funCanvas("Test", width=1400, height=256, useZoom=True),
+                graphCanvas(width=1400)
             )
         case 4:
             added = Div(

@@ -1659,7 +1659,7 @@ function doDeltaStepCover(delta) {
     drawOption = false;
     coverWaist = doDeltaStep(delta, coverWaist);
 
-    de15lta += 0.0004;
+    delta += 0.0004;
     if (delta < 0.085) {
         setTimeout(doDeltaStepCover, 1, delta);
     } else {

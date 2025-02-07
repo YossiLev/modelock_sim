@@ -445,6 +445,9 @@ function drawElements(index, startDraw) {
     let cavityLength = elements.find((el) => el.t == "X").par[0];
 
     for (let r = 0; r < 7; r += 2) {
+        ctx.fillStyle = `red`;
+        px = drawSx + (0 - distStart - zoomHorizontalShift - startDraw + cavityLength * r) / distStep * zoomHorizontalAmount * drawW ;
+        ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);          
         for (let iEl = 0; iEl < elements.length; iEl++) {
             let deltaFactor = elements[iEl].delta;
             let pos = elements[iEl].par[0] + deltaFactor * globalDelta
@@ -1182,13 +1185,13 @@ function fullCavityMultiMode(startDist = 0.0) {
         }
 
         let MS; 
-        if (iStep < 15) {
-            MS = MMult(getMatDistanceForever(startDist), MStartDistInv);
-        } else if (iStep < 30) {
-            MS = math.clone(MS0);
-        } else {
+        // if (iStep < 15) {
+        //     MS = MMult(getMatDistanceForever(startDist), MStartDistInv);
+        // } else if (iStep < 30) {
+        //     MS = math.clone(MS0);
+        // } else {
             MS = MMult(getMatDistanceForever(dStep), MStartDistInv);
-        }
+        // }
 
         let [mats, isBack] = getMatricesAtDistFromStart(MS, dStep, r0);
 
@@ -1656,7 +1659,7 @@ function doDeltaStepCover(delta) {
     drawOption = false;
     coverWaist = doDeltaStep(delta, coverWaist);
 
-    delta += 0.0004;
+    de15lta += 0.0004;
     if (delta < 0.085) {
         setTimeout(doDeltaStepCover, 1, delta);
     } else {

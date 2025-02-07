@@ -379,10 +379,10 @@ class CavityDataPartsKerr(CavityDataParts):
             
         for i in range(len(self.recorded_data_indices)):
             lens = [0, 0]
-            for s in range(5):
+            for s in range(self.nLenses):
                 v = [f"{self.recorded_data_indices[i]}", f"{s + 1}"]
                 for side in range(2):
-                    g = self.recorded_data_raw[s + 5 * side]
+                    g = self.recorded_data_raw[s + self.nLenses * side]
                     qres = 1.0 / g[4][i]
                     r = 1.0 / qres.real
                     w2 = - self.lambda_ / qres.imag / np.pi

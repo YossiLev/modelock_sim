@@ -7,8 +7,10 @@ v automatic cosideration of design data on screen.
 - update all data including xVec yVec on every update
 - fixing in the the frequancy domain
 v remove phases that carry no intensity
-- working in 2D (squre the fine on width deviation)
+- working in 2D (square the fine on width deviation)
 - Fresnel in rings (Bessel)
+- original sim with one lens only
+- present focal length from 2nd derivative
 -  
 */
 var stepsCounter = 0;
@@ -272,18 +274,16 @@ function ifftToTime() {
 
 function phaseChangeDuringKerr(side) {
 
-    if (side == 0) {
-        let multiTimeFrontsTrans = math.transpose(multiTimeFronts) 
-        for (let iTime = 0; iTime < nTimeSamples; iTime++) {
-            let fr = multiTimeFrontsTrans[iTime];
-            let pFrBefore = math.sum(math.dotMultiply(fr, math.conj(fr)));
-            let frAfter = math.dotMultiply(fr, multiTimeAperture);
-            let pFrAfter = math.sum(math.dotMultiply(frAfter, math.conj(frAfter)));
-            fr = math.multiply(frAfter, Math.sqrt(pFrBefore / pFrAfter));
-            multiTimeFrontsTrans[iTime] = fr;
-        }
-        multiTimeFronts = math.transpose(multiTimeFrontsTrans) 
+    let multiTimeFrontsTrans = math.transpose(multiTimeFronts) 
+    for (let iTime = 0; iTime < nTimeSamples; iTime++) {
+        let fr = multiTimeFrontsTrans[iTime];
+        let pFrBefore = math.sum(math.dotMultiply(fr, math.conj(fr)));
+        let frAfter = math.dotMultiply(fr, multiTimeAperture);
+        let pFrAfter = math.sum(math.dotMultiply(frAfter, math.conj(frAfter)));
+        fr = math.multiply(frAfter, Math.sqrt(pFrBefore / pFrAfter));
+        multiTimeFrontsTrans[iTime] = fr;
     }
+    multiTimeFronts = math.transpose(multiTimeFrontsTrans) 
 
     multiTimeFrontsSaves[side * 3 + 0] = math.clone(multiTimeFronts);
 
@@ -307,23 +307,23 @@ function phaseChangeDuringKerr(side) {
 function spectralGainDispersion() {
 
 
-    let multiFrequencyFrontsT = fft(multiTimeFronts[nSamples / 2], 1.0);
-    multiFrequencyFrontsT = math.dotMultiply(multiFrequencyFrontsT, frequencyTotalMultFactor);  // rrrrrrrrrrr
+    // let multiFrequencyFrontsT = fft(multiTimeFronts[nSamples / 2], 1.0);
+    // multiFrequencyFrontsT = math.dotMultiply(multiFrequencyFrontsT, frequencyTotalMultFactor);  // rrrrrrrrrrr
 
-    let multiTimeFrontsT = ifft(multiFrequencyFrontsT, 1.0);
+    // let multiTimeFrontsT = ifft(multiFrequencyFrontsT, 1.0);
 
-    let div = math.dotDivide(multiTimeFrontsT, multiTimeFronts[nSamples / 2]);
-    for (let ix = 0; ix < nSamples; ix++) {
-        multiTimeFronts[ix] = math.dotMultiply(div, multiTimeFronts[ix]);
-    }
+    // let div = math.dotDivide(multiTimeFrontsT, multiTimeFronts[nSamples / 2]);
+    // for (let ix = 0; ix < nSamples; ix++) {
+    //     multiTimeFronts[ix] = math.dotMultiply(div, multiTimeFronts[ix]);
+    // }
     
     fftToFrequency();
-    // for (let ix = 0; ix < nSamples; ix++) {
-    //     if (sumPowerIx[ix] > 0.000001) {
-    //         multiFrequencyFronts[ix] = math.dotMultiply(multiFrequencyFronts[ix], frequencyTotalMultFactor);  // rrrrrrrrrrr
-    //     }
-    // }
-    // ifftToTime();
+    for (let ix = 0; ix < nSamples; ix++) {
+        if (sumPowerIx[ix] > 0.000001) {
+            multiFrequencyFronts[ix] = math.dotMultiply(multiFrequencyFronts[ix], frequencyTotalMultFactor);
+        }
+    }
+    ifftToTime();
 }
 
 function linearCavityOneSide(side) {
@@ -332,7 +332,7 @@ function linearCavityOneSide(side) {
     let Is = IsFactor; // 200 * 352000 / 2;
     gainReduction = math.dotMultiply(pumpGain0, math.dotDivide(nSamplesOnes, math.add(1, math.divide(sumPowerIx, Is * nTimeSamples)))).map((v) => v.re);
     gainReductionWithOrigin = math.multiply(gainFactor, math.add(1, gainReduction));
-    gainReductionAfterDiffraction = gainReductionWithOrigin;// test remove diffraction math.dotMultiply(gainReductionWithOrigin, multiTimeDiffraction);
+    gainReductionAfterDiffraction = math.dotMultiply(gainReductionWithOrigin, multiTimeDiffraction);
 
     let multiTimeFrontsTrans = math.transpose(multiTimeFronts) 
 
@@ -371,7 +371,7 @@ function prepareGainPump() {
 
 function prepareAperture() {
     multiTimeAperture  = [];
-    let apertureWidth = multiTimeApertureVal * 0.4;
+    let apertureWidth = multiTimeApertureVal * 0.5;
     for (let ix = 0; ix < nSamples; ix++) {
         let x = (ix - nSamples / 2) * dx0;
         let xw = x / apertureWidth;
@@ -389,15 +389,15 @@ function prepareAperture() {
 }
 
 function prepareLinearFresnelHelpData() {
-    let matProg = [[1, 0.003], [0, 1]];
+    //let matProg = [[1, 0.003], [0, 1]];
     fresnelData = [];
 
     console.log(`lambda = ${lambda} range = ${totalRange} nSamples = ${nSamples} dx = ${totalRange / nSamples}`);
 
     MatSide.forEach((sideM, indexSide) => {
-        if (indexSide == 1) {
-            sideM = math.multiply(matProg, math.multiply(sideM, matProg));
-        }
+        //if (indexSide == 1) {
+        //    sideM = math.multiply(matProg, math.multiply(sideM, matProg));
+        //}
         let [[A, B], [C, D]] = sideM;
         let M1, M2;
         console.log(`Side ${indexSide + 1} mat A=${A}, B=${B}, C=${C}, D=${D}`);

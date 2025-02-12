@@ -49,6 +49,7 @@ var dx0 = totalRange / nSamples;
 var scalarOne = math.complex(1);
 var nTimeSamplesOnes = Array.from({length: nTimeSamples}, (v) => scalarOne)
 var nSamplesOnes = Array.from({length: nSamples}, (v) => scalarOne)
+var nSamplesOnesR = Array.from({length: nSamples}, (v) => 1.0)
 var kerrFocalLength = 0.0075;
 var ps1 = [];
 var ps2 = [];
@@ -84,10 +85,23 @@ function calcCurrentCavityMatrices() {
 }
 
 function calcOriginalSimMatrices() {
-    let MLong = MMultV(MDist(0.0005), MDist(0.081818181), MLens(0.075), MDist(0.9), MDist(0.9), MLens(0.075), MDist(0.081818181), MDist(0.0005));
-    let MShort = MMultV(MDist(0.0005), MDist(0.075), MLens(0.075), MDist(0.5), MDist(0.5), MLens(0.075), MDist(0.075), MDist(0.0005));
+    let MLong = MMultV(MDist(0.0005), MDist(0.081818181), MLens(0.075), MDist(0.9), 
+                    MDist(0.9), MLens(0.075), MDist(0.081818181), MDist(0.0005));
+    let MShort = MMultV(MDist(0.0005), MDist(0.075), MLens(0.075), MDist(0.5), 
+                    MDist(0.5), MLens(0.075), MDist(0.075), MDist(0.0005));
 
     MatSide = [MShort, MLong];
+
+    return MatSide
+}
+
+function calcOriginalSimMatricesWithoutCrystal(crystalLength) {
+    let cMat = MDist(- 0.5 * crystalLength);
+    let MS = calcOriginalSimMatrices()
+
+    MatSide = MS.map((M) => MMultV(cMat, M, cMat));
+
+    return MatSide
 }
 
 function refreshCavityMatrices() {
@@ -274,6 +288,27 @@ function ifftToTime() {
 
 function phaseChangeDuringKerr(side) {
 
+    sumPowerIx = [];
+    ps1 = [];
+    ps2 = [];
+    // artificial factor override on Kerr lensing by power
+    let totalKerrLensing = math.multiply(lensingFactor, IklTimesI);
+
+    // kerr phase shift according to local power
+    for (let ix = 0; ix < nSamples; ix++) {
+        let bin = multiTimeFronts[ix];
+        let bin2 = math.abs(math.dotMultiply(bin, math.conj(bin)));
+        sumPowerIx.push(math.sum(bin2));
+        let phaseShift1 = math.multiply(totalKerrLensing, bin2);
+        multiTimeFronts[ix] = math.dotMultiply(bin, math.exp(phaseShift1));
+        ps1.push(phaseShift1[0].im); // record for presentation
+        // let x = (ix - nSamples / 2) * dx0;
+        // let phaseShift = math.complex(0.0, - Math.PI / lambda / 0.0075 * x * x);
+        // ps2.push(- Math.PI / lambda / kerrFocalLength * x * x);
+    }
+    multiTimeFrontsSaves[side * 3 + 0] = math.clone(multiTimeFronts);
+
+    // shrink front using a gaussian virtual aperture
     let multiTimeFrontsTrans = math.transpose(multiTimeFronts) 
     for (let iTime = 0; iTime < nTimeSamples; iTime++) {
         let fr = multiTimeFrontsTrans[iTime];
@@ -285,23 +320,6 @@ function phaseChangeDuringKerr(side) {
     }
     multiTimeFronts = math.transpose(multiTimeFrontsTrans) 
 
-    multiTimeFrontsSaves[side * 3 + 0] = math.clone(multiTimeFronts);
-
-    sumPowerIx = [];
-    ps1 = [];
-    ps2 = [];
-    let totalKerrLensing = math.multiply(lensingFactor, IklTimesI)
-    for (let ix = 0; ix < nSamples; ix++) {
-        let bin = multiTimeFronts[ix];
-        let bin2 = math.abs(math.dotMultiply(bin, math.conj(bin)));
-        sumPowerIx.push(math.sum(bin2));
-        let phaseShift1 = math.multiply(totalKerrLensing, bin2);
-        let x = (ix - nSamples / 2) * dx0;
-        let phaseShift = math.complex(0.0, - Math.PI / lambda / 0.0075 * x * x);
-        ps1.push(phaseShift1[0].im);
-        ps2.push(- Math.PI / lambda / kerrFocalLength * x * x);
-        multiTimeFronts[ix] = math.dotMultiply(bin, math.exp(phaseShift1));
-    }
 }
 
 function spectralGainDispersion() {
@@ -475,7 +493,9 @@ function drawMultiTime() {
     drawVector(multiTimeAperture, false, "gray", 1,  false,"gainSat", "aperture", 0);
     drawVector(sumPowerIx, true, "blue", 1,  false,"meanPower", "Power", 0);
     drawVector(ps1, true, "red", 1, false, "kerrPhase", "Kerr", 0, "hello");
-    drawVector(ps2, false, "green", 1,  false,"kerrPhase", "Lens", 0, `f=${kerrFocalLength}`);
+    let deriv2NoZero = vecDeriv2(ps1, dx0).map((v) => Math.abs(v) < 0.0001 ? 0.0001 : v)
+    drawVector(math.dotDivide(nSamplesOnesR, math.multiply(-  lambda / (2 * Math.PI), deriv2NoZero)), false, "green", 1,  false,"kerrPhase", "KerrD2", 0);
+    //drawVector(ps2, false, "green", 1,  false,"kerrPhase", "Lens", 0, `f=${kerrFocalLength}`);
 }
 
 function drawTimeFronts(fs, view, canvas) {
@@ -604,10 +624,12 @@ function multiTimeCanvasMouseMove(e, updateTest = false) {
     ps3 = xVec.map((dumx, ix) => (- Math.PI / lambda / focal * ((ix - nSamples / 2) * dx0) * ((ix - nSamples / 2) * dx0)));
     let message = `t=${x}</br>Wa=${(waist*1000000).toFixed(0)}mic</br>p=${pw.toExponential(4)}</br>f=${focal.toFixed(4)}`;
 
+    let deriv2NoZero = vecDeriv2(ps1, dx0).map((v) => Math.abs(v) < 0.000000001 ? 0.000000001 : v)
     drawVector(xVec, true, "red", 1, false, "sampleX", "by-X", 0, message);
     drawVector(yVec, true, "red", 1, false, "sampleY", "by-Y", 0);
     drawVector(ps1, true, "red", 1, false, "kerrPhase", "Kerr", 0);
-    drawVector(ps2, false, "green", 1,  false,"kerrPhase", "Lens", 0, `f=${kerrFocalLength}`);
+    drawVector(math.dotDivide(nSamplesOnesR, math.multiply(-  lambda / (2 * Math.PI), deriv2NoZero)), false, "green", 1,  false,"kerrPhase", "KerrD2", 0);
+    //drawVector(ps2, false, "green", 1,  false,"kerrPhase", "Lens", 0, `f=${kerrFocalLength}`);
     drawVector(ps3, false, "blue", 1,  false,"kerrPhase", "LensW", 0, `f=${focal.toFixed(4)}`);
 
     if (updateTest) {

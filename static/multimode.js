@@ -529,6 +529,21 @@ function vecDeriv(v, dx = 1) {
     return vd;
 }
 
+function vecDeriv2(v, dx = 1, n = 5) {
+    let vd = math.clone(v);
+    let l = v.length;
+
+    for (let i = 2; i < l - 2; i++) {
+        vd[i] = (- (v[i - 2] + v[i + 2])
+                + 16.0 * (v[i - 1] + v[i + 1])
+                - 30.0 * v[i]) / (12.0 * dx * dx);
+    }
+    vd[0] = vd[1] = v[2];
+    vd[l - 1] = vd[l - 2] = v[l - 3];
+    
+    return vd;
+}
+
 function vecWaistFromQ(v) {
     let vw = math.clone(v);
     for (let i = 0; i < v.length; i++) {
@@ -1253,8 +1268,9 @@ function fullCavityCrystal(modePrev = 1) {
     let kerrPar =  4 * crystalLength * n2;
     let Ikl = kerrPar / 5 / 50;
     let M, imagA;
-    let MatSide = [[[-1.2947E+00, 4.8630E-03], [1.5111E+02, -1.3400E+00]],  // right
-                 [[1.1589E+00, 8.2207E-04], [2.9333E+02, 1.0709E+00]]];   // left
+    let MatSide = calcOriginalSimMatricesWithoutCrystal(0.003);
+                //[[[-1.2947E+00, 4.8630E-03], [1.5111E+02, -1.3400E+00]],  // right
+                // [[1.1589E+00, 8.2207E-04], [2.9333E+02, 1.0709E+00]]];   // left
     let MatsSide = [];
     let MatTotal = [[1, 0], [0, 1]];
     let focalAper = ((2 * Math.PI * lens_aperture ** 2) / lambda)

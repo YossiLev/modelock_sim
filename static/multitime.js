@@ -493,8 +493,7 @@ function drawMultiTime() {
     drawVector(multiTimeAperture, false, "gray", 1,  false,"gainSat", "aperture", 0);
     drawVector(sumPowerIx, true, "blue", 1,  false,"meanPower", "Power", 0);
     drawVector(ps1, true, "red", 1, false, "kerrPhase", "Kerr", 0, "hello");
-    let deriv2NoZero = vecDeriv2(ps1, dx0).map((v) => Math.abs(v) < 0.0001 ? 0.0001 : v)
-    drawVector(math.dotDivide(nSamplesOnesR, math.multiply(-  lambda / (2 * Math.PI), deriv2NoZero)), false, "green", 1,  false,"kerrPhase", "KerrD2", 0);
+    drawVector(focalFromPhase(ps1), false, "green", 1,  false,"kerrPhase", "KerrD2", 0);
     //drawVector(ps2, false, "green", 1,  false,"kerrPhase", "Lens", 0, `f=${kerrFocalLength}`);
 }
 
@@ -581,7 +580,11 @@ function drawTimeFronts(fs, view, canvas) {
         drawTextBG(ctx, (totalSumPower).toFixed(1), 10, 50);
     }
 }
-
+function focalFromPhase(phase) {
+    let deriv2NoZero = vecDeriv2(phase, dx0).map((v) => Math.abs(v) < 0.000000001 ? 0.000000001 : v)
+    let focalVec = math.dotDivide(nSamplesOnesR, math.multiply(-  lambda / (2 * Math.PI), deriv2NoZero));
+    return focalVec.map((v) => v < -100.0 ? -100.0 : (v > 100.0 ? 100.0 : v) );
+}
 function multiTimeCanvasMouseMove(e, updateTest = false) {
     id = e.target.id;
 
@@ -624,11 +627,10 @@ function multiTimeCanvasMouseMove(e, updateTest = false) {
     ps3 = xVec.map((dumx, ix) => (- Math.PI / lambda / focal * ((ix - nSamples / 2) * dx0) * ((ix - nSamples / 2) * dx0)));
     let message = `t=${x}</br>Wa=${(waist*1000000).toFixed(0)}mic</br>p=${pw.toExponential(4)}</br>f=${focal.toFixed(4)}`;
 
-    let deriv2NoZero = vecDeriv2(ps1, dx0).map((v) => Math.abs(v) < 0.000000001 ? 0.000000001 : v)
     drawVector(xVec, true, "red", 1, false, "sampleX", "by-X", 0, message);
     drawVector(yVec, true, "red", 1, false, "sampleY", "by-Y", 0);
     drawVector(ps1, true, "red", 1, false, "kerrPhase", "Kerr", 0);
-    drawVector(math.dotDivide(nSamplesOnesR, math.multiply(-  lambda / (2 * Math.PI), deriv2NoZero)), false, "green", 1,  false,"kerrPhase", "KerrD2", 0);
+    drawVector(focalFromPhase(ps1), false, "green", 1,  false,"kerrPhase", "KerrD2", 0);
     //drawVector(ps2, false, "green", 1,  false,"kerrPhase", "Lens", 0, `f=${kerrFocalLength}`);
     drawVector(ps3, false, "blue", 1,  false,"kerrPhase", "LensW", 0, `f=${focal.toFixed(4)}`);
 

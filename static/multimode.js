@@ -561,7 +561,7 @@ function vecWaistFromQ(v) {
 
 var drawVectorComparePrevious = [];
 
-function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowChange = false, id = "graphCanvas", name = "", start = drawSx, message = "") {
+function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowChange = false, id = "graphCanvas", name = "", start = drawSx, message = "", zoomX = 1) {
     if (!drawOption) {
         return
     }
@@ -577,7 +577,7 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowCha
     const prevCompare = document.getElementById('cbxPrevCompare')?.checked;
     if (l > 0) {
         fac = Math.max(Math.abs(Math.max(...v)), Math.abs(Math.min(...v)));
-        let vecObj = {vec: math.clone(v), w: pixelWidth, ch:allowChange,  s: start, c: color, n: name, f: fac, m: message};
+        let vecObj = {vec: math.clone(v), w: pixelWidth, ch:allowChange,  s: start, c: color, n: name, f: fac, m: message, z: zoomX};
         vectors.push(vecObj);
         presentedVectors.set(id, vectors);
     } else {
@@ -626,11 +626,13 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowCha
     let zoomVal = parseFloat(document.getElementById(`${id}-zoomVal`).innerHTML);
     fac *= zoomVal;
     vectors.forEach((vo, iVec) => {
+        let sx = vo.s - pixelWidth * vo.z * vo.vec.length / 2 + canvas.width / 2;
+        let dx = pixelWidth * vo.z;
         ctx.strokeStyle = vo.c;
         ctx.beginPath();
-        ctx.moveTo(vo.s, 100 - Math.floor(fac * vo.vec[0]));
+        ctx.moveTo(sx, 100 - Math.floor(fac * vo.vec[0]));
         for (let i = 1; i < l; i++) {
-            ctx.lineTo(vo.s + i * pixelWidth, 100 - Math.floor(fac * vo.vec[i]));
+            ctx.lineTo(sx + i * dx, 100 - Math.floor(fac * vo.vec[i]));
         }
         ctx.stroke();
 
@@ -1815,11 +1817,11 @@ function graphCanvasMouseMove(e) {
     if (vectors == null || vectors.lenght < 1) {
         return;
     }
-    let vecObj = vectors[0];
-    let ix = Math.floor((x - vecObj.s) / vecObj.w);
-
     const canvas = document.getElementById(e.target.id);
     const ctx = canvas.getContext("2d");
+    let vecObj = vectors[0];
+    let ix = Math.floor((x - (vecObj.s - vecObj.vec.length / 2 * vecObj.w * vecObj.z + canvas.width / 2)) / (vecObj.w * vecObj.z));
+
     if (isMouseDownOnGraph) {
         mouseOnGraphEnd = ix;
         drawGraph();

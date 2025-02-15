@@ -97,6 +97,14 @@ input {
     padding: 6px 5px 5px 5px;
 }
 
+input:read-only {
+  padding: 2px 2px;
+  border: none;
+  border-radius: 0px;
+  background-color: #d6d5d5;
+  color: #367AF6;
+  padding: 6px 5px 5px 5px;
+}
 .tab {
   color: #fff;
   display: inline-block;

@@ -486,11 +486,11 @@ function drawMultiTime() {
     }
     drawTimeFrontsWithOptions(timeContentOption, timeContentView, document.getElementById("funCanvasTime"));
     drawTimeFrontsWithOptions(freqContentOption, freqContentView, document.getElementById("funCanvasFrequency"));
-    drawVector(pumpGain0, true, "green", 1,  false,"gainSat", "Pump", 0);
-    drawVector(gainReduction, false, "red", 1, false, "gainSat", "PumpSat", 0);
-    drawVector(gainReductionWithOrigin, false, "blue", 1,  false,"gainSat", "Pump + 1", 0);
-    drawVector(gainReductionAfterDiffraction, false, "black", 1,  false,"gainSat", "with Diff", 0);
-    drawVector(multiTimeAperture, false, "gray", 1,  false,"gainSat", "aperture", 0);
+    drawVector(pumpGain0, true, "green", 1,  false,"gainSat", "Pump", 0, "", 8);
+    drawVector(gainReduction, false, "red", 1, false, "gainSat", "PumpSat", 0, "", 8);
+    drawVector(gainReductionWithOrigin, false, "blue", 1,  false, "gainSat", "Pump + 1", 0, "", 8);
+    drawVector(gainReductionAfterDiffraction, false, "black", 1,  false,"gainSat", "with Diff", 0, "", 8);
+    //drawVector(multiTimeAperture, false, "gray", 1,  false,"gainSat", "aperture", 0, "", 8);
     drawVector(sumPowerIx, true, "blue", 1,  false,"meanPower", "Power", 0);
     drawVector(ps1, true, "red", 1, false, "kerrPhase", "Kerr", 0, "hello");
     drawVector(focalFromPhase(ps1), false, "green", 1,  false,"kerrPhase", "KerrD2", 0);
@@ -583,7 +583,7 @@ function drawTimeFronts(fs, view, canvas) {
 function focalFromPhase(phase) {
     let deriv2NoZero = vecDeriv2(phase, dx0).map((v) => Math.abs(v) < 0.000000001 ? 0.000000001 : v)
     let focalVec = math.dotDivide(nSamplesOnesR, math.multiply(-  lambda / (2 * Math.PI), deriv2NoZero));
-    return focalVec.map((v) => v < -100.0 ? -100.0 : (v > 100.0 ? 100.0 : v) );
+    return focalVec.map((v) => v < -10.0 ? 0.0 : (v > 10.0 ? 0.0 : v) );
 }
 function multiTimeCanvasMouseMove(e, updateTest = false) {
     id = e.target.id;

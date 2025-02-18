@@ -1,0 +1,16 @@
+sudo apt install nginx
+
+# edit configuration file
+sudo nano /etc/nginx/sites-available/uvicorn_proxy
+
+#build link in standard folder "sites-enabled". delete other files from there
+sudo ln -s /etc/nginx/sites-available/uvicorn_proxy /etc/nginx/sites-enabled/
+
+#check for errors before starting the service
+sudo nginx -t
+sudo systemctl restart nginx
+
+#install certificates software
+sudo apt install certbot python3-certbot-nginx
+sudo certbot --nginx -d sim.yossilev.me -d sim.yossilev.me
+

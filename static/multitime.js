@@ -205,7 +205,6 @@ function multiTimeRoundTrip(iCount) {
 
     [0, 1].forEach((side) => {
         phaseChangeDuringKerr(side);
-        // phaseChangeDuringKerr (V)
 
         spectralGainDispersion();
         // gainByfrequency (V)

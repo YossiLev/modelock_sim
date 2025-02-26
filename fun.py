@@ -190,7 +190,7 @@ def generate_multimode(data_obj, tab, offset = 0):
                 funCanvas(1),
                 graphCanvas()
             )
-        case 2:
+        case 2: # Crystal
             added = Div(
                 Div(initBeamType(beamParamInit = 0.00003, beamDistInit = 0.0), 
                     Button("Init", onclick="initElementsMultiMode(); initMultiMode(2);"),
@@ -201,6 +201,7 @@ def generate_multimode(data_obj, tab, offset = 0):
                     Input(type="number", id=f'power', placeholder="power", step="1000000", style="width:80px;", value=f'30000000'),
                     Input(type="number", id=f'apreture', placeholder="apreture", step="0.00001", style="width:70px;", value=f'0.000056', **{'onchange':"apertureChanged();"},),
                     Select(Option("256"), Option("512"), Option("1024"), Option("2048"), Option("4096"), id="nSamples", **{'onchange':"nSamplesChanged();"},),
+                    Select(Option("5"), Option("4"), Option("3"), Option("2"), Option("1"), Option("0"), id="nLenses", **{'onchange':"nLensesChanged();"},),
                 ),
                 Div(
                     *[Element(el, i, tab) for i, el in enumerate(elements[tab - 1])],
@@ -210,7 +211,7 @@ def generate_multimode(data_obj, tab, offset = 0):
 
                 graphCanvas()
             )
-        case 3:
+        case 3: # MultiTime
             added = Div(
                 Div(initBeamType(beamParamInit = 0.00003, beamDistInit = 0.0), 
                     Button("Init", onclick="initElementsMultiMode(); initMultiTime();"),

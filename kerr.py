@@ -17,7 +17,7 @@ def SatGain(Ew, w, g0, Is, Wp):
     else:
         g = g0 / (1 + Imean / Is)
 
-    print(F"Wmin = {Wmin}, wp = {Wp}, IMean = {Imean}, g = {g} ")
+    #print(F"Wmin = {Wmin}, wp = {Wp}, IMean = {Imean}, g = {g} ")
     return g
 
 def MLSpatial_gain(sim):

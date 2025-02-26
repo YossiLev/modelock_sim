@@ -37,6 +37,8 @@ var deltaGraphX, deltaGraphY,  deltaGraphYHalf, deltaGraphYCalc;
 var displayTemp = [[], []];
 var displayTempPrevious = [[], []];
 var presentedVectors = new Map();
+var crystalNumberOfLenses = 5;
+var crystalLength = 3e-3;
 var stabilityGraph;
 
 let totalRightSide;
@@ -145,6 +147,10 @@ function nSamplesChanged() {
     let step = 0.0003;
     initialRange =  math.sqrt(lambda * step * nSamples);
     setFieldFloat("initialRange", initialRange);
+}
+
+function nLensesChanged() {
+    crystalNumberOfLenses = getFieldInt("nLenses");
 }
 
 function nMaxMatricesChanged() {
@@ -367,9 +373,14 @@ function drawMultiMode(startDraw = 0.0) {
             displayTemp[index].forEach((el, i, a) => {
                 drawTextBG(ctx, el.toFixed(7), canvas.width - 80, canvas.height - 28 - 16 * ((a.length - i)));
             });
+            let totalDisplayTemp = 1.0 / displayTemp[index].reduce((acc, v) => acc + 1.0 / v, 0);
+            drawTextBG(ctx, totalDisplayTemp.toFixed(7), canvas.width - 80, canvas.height - 28 - 16 * ((displayTemp[index].length + 1)), "blue");
+
             displayTempPrevious[index].forEach((el, i, a) => {
                 drawTextBG(ctx, el.toFixed(7), canvas.width - 160, canvas.height - 28 - 16 * ((a.length - i)));
             });
+            let totalDisplayTempPrevious = 1.0 / displayTempPrevious[index].reduce((acc, v) => acc + 1.0 / v, 0);
+            drawTextBG(ctx, totalDisplayTempPrevious.toFixed(7), canvas.width - 160, canvas.height - 28 - 16 * ((displayTempPrevious[index].length + 1)), "blue");
         }
 
         if (drawMode == 2) {  // roundtrip
@@ -463,11 +474,11 @@ function drawElements(index, startDraw) {
                     ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);          
                     px = drawSx + (pos + elements[iEl].par[1] - distStart - startDraw + cavityLength * r) / distStep * drawW ;
                     ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);
-                    let spx = (elements[iEl].par[1] / 10);
+                    let spx = (elements[iEl].par[1] / (2 * crystalNumberOfLenses));
                     ctx.strokeStyle = `purple`;
                     ctx.setLineDash([5, 3]);
                     ctx.beginPath();
-                    for (let iL = 0; iL < 5; iL++) {
+                    for (let iL = 0; iL < crystalNumberOfLenses; iL++) {
                         px = drawSx + (pos + (1 + 2 * iL) * spx - distStart- startDraw + cavityLength * r) / distStep * drawW ;
                         ctx.moveTo(px, drawMid - 80 * zoomFactor);
                         ctx.lineTo(px, drawMid + 80 * zoomFactor);
@@ -497,11 +508,11 @@ function drawElements(index, startDraw) {
                     ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);          
                     px = drawSx + (- pos + elements[iEl].par[1] - distStart - startDraw + cavityLength * (r + 2)) / distStep * drawW ;
                     ctx.fillRect(px, drawMid - 80 * zoomFactor, 2, 160 * zoomFactor);
-                    let spx = (elements[iEl].par[1] / 10);
+                    let spx = (elements[iEl].par[1] / (2 * crystalNumberOfLenses));
                     ctx.strokeStyle = `purple`;
                     ctx.setLineDash([5, 3]);
                     ctx.beginPath();
-                    for (let iL = 0; iL < 5; iL++) {
+                    for (let iL = 0; iL < crystalNumberOfLenses; iL++) {
                         px = drawSx + (- pos + (1 + 2 * iL) * spx - distStart- startDraw + cavityLength * (r + 2)) / distStep * drawW ;
                         ctx.moveTo(px, drawMid - 80 * zoomFactor);
                         ctx.lineTo(px, drawMid + 80 * zoomFactor);
@@ -796,7 +807,8 @@ function initElementsMultiMode() {
 function focusOnCrystal() {
     elements.forEach((el, index) => {
         if (el.t == "C") {
-            distStep = el.par[1] / 10.0;
+            crystalLength = el.par[1];
+            distStep = crystalLength / (2.0 * crystalNumberOfLenses);
             distStart = el.par[0] - distStep;
         }
     });
@@ -831,6 +843,8 @@ function initMultiMode(setWorkingTab = - 1, beamParam = - 1) {
 
     multiFronts[0] = [getInitFront(beamParam)];
     multiRanges[0] = [initialRange];
+    multiFronts[1] = [];
+    multiRanges[1] = [];
     sfs = 0;
     drawMode = 1;
     drawMultiMode();
@@ -1266,11 +1280,10 @@ function fullCavityCrystal(modePrev = 1) {
     //let fa = ((2 * Math.PI * lens_aperture ** 2) / lambda);
     let fa = ((2 * lens_aperture ** 2));
     let n2 = 3e-20; // n2 of sapphire m^2/W
-    let crystalLength = 3e-3;
     let kerrPar =  4 * crystalLength * n2;
     let Ikl = kerrPar / 5 / 50;
     let M, imagA;
-    let MatSide = calcOriginalSimMatricesWithoutCrystal(0.003);
+    let MatSide = calcOriginalSimMatricesWithoutCrystal(crystalLength);
                 //[[[-1.2947E+00, 4.8630E-03], [1.5111E+02, -1.3400E+00]],  // right
                 // [[1.1589E+00, 8.2207E-04], [2.9333E+02, 1.0709E+00]]];   // left
     let MatsSide = [];
@@ -1313,7 +1326,7 @@ function fullCavityCrystal(modePrev = 1) {
             return;
         }
     
-        for (let iStep = 1; iStep < 12; iStep++) {
+        for (let iStep = 1; iStep < 2 + 2 * crystalNumberOfLenses; iStep++) {
             let fx = math.clone(fronts[iStep - 1]);
             // for (let ii = 0; ii < fx.length; ii++) {
             //     fx[ii] = math.multiply(fx[ii], 1.031);

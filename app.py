@@ -86,11 +86,11 @@ def make_page(data_obj):
                     Button("Restart", hx_post=f"/init", hx_target="#charts", hx_include="#seedInit, #cbxmatlab", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML"), 
                     Input(type="text", id="seedInit", name="seedInit", placeholder="Initial seed", style="width:90px;"),
                     Button("Step", hx_post="/inc", hx_target="#charts", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
-                    Button("Run", hx_ext="ws", ws_connect="/run", ws_send=True, hx_target="#charts", hx_swap="innerHTML", hx_include="#cbxQuick,#cbxmatlab", hx_vals='js:{localId: getLocalId()}'),
+                    Button("Run", hx_ext="ws", ws_connect="/run", ws_send=True, hx_target="#charts", hx_swap="innerHTML", hx_include="#cbxQuick,#cbxmatlabt", hx_vals='js:{localId: getLocalId()}'),
                     Button("Stop", hx_post="/stop", hx_target="#charts", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
                     Label(Input(id="cbxQuick", type='checkbox', name='quick', checked=False), "Speed"),
                     Label(Input(id="cbxmatlab", type='checkbox', name='matlab', checked=False), "Matlab style"),
-                    
+                    #Input(type="number", id=f'positionShift', placeholder="0.0", step="0.0001", style="width:100px;", value=f'0.0', title="Shift in crystal position"),
                     Div(generate_all_charts(data_obj), id="charts"),
                     style="width:1100px;"
                 )
@@ -110,12 +110,13 @@ def make_page(data_obj):
         case "Iterations":
             return my_frame("Iterations", 
                 Div( Button("Prepare", hx_post=f"/iterInit", hx_target="#iterate", 
-                   hx_include="#iterSeedInit, #iterStartValue, #iterEndValue, #iterValueSteps", 
+                   hx_include="#iterSeedInit, #iterStartValue, #iterEndValue, #iterValueSteps, #interpolationType",
                    hx_vals='js:{localId: getLocalId()}', hx_swap="outerHTML"), 
                     Input(type="text", id="iterSeedInit", name="iterSeedInit", placeholder="Initial seed", style="width:90px;"),
                     Input(type="text", id="iterStartValue", name="iterStartValue", placeholder="Start value", style="width:90px;"),
                     Input(type="text", id="iterEndValue", name="iterEndValue", placeholder="End value", style="width:90px;"),
                     Input(type="text", id="iterValueSteps", name="iterValueSteps", placeholder="Iteration steps number", style="width:90px;"),
+                    Select(Option("Logarithmic"), Option("Linear"), id="interpolationType"),
                     Button("Step", hx_post="/iterStep", hx_target="#iterate", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
                     Button("Run", hx_ext="ws", ws_connect="/iterRun", ws_send=True, hx_target="#iterate", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
                     Button("Stop", hx_post="/iterStop", hx_target="#iterate", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
@@ -228,6 +229,7 @@ async def run(send, quick: bool, localId: str, matlab:bool = False):
     count = dataObj['count']
     end_count = count + 1000
     sim.matlab = matlab
+    #sim.positionShift = positionShift
 
     while dataObj['run_state'] and count < end_count:
         
@@ -251,7 +253,7 @@ async def run(send, quick: bool, localId: str, matlab:bool = False):
 
 #------------------- iterations
 @app.post("/iterInit")
-def iterInit(iterSeedInit: str, iterStartValue:str, iterEndValue:str, iterValueSteps: str, localId: str):
+def iterInit(iterSeedInit: str, iterStartValue:str, iterEndValue:str, iterValueSteps: str, interpolationType: str, localId: str):
     global gen_data
     dataObj = get_Data_obj(localId)
 
@@ -269,7 +271,10 @@ def iterInit(iterSeedInit: str, iterStartValue:str, iterEndValue:str, iterValueS
     value_start = 1.0
     value_end = 10.0
     n_values = 10
-    values_mode = "log"
+    if (interpolationType == "Logarithmic"):
+        values_mode = "log"
+    else:
+        values_mode = "lin"
     try:
         seed = int(iterSeedInit)
     except:
@@ -283,6 +288,7 @@ def iterInit(iterSeedInit: str, iterStartValue:str, iterEndValue:str, iterValueS
     except:
         pass
 
+    iterations.clear()
     iterations.append(Iteration(sim, seed, parameters[0], value_start, value_end, n_values, values_mode, name = f"General"))
 
     return generate_iterations(dataObj)

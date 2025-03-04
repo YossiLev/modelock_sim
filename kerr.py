@@ -1,6 +1,7 @@
 import numpy as np
 
-def NLloss(waist, Wp): #pure function
+# diffraction loss 
+def NLloss(waist, Wp):
     loss = np.ones_like(waist)
     for i in range(len(waist)):
         if waist[i] > Wp:
@@ -8,6 +9,7 @@ def NLloss(waist, Wp): #pure function
             
     return loss
 
+# gain saturation
 def SatGain(Ew, w, g0, Is, Wp):
     Imean = np.mean(np.abs(Ew)**2)  # mean roundtrip intensity
     Wmin = np.min(w)
@@ -75,10 +77,10 @@ def MLSpatial_gain(sim):
         v = np.exp(1j * a)
         return v
 
-    MRight = distance(fullStep * edgeFactor) @ distance(sim.RMD + sim.deltaPlane - 1e-10 - sim.L / 2) @ Mcur(sim.RM) @ \
-            distance(sim.L1) @ distance(sim.L1) @ Mcur(sim.RM) @ distance(sim.RMD + sim.deltaPlane - 1e-10 - sim.L / 2)
-    MLeft = distance(fullStep * edgeFactor) @ distance(sim.FMD + deltaPoint - sim.L / 2) @ lens(sim.FM) @ distance(sim.L2) @ \
-            distance(sim.L2) @ lens(sim.FM) @ distance(sim.FMD + deltaPoint - sim.L / 2)
+    MRight = distance(fullStep * edgeFactor) @ distance(sim.RMD + sim.deltaPlane + sim.positionShift - 1e-10 - sim.L / 2) @ Mcur(sim.RM) @ \
+            distance(sim.L1) @ distance(sim.L1) @ Mcur(sim.RM) @ distance(sim.RMD + sim.deltaPlane + sim.positionShift - 1e-10 - sim.L / 2)
+    MLeft = distance(fullStep * edgeFactor) @ distance(sim.FMD + deltaPoint - sim.positionShift - sim.L / 2) @ lens(sim.FM) @ distance(sim.L2) @ \
+            distance(sim.L2) @ lens(sim.FM) @ distance(sim.FMD + deltaPoint - sim.positionShift- sim.L / 2)
     
     # fullStep = 0.0006
     # edgeFactor  = 0.5

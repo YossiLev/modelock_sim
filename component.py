@@ -188,6 +188,7 @@ class TiSapphs(SimComponent):
             SimParameterNumber(f"{self.id}-wp", "number", "Pump waist (m)", "General", 30e-6),
             SimParameterNumber(f"{self.id}-spec-g", "number", "Spectrum gain", "General", 200),
             SimParameterNumber(f"{self.id}-n-lens", "number", "Thin lenses", "General", 5),
+            SimParameterNumber(f"{self.id}-position-shift", "number", "Position Shift (mm)", "General", 0),
         ]
         self.finalize()
         
@@ -198,6 +199,7 @@ class TiSapphs(SimComponent):
         self.Wp = self.parameters[3].get_value()
         self.spec_G_par = self.parameters[4].get_value()
         self.nLenses = round(self.parameters[5].get_value())
+        self.positionShift = self.parameters[6].get_value()  * 0.001
 
         self.kerr_par = 4 * self.length * self.n2
 

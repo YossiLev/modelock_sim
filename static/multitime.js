@@ -134,6 +134,7 @@ function updateContentOptions() {
 
 function initMultiTime() {
     workingTab = 3
+    // 256 slices of 1024 length each slice
     multiTimeFronts = [];
     multiFrequencyFronts = [];
     multiTimeFrontsSaves = [[], [], [], [], [], []];
@@ -297,6 +298,7 @@ function phaseChangeDuringKerr(side) {
     for (let ix = 0; ix < nSamples; ix++) {
         let bin = multiTimeFronts[ix];
         let bin2 = math.abs(math.dotMultiply(bin, math.conj(bin)));
+        // total power of bin is set into sumPowerIx
         sumPowerIx.push(math.sum(bin2));
         let phaseShift1 = math.multiply(totalKerrLensing, bin2);
         multiTimeFronts[ix] = math.dotMultiply(bin, math.exp(phaseShift1));
@@ -351,6 +353,7 @@ function linearCavityOneSide(side) {
     gainReductionWithOrigin = math.multiply(gainFactor, math.add(1, gainReduction));
     gainReductionAfterDiffraction = math.dotMultiply(gainReductionWithOrigin, multiTimeDiffraction);
 
+    // tranpose to 1024 slices of 256 so that multiTimeFrontsTrans[i] will be the frint number i
     let multiTimeFrontsTrans = math.transpose(multiTimeFronts) 
 
     for (let iTime = 0; iTime < nTimeSamples; iTime++) {
@@ -400,7 +403,7 @@ function prepareAperture() {
     for (let ix = 0; ix < nSamples; ix++) {
         let x = (ix - nSamples / 2) * dx0;
         let xw = x / diffractionWidth;
-        multiTimeDiffraction.push(math.exp(- xw * xw));
+        f.push(math.exp(- xw * xw));
     }
     
 }
@@ -492,7 +495,9 @@ function drawMultiTime() {
     //drawVector(multiTimeAperture, false, "gray", 1,  false,"gainSat", "aperture", 0, "", 8);
     drawVector(sumPowerIx, true, "blue", 1,  false,"meanPower", "Power", 0);
     drawVector(ps1, true, "red", 1, false, "kerrPhase", "Kerr", 0, "hello");
-    drawVector(focalFromPhase(ps1), false, "green", 1,  false,"kerrPhase", "KerrD2", 0);
+    if (ps1.length > 0) {
+        drawVector(focalFromPhase(ps1), false, "green", 1,  false,"kerrPhase", "KerrD2", 0);
+    }
     //drawVector(ps2, false, "green", 1,  false,"kerrPhase", "Lens", 0, `f=${kerrFocalLength}`);
 }
 

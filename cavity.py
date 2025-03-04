@@ -26,6 +26,7 @@ class CavityData():
         self.str_beam_theta = "0.5"
         print(f"aa matlab {matlab}")
         self.matlab = matlab
+        self.positionShift = 0.0
         self.step = 0
         self.recorded_data = [["Time", "Power", "Width", "Lensing Right", "Lensing Left", "Total Mat"]]
         self.recorded_data_indices = []
@@ -303,6 +304,7 @@ class CavityDataPartsKerr(CavityDataParts):
             self.spec_G_par = sp.spec_G_par  # Gaussian linewidth parameter
             self.spectralGain = 1 / (1 + (self.w / self.spec_G_par)**2)  # s(w) spectral gain function
             self.nLenses = sp.nLenses
+            self.positionShift = sp.positionShift
 
         lenses = self.getPartsByName("Lens")
         if len(lenses) == 1:

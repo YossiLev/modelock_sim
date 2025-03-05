@@ -1,3 +1,17 @@
+gen_data = {}
+def get_Data_obj(id):
+    global gen_data
+    if id not in gen_data.keys():
+        return None
+    return gen_data[id]
+        
+def get_sim_obj(id):
+    dataObj = get_Data_obj(id)
+    if dataObj is None:
+        return None
+    return dataObj['cavityData']
+
+
 from fasthtml import FastHTML
 from fasthtml.common import *
 import numpy as np
@@ -17,7 +31,8 @@ import jsonpickle
 import dataset
         
 
-gen_data = {}
+
+
 current_tab = "Simulation"
 db_path = "sqlite:///data/mydatabase.db"
 
@@ -39,18 +54,7 @@ app = FastHTML(ws_hdr=True, hdrs=(
 ))
 app.mount("/static", StaticFiles(directory="static"), name="static")
 setup_toasts(app)
-        
-def get_Data_obj(id):
-    global gen_data
-    if id not in gen_data.keys():
-        return None
-    return gen_data[id]
-        
-def get_sim_obj(id):
-    dataObj = get_Data_obj(id)
-    if dataObj is None:
-        return None
-    return dataObj['cavityData']
+
     
 @app.post("/menu/{new_tab}")
 def menu(new_tab: str, localId: str):
@@ -110,17 +114,18 @@ def make_page(data_obj):
         case "Iterations":
             return my_frame("Iterations", 
                 Div( Button("Prepare", hx_post=f"/iterInit", hx_target="#iterate", 
-                   hx_include="#iterSeedInit, #iterStartValue, #iterEndValue, #iterValueSteps, #interpolationType",
-                   hx_vals='js:{localId: getLocalId()}', hx_swap="outerHTML"), 
+                        hx_include="#iterSeedInit, #iterStartValue, #iterEndValue, #iterValueSteps, #interpolationType, #iterName",
+                        hx_vals='js:{localId: getLocalId()}', hx_swap="outerHTML"), 
                     Input(type="text", id="iterSeedInit", name="iterSeedInit", placeholder="Initial seed", style="width:90px;"),
-                    Input(type="text", id="iterStartValue", name="iterStartValue", placeholder="Start value", style="width:90px;"),
-                    Input(type="text", id="iterEndValue", name="iterEndValue", placeholder="End value", style="width:90px;"),
-                    Input(type="text", id="iterValueSteps", name="iterValueSteps", placeholder="Iteration steps number", style="width:90px;"),
-                    Select(Option("Logarithmic"), Option("Linear"), id="interpolationType"),
+                    Input(type="text", id="iterStartValue", name="iterStartValue", placeholder="Start value", style="width:70px;"),
+                    Input(type="text", id="iterEndValue", name="iterEndValue", placeholder="End value", style="width:70px;"),
+                    Input(type="text", id="iterValueSteps", name="iterValueSteps", placeholder="Iteration steps number", style="width:70px;"),
+                    Select(Option("Linear"), Option("Logarithmic"), id="interpolationType"),
+                    Input(type="text", id="iterName", name="iterName", placeholder="Label", style="width:190px;"),
                     Button("Step", hx_post="/iterStep", hx_target="#iterate", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
                     Button("Run", hx_ext="ws", ws_connect="/iterRun", ws_send=True, hx_target="#iterate", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
                     Button("Stop", hx_post="/iterStop", hx_target="#iterate", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
-                    Div(generate_iterations(data_obj)), style="width:1100px"))
+                    Div(generate_iterations(data_obj), id="iterationsReport"), style="width:1100px"))
         case "MultiMode":
             return my_frame("MultiMode", 
                 Div(
@@ -253,7 +258,7 @@ async def run(send, quick: bool, localId: str, matlab:bool = False):
 
 #------------------- iterations
 @app.post("/iterInit")
-def iterInit(iterSeedInit: str, iterStartValue:str, iterEndValue:str, iterValueSteps: str, interpolationType: str, localId: str):
+def iterInit(iterSeedInit: str, iterStartValue:str, iterEndValue:str, iterValueSteps: str, interpolationType: str, iterName: str, localId: str):
     global gen_data
     dataObj = get_Data_obj(localId)
 
@@ -271,6 +276,8 @@ def iterInit(iterSeedInit: str, iterStartValue:str, iterEndValue:str, iterValueS
     value_start = 1.0
     value_end = 10.0
     n_values = 10
+    name = iterName.strip() if (len(iterName.strip()) > 0) else f"Iteration {len(iterations) + 1}"
+
     if (interpolationType == "Logarithmic"):
         values_mode = "log"
     else:
@@ -288,8 +295,7 @@ def iterInit(iterSeedInit: str, iterStartValue:str, iterEndValue:str, iterValueS
     except:
         pass
 
-    iterations.clear()
-    iterations.append(Iteration(sim, seed, parameters[0], value_start, value_end, n_values, values_mode, name = f"General"))
+    iterations.insert(0, Iteration(sim, seed, parameters[0], value_start, value_end, n_values, values_mode, name = name))
 
     return generate_iterations(dataObj)
 
@@ -308,6 +314,12 @@ def step(localId: str):
     iterations[0].step()
 
     return generate_iterations(dataObj)
+
+@app.post("/iterChange/{index}")
+def step(localId: str, index: int):
+    dataObj = get_Data_obj(localId)
+    print(f"--------- {index} {id}")
+    return generate_iterations(dataObj, index)
 
 async def on_connect_iter(session, send):
     print('_iterConnected!')

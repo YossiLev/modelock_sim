@@ -1,6 +1,7 @@
 import datetime
 import numpy as np
 from fasthtml.common import *
+from app import get_Data_obj
 
 class Iteration():
     def __init__(self, sim, seed, parameter, value_start, value_end, n_values, values_mode, name = f"General"):
@@ -64,16 +65,17 @@ class Iteration():
 
     def render(self):
         return Div(
+            Div(self.name), 
             Table(
                 Tr(Th(self.parameterName), Th("Seed"), Th("State", style="min-width:140px;"), Th("Report")),
                 *[Tr(Td(f"{value:.4f}", cls="monoRight"), Td(f"{seed}", cls="monoRight"), Td(state, cls="mono", style="min-width:140px;"), Td(report, style="font-size:11px;")) for value, seed, state, report in zip(self.values, self.seeds, self.state, self.reportsFinal)]
             )
         )
 
-def generate_iterations(dataObj, iterationIndex = - 1):
-    try:
-        if dataObj is not None and len(dataObj['iterationRuns']) > 0:
-            iteration = dataObj['iterationRuns'][-1]
+def generate_iterations(dataObj, index = 0):
+    #try:
+        if dataObj is not None and dataObj is not None and len(dataObj['iterationRuns']) > index:
+            iteration = dataObj['iterationRuns'][index]
         else:
             iteration = None
 
@@ -81,12 +83,19 @@ def generate_iterations(dataObj, iterationIndex = - 1):
             counts = f"Seed {iteration.seed} - Index {iteration.current_index} - Step {iteration.current_count}"
         else:
             counts = ""
+        
+        obj_id = dataObj["id"]
+    
         return Div(
            
             Div(counts, id="iter_count") ,
             Div(Div(*[p.render() for p in dataObj['cavityData'].getPinnedParameters()], cls="rowx"), cls="rowx"),
+            Div(
+                *list(map(lambda x: Button(x[1].name, hx_post=f"/iterChange/{x[0]}", hx_target="#iterationsReport", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'), enumerate(dataObj['iterationRuns'])))
+            ),
+
             iteration.render() if iteration is not None else Div("no values"),
             cls="column", id="iterate"
         )
-    except:
-        return  "Error in data"
+    # except:
+    #     return  "Error in data"

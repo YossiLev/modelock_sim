@@ -91,7 +91,7 @@ class CavityData():
         self.step = 0
         pass
 
-    def getPinnedParameters(self):
+    def getPinnedParameters(self, tPin):
         return []
 
     def render(self):
@@ -238,14 +238,14 @@ class CavityDataParts(CavityData):
                 ps.append(par)
         return ps
 
-    def getPinnedParameters(self):
+    def getPinnedParameters(self, tPin):
         pinned = []
         for param in self.parameters:
-            if param.pinned:
+            if param.pinned == tPin:
                 pinned.append(param)
         for part in self.parts:
             for param in part.parameters:
-                if param.pinned:
+                if param.pinned == tPin:
                     pinned.append(param)
 
         return pinned

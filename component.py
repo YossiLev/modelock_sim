@@ -188,7 +188,7 @@ class TiSapphs(SimComponent):
             SimParameterNumber(f"{self.id}-wp", "number", "Pump waist (m)", "General", 30e-6),
             SimParameterNumber(f"{self.id}-spec-g", "number", "Spectrum gain", "General", 200),
             SimParameterNumber(f"{self.id}-n-lens", "number", "Thin lenses", "General", 5),
-            SimParameterNumber(f"{self.id}-position-shift", "number", "Position Shift (mm)", "General", 0),
+            SimParameterNumber(f"{self.id}-position-shift", "number", "Pos Shift (mm)", "General", 0),
         ]
         self.finalize()
         
@@ -222,7 +222,7 @@ class SimParameter():
         self.group = group
         self.name = name
         self.value_error = False
-        self.pinned = False
+        self.pinned = 0
         pass
 
     def render(self):
@@ -242,7 +242,8 @@ class SimParameterNumber(SimParameter):
         self.strValue = str(value)
 
     def render(self):
-        return Form(Div(self.name, Span(NotStr(f"<svg width='24' height='24' viewBox='0 0 24 24' fill={'#07be17' if self.pinned else 'lightgray'} xmlns='http://www.w3.org/2000/svg'><path transform='rotate(45 0 10)' d='M12 2C10.8954 2 10 2.89543 10 4V10H8V12H16V10H14V4C14 2.89543 13.1046 2 12 2ZM10 13H14L12 21L10 13Z'/></svg>"),   
+        color = ['#D3D3D3', '#07be17', '#6747be'][self.pinned]
+        return Form(Div(self.name, Span(NotStr(f"<svg width='24' height='24' viewBox='0 0 24 24' fill={color} xmlns='http://www.w3.org/2000/svg'><path transform='rotate(45 0 10)' d='M12 2C10.8954 2 10 2.89543 10 4V10H8V12H16V10H14V4C14 2.89543 13.1046 2 12 2ZM10 13H14L12 21L10 13Z'/></svg>"),   
                                        hx_post=f"parpinn/{self.id}",hx_vals='js:{localId: getLocalId()}', hx_target=f"#form{self.id}"), cls="paramName"), 
                     Input(type="text", name="param", value=str(self.strValue), 
                           hx_post=f"/parnum/{self.id}", hx_vals='js:{localId: getLocalId()}', hx_trigger="keyup changed delay:1s",

@@ -1,16 +1,3 @@
-gen_data = {}
-def get_Data_obj(id):
-    global gen_data
-    if id not in gen_data.keys():
-        return None
-    return gen_data[id]
-        
-def get_sim_obj(id):
-    dataObj = get_Data_obj(id)
-    if dataObj is None:
-        return None
-    return dataObj['cavityData']
-
 
 from fasthtml import FastHTML
 from fasthtml.common import *
@@ -20,12 +7,16 @@ import time
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
+
+#internal imports
+from gen_data import *
 from simulation import generate_all_charts
 from geometry import generate_geometry, generate_beam_params
 from fun import generate_multimode
 from design import generate_design
 from iterations import generate_iterations, Iteration
 from cavity import CavityDataPartsKerr, CavityData
+
 import app
 import jsonpickle
 import dataset
@@ -68,10 +59,9 @@ def menu_item(item_name, current_item):
     return Div(item_name, cls=f"menuItem{sel}", hx_post=F"/menu/{item_name}", hx_target="#fullPage", hx_vals='js:{localId: getLocalId()}')
 
 def content_table(current_page):
-    global gen_data
     menu_list = ["Design", "Simulation", "Geometry", "Iterations", "MultiMode", "Settings"]
     return Div(*[menu_item(x, current_page) for x in menu_list],
-                Div(F"n = {len(list(gen_data.keys()))}"),  cls="sideMenu")
+                Div(F"n = {len(get_data_keys())}"),  cls="sideMenu")
 
 def my_frame(current_page, content):
     return Div(
@@ -166,20 +156,19 @@ def parameter_num(localId: str, id: str):
     cavity: CavityData = dataObj['cavityData']
 
     simParam, simComp  = cavity.getParameter(id)
-    simParam.pinned = not simParam.pinned
+    simParam.pinned = (simParam.pinned + 1) % 3
 
     return simParam.render()
 
 @app.post("/init")
 def init(session, seedInit: str, localId: str, matlab:bool = False):
-    global gen_data
     dataObj = get_Data_obj(localId)
 
     if dataObj is None:
         dataObj = {'id': localId, 'count': 0, 
                 'run_state': False, 'cavityData': CavityDataPartsKerr(matlab = matlab), 
                 'iterationRuns': []} 
-        gen_data[localId] = dataObj
+        insert_data_obj(localId, dataObj)
     
     seed = 0
     try:
@@ -259,18 +248,18 @@ async def run(send, quick: bool, localId: str, matlab:bool = False):
 #------------------- iterations
 @app.post("/iterInit")
 def iterInit(iterSeedInit: str, iterStartValue:str, iterEndValue:str, iterValueSteps: str, interpolationType: str, iterName: str, localId: str):
-    global gen_data
     dataObj = get_Data_obj(localId)
 
     if dataObj is None:
         dataObj = {'id': localId, 'count': 0, 
                 'run_state': False, 'cavityData': CavityDataPartsKerr(), 
                 'iterationRuns': []} 
-        gen_data[localId] = dataObj    
+        insert_data_obj(localId, dataObj)    
 
     iterations = dataObj['iterationRuns']
     sim = dataObj['cavityData']
-    parameters = sim.getPinnedParameters()
+    parameters = sim.getPinnedParameters(1)
+    modifications = sim.getPinnedParameters(2)
 
     seed = 0
     value_start = 1.0
@@ -295,14 +284,14 @@ def iterInit(iterSeedInit: str, iterStartValue:str, iterEndValue:str, iterValueS
     except:
         pass
 
-    iterations.insert(0, Iteration(sim, seed, parameters[0], value_start, value_end, n_values, values_mode, name = name))
+    iterations.insert(0, Iteration(sim, seed, modifications, parameters[0],value_start, value_end, n_values, values_mode, name = name))
+    dataObj['iteration_focus'] = 0
 
     return generate_iterations(dataObj)
 
 @app.post("/iterStop")
 def stop(localId: str):
-    global gen_data
-    dataObj = gen_data[localId] 
+    dataObj = get_Data_obj(localId)
     if dataObj['run_state']:
         dataObj['run_state'] = False
     return generate_iterations(dataObj)
@@ -311,15 +300,26 @@ def stop(localId: str):
 def step(localId: str):
     dataObj = get_Data_obj(localId)
     iterations = dataObj['iterationRuns']
-    iterations[0].step()
+    index = dataObj['iteration_focus'] or 0
+
+    iterations[index].step()
 
     return generate_iterations(dataObj)
+
 
 @app.post("/iterChange/{index}")
 def step(localId: str, index: int):
     dataObj = get_Data_obj(localId)
-    print(f"--------- {index} {id}")
+    dataObj['iteration_focus'] = index
     return generate_iterations(dataObj, index)
+
+@app.post("/iterDelete/{index}")
+def step(localId: str, index: int):
+    dataObj = get_Data_obj(localId)
+    if (len(dataObj['iterationRuns']) > index):
+        del dataObj['iterationRuns'][index]
+        dataObj['iteration_focus'] = 0
+    return generate_iterations(dataObj)
 
 async def on_connect_iter(session, send):
     print('_iterConnected!')
@@ -331,8 +331,8 @@ async def on_disconnect_iter(ws):
 async def iterRun(send, localId: str):
     dataObj = get_Data_obj(localId)
     dataObj['run_state'] = True
-
-    iteration = dataObj['iterationRuns'][0]
+    index = dataObj['iteration_focus'] or 0
+    iteration = dataObj['iterationRuns'][index]
     while iteration.step():
         if not dataObj['run_state']:
             return
@@ -407,14 +407,13 @@ def load(localId: str):
 
 @app.post("/load/{id}")
 def load(id: str, localId: str):
-    global gen_data
     dataObj = get_Data_obj(localId)
 
     if dataObj is None:
         dataObj = {'id': localId, 'count': 0, 
                 'run_state': False, 'cavityData': CavityDataPartsKerr(), 
                 'iterationRuns': []} 
-        gen_data[localId] = dataObj    
+        insert_data_obj(localId, dataObj)  
 
     db = dataset.connect(db_path)
     table = db['simulation']

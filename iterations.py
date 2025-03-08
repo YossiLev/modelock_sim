@@ -4,9 +4,10 @@ from fasthtml.common import *
 from app import get_Data_obj
 
 class Iteration():
-    def __init__(self, sim, seed, parameter, value_start, value_end, n_values, values_mode, name = f"General"):
+    def __init__(self, sim, seed, modifications, parameter, value_start, value_end, n_values, values_mode, name = f"General"):
         self.sim = sim
         self.seed = seed
+        self.modifications = modifications
         self.parameterId = parameter.id
         self.parameterName = parameter.name
         self.value_start = value_start
@@ -66,9 +67,13 @@ class Iteration():
     def render(self):
         return Div(
             Div(self.name), 
+            Div(Div(*[p.render() for p in self.modifications], cls="rowx"), cls="rowx"),
             Table(
                 Tr(Th(self.parameterName), Th("Seed"), Th("State", style="min-width:140px;"), Th("Report")),
-                *[Tr(Td(f"{value:.4f}", cls="monoRight"), Td(f"{seed}", cls="monoRight"), Td(state, cls="mono", style="min-width:140px;"), Td(report, style="font-size:11px;")) for value, seed, state, report in zip(self.values, self.seeds, self.state, self.reportsFinal)]
+                *[Tr(Td(f"{value:.4f}", cls="monoRight"), 
+                     Td(f"{seed}", cls="monoRight"), 
+                     Td(state, cls="mono", style="min-width:140px;"), 
+                     Td(report, style="font-size:11px;")) for value, seed, state, report in zip(self.values, self.seeds, self.state, self.reportsFinal)]
             )
         )
 
@@ -89,11 +94,11 @@ def generate_iterations(dataObj, index = 0):
         return Div(
            
             Div(counts, id="iter_count") ,
-            Div(Div(*[p.render() for p in dataObj['cavityData'].getPinnedParameters()], cls="rowx"), cls="rowx"),
+            Div(Div(*[p.render() for p in dataObj['cavityData'].getPinnedParameters(1)], cls="rowx"), cls="rowx"),
             Div(
                 *list(map(lambda x: Button(x[1].name, hx_post=f"/iterChange/{x[0]}", hx_target="#iterationsReport", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'), enumerate(dataObj['iterationRuns'])))
             ),
-
+            Div(Button("Delete", hx_post=f"/iterDelete/{index}", hx_target="#iterationsReport", hx_swap="innerHTML", hx_confirm="Are you sure you wish to delete this test run?", hx_vals='js:{localId: getLocalId()}')),
             iteration.render() if iteration is not None else Div("no values"),
             cls="column", id="iterate"
         )

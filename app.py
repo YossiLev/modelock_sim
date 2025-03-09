@@ -1,12 +1,8 @@
-
 from fasthtml import FastHTML
 from fasthtml.common import *
 import numpy as np
 import asyncio
 import time
-import matplotlib
-matplotlib.use('agg')
-import matplotlib.pyplot as plt
 
 #internal imports
 from gen_data import *
@@ -19,10 +15,7 @@ from cavity import CavityDataPartsKerr, CavityData
 
 import app
 import jsonpickle
-import dataset
-        
-
-
+import dataset   
 
 current_tab = "Simulation"
 db_path = "sqlite:///data/mydatabase.db"
@@ -103,7 +96,7 @@ def make_page(data_obj):
         
         case "Iterations":
             return my_frame("Iterations", 
-                Div( Button("Prepare", hx_post=f"/iterInit", hx_target="#iterate", 
+                Div( Button("Prepare", hx_post=f"/iterInit", hx_target="#iterateFull", 
                         hx_include="#iterSeedInit, #iterStartValue, #iterEndValue, #iterValueSteps, #interpolationType, #iterName",
                         hx_vals='js:{localId: getLocalId()}', hx_swap="outerHTML"), 
                     Input(type="text", id="iterSeedInit", name="iterSeedInit", placeholder="Initial seed", style="width:90px;"),
@@ -112,10 +105,10 @@ def make_page(data_obj):
                     Input(type="text", id="iterValueSteps", name="iterValueSteps", placeholder="Iteration steps number", style="width:70px;"),
                     Select(Option("Linear"), Option("Logarithmic"), id="interpolationType"),
                     Input(type="text", id="iterName", name="iterName", placeholder="Label", style="width:190px;"),
-                    Button("Step", hx_post="/iterStep", hx_target="#iterate", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
-                    Button("Run", hx_ext="ws", ws_connect="/iterRun", ws_send=True, hx_target="#iterate", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
-                    Button("Stop", hx_post="/iterStop", hx_target="#iterate", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
-                    Div(generate_iterations(data_obj), id="iterationsReport"), style="width:1100px"))
+                    Button("Step", hx_post="/iterStep", hx_target="#iterateFull", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
+                    Button("Run", hx_ext="ws", ws_connect="/iterRun", ws_send=True, hx_target="#iterateFull", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
+                    Button("Stop", hx_post="/iterStop", hx_target="#iterateFull", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
+                    Div(generate_iterations(data_obj), id="iterateFull"), style="width:1100px"))
         case "MultiMode":
             return my_frame("MultiMode", 
                 Div(
@@ -142,9 +135,7 @@ def parameter_num(localId: str, id: str, param: str):
     simParam, simComp  = cavity.getParameter(id)
     if simParam.set_value(param):
         if simComp:
-            print("change par ")
             simComp.finalize()
-        print("change cav")
         cavity.finalize()
 
     return simParam.render()
@@ -284,8 +275,8 @@ def iterInit(iterSeedInit: str, iterStartValue:str, iterEndValue:str, iterValueS
     except:
         pass
 
-    iterations.insert(0, Iteration(sim, seed, modifications, parameters[0],value_start, value_end, n_values, values_mode, name = name))
-    dataObj['iteration_focus'] = 0
+    iterations.append(Iteration(sim, seed, modifications, parameters[0],value_start, value_end, n_values, values_mode, name = name))
+    dataObj['iteration_focus'] = len(iterations) - 1
 
     return generate_iterations(dataObj)
 
@@ -301,6 +292,7 @@ def step(localId: str):
     dataObj = get_Data_obj(localId)
     iterations = dataObj['iterationRuns']
     index = dataObj['iteration_focus'] or 0
+    print(F"chosen index {index} after {dataObj['iteration_focus']}")
 
     iterations[index].step()
 
@@ -311,7 +303,7 @@ def step(localId: str):
 def step(localId: str, index: int):
     dataObj = get_Data_obj(localId)
     dataObj['iteration_focus'] = index
-    return generate_iterations(dataObj, index)
+    return generate_iterations(dataObj, True, index)
 
 @app.post("/iterDelete/{index}")
 def step(localId: str, index: int):
@@ -332,12 +324,15 @@ async def iterRun(send, localId: str):
     dataObj = get_Data_obj(localId)
     dataObj['run_state'] = True
     index = dataObj['iteration_focus'] or 0
+    print(F"chosen index {index} after {dataObj['iteration_focus']}")
+
     iteration = dataObj['iterationRuns'][index]
     while iteration.step():
         if not dataObj['run_state']:
             return
-        await send(Div(generate_iterations(dataObj), id="iterate"))
+        await send(Div(generate_iterations(dataObj, full = False), id="iterate"))
         await asyncio.sleep(0.001)
+    await send(Div(generate_iterations(dataObj), id="iterateFull"))
 
 @app.post("/removeComp/{comp_id}")
 def removeComp(session, comp_id: str, localId: str):

@@ -3,6 +3,7 @@ import math
 import io
 import base64
 from fasthtml.common import *
+from controls import *
 
 elements = [
     [{"t": "L", "par":[0.3, 0.075]}, {"t": "L", "par":[0.45, 0.075, 1.0], "del": 1.0}, {"t": "X", "par":[0.85]}, ],
@@ -32,12 +33,6 @@ def draw_single_front(draw: ImageDraw, px, py, w, h, n, vec):
 
 def draw_multimode(draw: ImageDraw):
     draw_single_front(draw, 30, 30, 10, 2, 256, ver_func(256))
-
-def FlexN(v):
-    return Div(*v, style="display: flex; gap: 3px;")
-
-def TabMaker(label, group, sel):
-    return Div(label,  hx_post=group, hx_target="#fun", cls=f"tab {'tabselected' if sel else ''}", hx_vals='js:{localId: getLocalId()}'),
 
 def Element(el, s, tab):
     par = el["par"]         

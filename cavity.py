@@ -340,7 +340,7 @@ class CavityDataPartsKerr(CavityDataParts):
         self.deltaPlane = -0.75e-3  # position of crystal - distance from the "plane" lens focal
         #self.deltaPlane = -0.6e-3  # position of crystal - distance from the "plane" lens focal
         self.disp_par = 0.5e-3 * 2 * np.pi / self.spec_G_par  # net dispersion
-        self.epsilon = 0.2  # small number to add to the linear gain
+        self.epsilon = 0.2  # 0.2 small number to add to the linear gain
         self.dispersion = np.exp(-1j * self.disp_par * self.w**2)  # exp(-i phi(w)) dispersion
 
     def restart(self, seed):
@@ -453,10 +453,12 @@ class CavityDataPartsKerr(CavityDataParts):
         total_power = np.sum(power)
         analysis['power'] = float(total_power)
         i_max = np.argmax(power)
+        analysis["peakPower"] = power[i_max]
         near_power = np.sum(power[max(0, i_max - 20): min(i_max + 20, len(power) - 1)])
         #print("A ", total_power, near_power, total_power / (near_power + 0.1))
         if near_power * 1.1 > total_power:
             analysis['code'] = "1"
+            analysis['nPulse'] = 1
             analysis['state'] = "One pulse"
             analysis['loc'] = int(i_max)
             rel = power[max(0, i_max - 50): min(i_max + 50, len(power) - 1)]
@@ -484,6 +486,7 @@ class CavityDataPartsKerr(CavityDataParts):
             #print("B ", total_power, near_power_b, total_power / (near_power_b + 0.1))
             if near_power_b * 1.1 > total_power:
                 analysis['code'] = "2"
+                analysis['nPulse'] = 2
                 analysis['state'] = "Two pulses"
                 analysis['loc1'] = int(i_max)
                 rel = power[max(0, i_max_b - 50): min(i_max_b + 50, len(power) - 1)]
@@ -500,10 +503,11 @@ class CavityDataPartsKerr(CavityDataParts):
                 analysis['w2'] = float(math.sqrt(width_b2))
             else:
                 analysis['code'] = "."
-
+                analysis['nPulse'] = 0
                 analysis['state'] = "No pulse"
         else:
             analysis['code'] = "."
+            analysis['nPulse'] = 0
             analysis['state'] = "No pulses"
 
         return analysis

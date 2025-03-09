@@ -1,6 +1,9 @@
 import datetime
 import numpy as np
+import json
 from fasthtml.common import *
+from controls import *
+
 from app import get_Data_obj
 
 class Iteration():
@@ -51,7 +54,7 @@ class Iteration():
                     analysis = self.sim.get_state_analysis()
                     self.reports[self.current_index].append(analysis)
                     analysisP = {k: f"{v:.2e}" if isinstance(v,float) else v for k,v in analysis.items()}
-                    self.reportsFinal[self.current_index] = str(analysisP)
+                    self.reportsFinal[self.current_index] = json.dumps(analysisP)
                     *state_list, = self.state[self.current_index]
                     state_list[round(self.current_count / 100) - 1] = analysis['code']
                     self.state[self.current_index] = ''.join(map(str, state_list))
@@ -77,8 +80,24 @@ class Iteration():
             )
         )
 
-def generate_iterations(dataObj, index = 0):
-    #try:
+def generate_iter_chart(dataObj, parameterName):
+    vecX = []
+    vecY = []
+    vecL = []
+    for iteration in dataObj['iterationRuns']:
+        if (iteration.current_index >= iteration.n_values):
+            power = list(map(lambda x: float(json.loads(x)[parameterName]), iteration.reportsFinal))
+            vecX.append(iteration.values)
+            vecY.append(power)
+            vecL.append(iteration.name)
+
+    chart = Div(generate_chart(vecX, vecY, vecL, parameterName, w=5, h=4))
+
+    return chart
+
+def generate_iterations(dataObj, full = True):
+    # try:
+        index = dataObj['iteration_focus'] if 'iteration_focus' in dataObj.keys() else 0
         if dataObj is not None and dataObj is not None and len(dataObj['iterationRuns']) > index:
             iteration = dataObj['iterationRuns'][index]
         else:
@@ -88,19 +107,25 @@ def generate_iterations(dataObj, index = 0):
             counts = f"Seed {iteration.seed} - Index {iteration.current_index} - Step {iteration.current_count}"
         else:
             counts = ""
-        
-        obj_id = dataObj["id"]
-    
-        return Div(
            
-            Div(counts, id="iter_count") ,
-            Div(Div(*[p.render() for p in dataObj['cavityData'].getPinnedParameters(1)], cls="rowx"), cls="rowx"),
-            Div(
-                *list(map(lambda x: Button(x[1].name, hx_post=f"/iterChange/{x[0]}", hx_target="#iterationsReport", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'), enumerate(dataObj['iterationRuns'])))
-            ),
-            Div(Button("Delete", hx_post=f"/iterDelete/{index}", hx_target="#iterationsReport", hx_swap="innerHTML", hx_confirm="Are you sure you wish to delete this test run?", hx_vals='js:{localId: getLocalId()}')),
-            iteration.render() if iteration is not None else Div("no values"),
-            cls="column", id="iterate"
+        return Div(
+            FlexN([
+                Div(
+                    Div(counts, id="iter_count") ,
+                    Div(Div(*[p.render() for p in dataObj['cavityData'].getPinnedParameters(1)], cls="rowx"), cls="rowx"),
+                    Div(
+                        *list(map(lambda x: Button(x[1].name, hx_post=f"/iterChange/{x[0]}", hx_target="#iterateFull", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'), enumerate(dataObj['iterationRuns']))),
+                        Div(Button("Delete", hx_post=f"/iterDelete/{index}", hx_target="#iterateFull", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}')),
+                    ),
+                    iteration.render() if iteration is not None else Div("no values"),
+                    cls="column", id="iterate"
+                ),
+                Div(Div(generate_iter_chart(dataObj, "peakPower")),
+                    Div(generate_iter_chart(dataObj, "power")),
+                    Div(generate_iter_chart(dataObj, "nPulse")),
+                     id="iterCharts") if full else Div()
+            ]), 
+            id="iterateFull"
         )
     # except:
     #     return  "Error in data"

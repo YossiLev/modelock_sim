@@ -261,6 +261,8 @@ class CavityDataPartsKerr(CavityDataParts):
             SimParameterNumber("nbins", "number", "Number of bins", "Simulation", 2000),
             SimParameterNumber("snr", "number", "SNR", "Simulation", 0.003),
             SimParameterNumber("lambda", "number", "Center wave length", "Simulation", 780e-9),
+            SimParameterNumber("gainEpsilon", "number", "Gain Epsilon", "Simulation", 0.2),
+            SimParameterNumber("dispersionFactor", "number", "Dispersion", "Simulation", 0.5),
            # SimParameterNumber("delta", "number", "Delta (m)", "Simulation", 0.000),
         ]
 
@@ -286,6 +288,8 @@ class CavityDataPartsKerr(CavityDataParts):
         self.nbins = self.parameters[0].value
         self.SNR = self.parameters[1].value
         self.lambda_ = self.parameters[2].value
+        self.epsilon = self.parameters[3].value
+        self.dispersionFactor = self.parameters[4].value
         self.mirror_loss = self.getMirrorLoss()
 
         self.n = 2 ** np.ceil(np.log2(self.nbins)).astype(int)  # number of simulated time-bins, power of 2 for FFT efficiency
@@ -339,8 +343,8 @@ class CavityDataPartsKerr(CavityDataParts):
         #self.delta = 0.001  # how far we go into the stability gap (0.001)
         self.deltaPlane = -0.75e-3  # position of crystal - distance from the "plane" lens focal
         #self.deltaPlane = -0.6e-3  # position of crystal - distance from the "plane" lens focal
-        self.disp_par = 0.5e-3 * 2 * np.pi / self.spec_G_par  # net dispersion
-        self.epsilon = 0.2  # 0.2 small number to add to the linear gain
+        self.disp_par = self.dispersionFactor * 1e-3 * 2 * np.pi / self.spec_G_par  # net dispersion
+        self.epsilon = self.epsilon  # 0.2 small number to add to the linear gain
         self.dispersion = np.exp(-1j * self.disp_par * self.w**2)  # exp(-i phi(w)) dispersion
 
     def restart(self, seed):

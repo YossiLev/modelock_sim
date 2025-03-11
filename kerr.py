@@ -31,7 +31,7 @@ def MLSpatial_gain(sim):
     lambda_ = sim.lambda_
     N = round(sim.nLenses)  # number of NL lenses
     n0 = 1#1.76  # linear refractive index of Ti:S
-    LCO = n0 * sim.L  # OPL of the crystal
+    LCO = n0 * sim.crystalLength  # OPL of the crystal
     if sim.matlab:
         Nmid = N
         fullStep = LCO / (N + 1)
@@ -40,7 +40,7 @@ def MLSpatial_gain(sim):
         Nmid = N
         fullStep = LCO / N
         edgeFactor = 0.5
-    steps = [1] * (Nmid - 1) + [edgeFactor]
+    steps = [1] * (Nmid - 1) + [0.5]
     lens_aperture = 56e-6
     # if sim.step > 8000:
     #     lens_aperture = 56e-6 * 2
@@ -76,18 +76,56 @@ def MLSpatial_gain(sim):
         a = (Ikl * Ptxx) / (lambda_ * Wxx ** 2)
         v = np.exp(1j * a)
         return v
+    MRight = distance(fullStep * edgeFactor) @ distance(sim.RMD + sim.deltaPlane + sim.positionShift - 1e-10 - sim.crystalLength / 2) @ Mcur(sim.RM) @ \
+            distance(sim.L1) @ distance(sim.L1) @ Mcur(sim.RM) @ distance(sim.RMD + sim.deltaPlane + sim.positionShift - 1e-10 - sim.crystalLength / 2)
 
-    MRight = distance(fullStep * edgeFactor) @ distance(sim.RMD + sim.deltaPlane + sim.positionShift - 1e-10 - sim.L / 2) @ Mcur(sim.RM) @ \
-            distance(sim.L1) @ distance(sim.L1) @ Mcur(sim.RM) @ distance(sim.RMD + sim.deltaPlane + sim.positionShift - 1e-10 - sim.L / 2)
-    MLeft = distance(fullStep * edgeFactor) @ distance(sim.FMD + deltaPoint - sim.positionShift - sim.L / 2) @ lens(sim.FM) @ distance(sim.L2) @ \
-            distance(sim.L2) @ lens(sim.FM) @ distance(sim.FMD + deltaPoint - sim.positionShift- sim.L / 2)
+    # MRight = (
+    #         distance(fullStep * edgeFactor)                 # step into the crystal before the first lens
+
+    #         @ distance(sim.positionShift )                  # intentional position shift to control crystal placing (default val 0.0)
+    #         @ distance(- sim.crystalLength / 2)             # cut back the progress in half of the crystal length 
+    #         @ distance(sim.deltaPlane)                      # ?? -0.00075 
+    #         @ distance(- 1e-10)                             # ??? why not 
+    #         @ distance(sim.RMD)                             # proceed to the curved mirror 
+    #         @ Mcur(sim.RM)                                  # make the curved mirror bending
+    #         @ distance(sim.L1)                              # proceed to the flat mirror at the end of the arm (50 cm)
+
+    #         @ distance(sim.L1)                              # come back from the flat mirror (50 cm)
+    #         @ Mcur(sim.RM)                                  # make the curved mirror bending on the way back 
+    #         @ distance(sim.RMD)                             # proceed to the focal point of the curved mirror
+    #         @ distance(sim.deltaPlane)                      # ?? -0.00075 
+    #         @ distance(sim.positionShift )                  # intentional position shift to control crystal placing (default val 0.0)
+    #         @ distance(- 1e-10)                             # ??? why not 
+    #         @ distance(- sim.crystalLength / 2)             # cut back the progress in half of the crystal length
+    #         )           
+    MLeft = distance(fullStep * edgeFactor) @ distance(sim.FMD + deltaPoint - sim.positionShift - sim.crystalLength / 2) @ lens(sim.FM) @ distance(sim.L2) @ \
+            distance(sim.L2) @ lens(sim.FM) @ distance(sim.FMD + deltaPoint - sim.positionShift- sim.crystalLength / 2)
+
+    MLeft = (    # time order is from the last transformation to the first one (so read backwards)
+        
+             distance(fullStep * edgeFactor)                # step into the crystal before the first lens
+             @ distance(deltaPoint)                         # 0.00075 
+             @ distance(- sim.positionShift)                # intentional position shift to control crystal placing (default val 0.0)
+             @ distance(- sim.crystalLength / 2)            # cut back the progress in half of the crystal length
+             @ distance(sim.FMD)                            # propogate until the "point of focal + 1mm delta". (0.0818181818 + 0.001)
+             @ lens(sim.FM)                                 # make the lens light bending
+             @ distance(sim.L2)                             # come back from the flat mirror (90 cm)
+
+             @ distance(sim.L2)                             # proceed to the flat mirror (90 cm)
+             @ lens(sim.FM)                                 # make the lens light bending
+             @ distance(sim.FMD)                            # propogate until the "point of focal + 1mm delta". (0.0818181818 + 0.001)
+             @ distance(deltaPoint)                         # 0.00075 
+             @ distance(- sim.positionShift)                # intentional position shift to control crystal placing (default val 0.0)
+             @ distance(- sim.crystalLength / 2)            # cut back into half of the crystal length, to the middle of the crystal
+                                                            # we start from the edge of the crystal after completing the passage inside 
+              )
     
     # fullStep = 0.0006
     # edgeFactor  = 0.5
     # RMD = 0.075
     # deltaPlane= - 0.00075
     # delta point = 0.00075
-    # L = 0.003
+    # crystalLength = 0.003
     # RM = 0.150
     # L1 = 0.5
     # FMD = 0.075   // 0.08281
@@ -98,7 +136,7 @@ def MLSpatial_gain(sim):
     # print(f"RMD = {sim.RMD}")
     # print(f"deltaPlane = {sim.deltaPlane}")
     # print(f"delta point = {deltaPoint}")
-    # print(f"L = {sim.L}")
+    # print(f"crystalLength = {sim.crystalLength}")
     # print(f"RM = {sim.RM}")
     # print(f"L1 = {sim.L1}")
     # print(f"FMD = {sim.FMD}")
@@ -106,18 +144,18 @@ def MLSpatial_gain(sim):
     # print(f"L2 = {sim.L2}")
 
     #           dist(0.0003)                     dist (0.075 - 0.00075 - 1e-10 - 0.0015 = 0.0727499999)      MCur(0.150) 
-    #MRight = distance(fullStep * edgeFactor) @ distance(sim.RMD + sim.deltaPlane - 1e-10 - sim.L / 2) @ Mcur(sim.RM) @ \
+    #MRight = distance(fullStep * edgeFactor) @ distance(sim.RMD + sim.deltaPlane - 1e-10 - sim.crystalLength / 2) @ Mcur(sim.RM) @ \
     #              dist(0.5 + 0.5)                  MCur(0.150)          dist (0.075 - 0.00075 - 1e-10 - 0.0015 = 0.0727499999) 
-    #        distance(sim.L1) @ distance(sim.L1) @ Mcur(sim.RM) @ distance(sim.RMD + sim.deltaPlane - 1e-10 - sim.L / 2)
+    #        distance(sim.L1) @ distance(sim.L1) @ Mcur(sim.RM) @ distance(sim.RMD + sim.deltaPlane - 1e-10 - sim.crystalLength / 2)
 
-    #           dist(0.0003)                   dist (0.075 + 0.00075 - 0.0015 = 0.07425)     L(0.075)    dist (0.9)
-    #           dist(0.0003)                   dist (0.08281 + 0.00075 - 0.0015 = 0.08206)     L(0.075)    dist (0.9)
-    #MLeft = distance(fullStep * edgeFactor) @ distance(sim.FMD + deltaPoint - sim.L / 2) @ lens(sim.FM) @ distance(sim.L2) @ \
-    #         dist(0.9)            L(0.075)     dist (0.08281 + 0.00075 - 0.0015 = 0.08206) 
-    #        distance(sim.L2) @ lens(sim.FM) @ distance(sim.FMD + deltaPoint - sim.L / 2)
+    #           dist(0.0003)                   dist (0.075 + 0.00075 - 0.0015 = 0.07425)     Lens(0.075)    dist (0.9)
+    #           dist(0.0003)                   dist (0.08281 + 0.00075 - 0.0015 = 0.08206)     Lens(0.075)    dist (0.9)
+    #MLeft = distance(fullStep * edgeFactor) @ distance(sim.FMD + deltaPoint - sim.crystalLength / 2) @ lens(sim.FM) @ distance(sim.L2) @ \
+    #         dist(0.9)            Lens(0.075)     dist (0.08281 + 0.00075 - 0.0015 = 0.08206) 
+    #        distance(sim.L2) @ lens(sim.FM) @ distance(sim.FMD + deltaPoint - sim.crystalLength / 2)
 
-    # MRight = D(0.0003) D(0.0727499999) L(0.075) D(1)   L(0.075) D(0.0727499999)
-    # MLeft  = D(0.0003) D(0.07425)      L(0.075) D(1.8) L(0.075) D(0.07425)
+    # MRight = D(0.0003) D(0.0727499999) L0.s(0.075) D(1)   Lens(0.075) D(0.0727499999)
+    # MLeft  = D(0.0003) D(0.07425)      Lens(0.075) D(1.8) Lens(0.075) D(0.07425)
 
 
     # print("MRight", MRight)
@@ -177,7 +215,7 @@ def MLSpatial_gain(sim):
 
 # def kerrInit(seed):
 #     global n, bw, w, expW, dw, t, dt, cbuf, nbuf
-#     global n2 ,L, kerr_par, N, Ikl, Is, Wp
+#     global n2 ,crystalLength, kerr_par, N, Ikl, Is, Wp
 #     global mirror_loss, spec_G_par, SNR, lambda_, delta, deltaPlane, disp_par, epsilon, num_rounds, D
 #     global Ew, Et, It, phaseShift, ph2pi, R, waist, q, g0, W
 
@@ -197,8 +235,8 @@ def MLSpatial_gain(sim):
 
 #     # Kerr lens parameters
 #     n2 = 3e-20  # n2 of sapphire in m^2/W
-#     L = 3e-3  # crystal length in meters
-#     kerr_par = 4 * L * n2
+#     crystalLength = 3e-3  # crystal length in meters
+#     kerr_par = 4 * crystalLength * n2
 #     N = 5  # number of NL lenses in the crystal
 #     Ikl = kerr_par / N / 50 ## / np.pi ## 50
 #     Is = 2.6 * n**2 * 500  # saturation power
@@ -256,7 +294,7 @@ def MLSpatial_gain(sim):
 #     sim.It[sim.cbuf, :] = np.abs(sim.Et[sim.cbuf, :])**2
 
 #     # Nonlinear effects calculated in time
-#     sim.q[sim.nbuf, :], sim.waist[sim.nbuf, :], sim.Et[sim.nbuf, :] = MLSpatial_gain(sim.delta, sim.Et[sim.cbuf, :], sim.q[sim.cbuf, :], sim.waist[sim.cbuf, :], sim.Ikl, sim.L, sim.deltaPlane)
+#     sim.q[sim.nbuf, :], sim.waist[sim.nbuf, :], sim.Et[sim.nbuf, :] = MLSpatial_gain(sim.delta, sim.Et[sim.cbuf, :], sim.q[sim.cbuf, :], sim.waist[sim.cbuf, :], sim.Ikl, sim.crystalLength, sim.deltaPlane)
 #     sd = NLloss(sim.waist[sim.cbuf, :], sim.Wp)
 #     sim.Et[sim.nbuf, :] = phiKerr(sim.It[sim.cbuf, :], sim.waist[sim.nbuf, :]) * sd * sim.Et[sim.cbuf, :]
 

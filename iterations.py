@@ -81,18 +81,24 @@ class Iteration():
             )
         )
 
+def extract_paramater_value(rep, paramaterName):
+    obj = json.loads(rep)
+    if (paramaterName in obj):
+        return float(obj[paramaterName])
+    return 0.0
+
 def generate_iter_chart(dataObj, parameterName):
     vecX = []
     vecY = []
     vecL = []
     for iteration in dataObj['iterationRuns']:
         if (iteration.current_index >= iteration.n_values):
-            power = list(map(lambda x: float(json.loads(x)[parameterName]), iteration.reportsFinal))
+            power = list(map(lambda x: extract_paramater_value(x, parameterName), iteration.reportsFinal))
             vecX.append(iteration.values)
             vecY.append(power)
             vecL.append(iteration.name)
 
-    chart = Div(generate_chart(vecX, vecY, vecL, parameterName, w=5, h=4))
+    chart = Div(generate_chart(vecX, vecY, vecL, parameterName, w=5, h=3))
 
     return chart
 
@@ -123,6 +129,8 @@ def generate_iterations(dataObj, full = True):
                 ),
                 Div(Div(generate_iter_chart(dataObj, "peakPower")),
                     Div(generate_iter_chart(dataObj, "power")),
+                    Div(generate_iter_chart(dataObj, "w1")),
+                    Div(generate_iter_chart(dataObj, "p1")),
                     Div(generate_iter_chart(dataObj, "nPulse")),
                      id="iterCharts") if full else Div()
             ]), 

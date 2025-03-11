@@ -308,7 +308,7 @@ def step(localId: str):
 def step(localId: str, index: int):
     dataObj = get_Data_obj(localId)
     dataObj['iteration_focus'] = index
-    return generate_iterations(dataObj, True, index)
+    return generate_iterations(dataObj, True)
 
 @app.post("/iterDelete/{index}")
 def step(localId: str, index: int):

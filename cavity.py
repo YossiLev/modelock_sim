@@ -24,7 +24,6 @@ class CavityData():
         self.beam_theta_error = False
         self.beam_theta = math.radians(0.5)
         self.str_beam_theta = "0.5"
-        print(f"aa matlab {matlab}")
         self.matlab = matlab
         self.positionShift = 0.0
         self.step = 0
@@ -253,7 +252,6 @@ class CavityDataParts(CavityData):
 class CavityDataPartsKerr(CavityDataParts):
     def __init__(self, matlab = False):
         super().__init__(matlab = matlab)
-        print(f"aa1matlab {matlab}")
 
         self.name = "Kerr modelock"
         self.description = "Kerr modelock by original simulation"
@@ -302,7 +300,7 @@ class CavityDataPartsKerr(CavityDataParts):
         if len(crystals) == 1:
             sp = crystals[0]
             self.Ikl = sp.Ikl
-            self.L = sp.length
+            self.crystalLength = sp.length
             self.Wp = sp.Wp
             self.Is = sp.Is
             self.spec_G_par = sp.spec_G_par  # Gaussian linewidth parameter
@@ -464,16 +462,16 @@ class CavityDataPartsKerr(CavityDataParts):
             analysis['code'] = "1"
             analysis['nPulse'] = 1
             analysis['state'] = "One pulse"
-            analysis['loc'] = int(i_max)
+            analysis['loc1'] = int(i_max)
             rel = power[max(0, i_max - 50): min(i_max + 50, len(power) - 1)]
             sum = np.sum(rel)
-            analysis['p'] = float(sum)
+            analysis['p1'] = float(sum)
             rel = rel / sum
             l = len(rel)
             ord = np.linspace(0, l - 1, l)
             ord2 = ord ** 2
             width2 = np.sum(rel * ord2) - (np.sum(rel * ord)) ** 2
-            analysis['w'] = float(math.sqrt(width2))
+            analysis['w1'] = float(math.sqrt(width2))
         elif near_power * 2.2 > total_power:
             #print('------ enter two')
             rel = power[max(0, i_max - 50): min(i_max + 50, len(power) - 1)]
@@ -535,7 +533,7 @@ class CavityDataPartsKerr(CavityDataParts):
 
 #         #kerr-gain medium
 #         self.n2 = 3e-20  # n2 of sapphire in m^2/W
-#         self.L = 3e-3  # crystal length in meters
+#         self.crystalLength = 3e-3  # crystal length in meters
 #         self.kerr_par = 4 * self.L * self.n2
 #         self.N = 5  # number of NL lenses in the crystal
 #         self.Ikl = self.kerr_par / self.N / 50

@@ -16,7 +16,8 @@ def generate_chart(x, y, l, t, w=11, h=2):
     
     if (len(x) > 0):
         fig.axes[0].set_title(t)
-        plt.legend()
+        if (len([n for n in l if len(n) > 0])):
+            plt.legend()
     my_stringIOBytes = io.BytesIO()
     plt.savefig(my_stringIOBytes, format='jpg')
     plt.close(fig)

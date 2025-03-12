@@ -342,8 +342,11 @@ class CavityDataPartsKerr(CavityDataParts):
         self.deltaPlane = -0.75e-3  # position of crystal - distance from the "plane" lens focal
         #self.deltaPlane = -0.6e-3  # position of crystal - distance from the "plane" lens focal
         self.disp_par = self.dispersionFactor * 1e-3 * 2 * np.pi / self.spec_G_par  # net dispersion
-        self.epsilon = self.epsilon  # 0.2 small number to add to the linear gain
+        #self.epsilon = self.epsilon  # 0.2 small number to add to the linear gain
         self.dispersion = np.exp(-1j * self.disp_par * self.w**2)  # exp(-i phi(w)) dispersion
+        print(F"final epsilon = {self.epsilon}")
+        self.g0 = 1 / self.mirror_loss + self.epsilon  # linear gain
+
 
     def restart(self, seed):
         super().restart()
@@ -367,7 +370,7 @@ class CavityDataPartsKerr(CavityDataParts):
         R = -np.ones(self.n) * 3.0e-2  # initial waist size probably
         self.q[self.cbuf, :] = 1.0 / (1 / R - 1j * (self.lambda_ / (np.pi * self.waist[self.cbuf, :]**2)))
 
-        self.g0 = 1 / self.mirror_loss + self.epsilon  # linear gain
+        #self.g0 = 1 / self.mirror_loss + self.epsilon  # linear gain
 
         self.Et[self.cbuf, :] = np.fft.fftshift(np.fft.ifft(np.fft.ifftshift(self.Ew[self.cbuf, :])))
 

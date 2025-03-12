@@ -76,7 +76,7 @@ class Iteration():
                 Tr(Th(self.parameterName), Th("Seed"), Th("State", style="min-width:140px;"), Th("Report")),
                 *[Tr(Td(f"{value:.4f}", cls="monoRight"), 
                      Td(f"{seed}", cls="monoRight"), 
-                     Td(state, cls="mono", style="min-width:140px;"), 
+                     Td(state, cls="mono", style="min-width:100px;"), 
                      Td(report, style="font-size:11px;")) for value, seed, state, report in zip(self.values, self.seeds, self.state, self.reportsFinal)]
             )
         )

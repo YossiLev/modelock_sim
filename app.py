@@ -130,7 +130,7 @@ def home():
 
 @app.post("/parnum/{id}")
 def parameter_num(localId: str, id: str, param: str):
-    print(f"id = {id}")
+    print(f"id = {id}, param = {param}")
     dataObj = get_Data_obj(localId)
     cavity: CavityData = dataObj['cavityData']
 
@@ -335,8 +335,9 @@ async def iterRun(send, localId: str):
     while iteration.step():
         if not dataObj['run_state']:
             return
-        await send(Div(generate_iterations(dataObj, full = False), id="iterate"))
-        await asyncio.sleep(0.001)
+        if iteration.current_count % 20 == 0:
+            await send(Div(generate_iterations(dataObj, full = False), id="iterate"))
+            await asyncio.sleep(0.001)
     await send(Div(generate_iterations(dataObj), id="iterateFull"))
 
 @app.post("/removeComp/{comp_id}")

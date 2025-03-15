@@ -54,7 +54,7 @@ class Iteration():
                 if self.current_count % (self.max_count / 10) == 0:
                     analysis = self.sim.get_state_analysis()
                     self.reports[self.current_index].append(analysis)
-                    analysisP = {k: f"{v:.2e}" if isinstance(v,float) else v for k,v in analysis.items()}
+                    analysisP = {k: f"{v:.3e}" if isinstance(v,float) else v for k,v in analysis.items()}
                     self.reportsFinal[self.current_index] = json.dumps(analysisP)
                     *state_list, = self.state[self.current_index]
                     state_list[round(self.current_count / (self.max_count / 10)) - 1] = analysis['code']

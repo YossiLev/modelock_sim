@@ -11,6 +11,7 @@ class Iteration():
         self.sim = sim
         self.seed = seed
         self.modifications = modifications
+        self.modification_values = list(map(lambda _: "", modifications))
         self.parameterId = parameter.id
         self.parameterName = parameter.name
         self.value_start = value_start
@@ -69,8 +70,14 @@ class Iteration():
         return True
 
     def render(self):
+        for i in range(len(self.modification_values)):
+            if (len(self.modification_values[i]) > 0):
+                p, _ = self.sim.getParameter(self.modifications[i].id)
+                #print(F"setting value for rendering {self.modifications[i].id} as {self.modification_values[i]}")
+                p.set_value(self.modification_values[i])
+
         return Div(
-            Div(self.name), 
+            #Div(self.name), 
             Div(Div(*[p.render() for p in self.modifications], cls="rowx"), cls="rowx"),
             Table(
                 Tr(Th(self.parameterName), Th("Seed"), Th("State", style="min-width:140px;"), Th("Report")),
@@ -80,6 +87,14 @@ class Iteration():
                      Td(report, style="font-size:11px;")) for value, seed, state, report in zip(self.values, self.seeds, self.state, self.reportsFinal)]
             )
         )
+
+
+    def update_modifications(self):
+        for i in range(len(self.modification_values)):
+            p, _ = self.sim.getParameter(self.modifications[i].id)
+            self.modification_values[i] = str(p.get_value())
+            #print(F"updated value {self.modifications[i].id} to {self.modification_values[i]}")
+        return
 
 def extract_paramater_value(rep, paramaterName):
     obj = json.loads(rep)
@@ -121,8 +136,13 @@ def generate_iterations(dataObj, full = True):
                     Div(counts, id="iter_count") ,
                     Div(Div(*[p.render() for p in dataObj['cavityData'].getPinnedParameters(1)], cls="rowx"), cls="rowx"),
                     Div(
-                        *list(map(lambda x: Button(x[1].name, hx_post=f"/iterChange/{x[0]}", hx_target="#iterateFull", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'), enumerate(dataObj['iterationRuns']))),
-                        Div(Button("Delete", hx_post=f"/iterDelete/{index}", hx_target="#iterateFull", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}')),
+                        *list(map(lambda x: Button(x[1].name, hx_post=f"/iterChange/{x[0]}", 
+                                                   hx_target="#iterateFull", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}',
+                                                   cls=("buttonH" if x[0] == index else "")), enumerate(dataObj['iterationRuns']))),
+                        Div(
+                            Button("Update", hx_post=f"/iterUpdate/{index}", hx_target="#iterateFull", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
+                            Button("Delete", hx_post=f"/iterDelete/{index}", hx_target="#iterateFull", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}')
+                        ),
                     ),
                     iteration.render() if iteration is not None else Div("no values"),
                     cls="column", id="iterate"

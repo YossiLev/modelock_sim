@@ -109,6 +109,7 @@ def make_page(data_obj):
                     Button("Run", hx_ext="ws", ws_connect="/iterRun", ws_send=True, hx_target="#iterateFull", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
                     Button("Stop", hx_post="/iterStop", hx_target="#iterateFull", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
                     Input(type="text", id="iterMaxCount", name="iterMaxCount", placeholder="End value", style="width:70px;", value="1500"),
+                    Button("Run All ", hx_ext="ws", ws_connect="/iterRunAll", ws_send=True, hx_target="#iterateFull", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
 
                     Div(generate_iterations(data_obj), id="iterateFull"), style="width:1100px"))
         case "MultiMode":
@@ -318,6 +319,14 @@ def step(localId: str, index: int):
         dataObj['iteration_focus'] = 0
     return generate_iterations(dataObj)
 
+@app.post("/iterUpdate/{index}")
+def step(localId: str, index: int):
+    dataObj = get_Data_obj(localId)
+    if (len(dataObj['iterationRuns']) > index):
+        dataObj['iterationRuns'][index].update_modifications()
+
+    return generate_iterations(dataObj)
+
 async def on_connect_iter(session, send):
     print('_iterConnected!')
 
@@ -328,17 +337,43 @@ async def on_disconnect_iter(ws):
 async def iterRun(send, localId: str):
     dataObj = get_Data_obj(localId)
     dataObj['run_state'] = True
-    index = dataObj['iteration_focus'] or 0
-    print(F"chosen index {index} after {dataObj['iteration_focus']}")
 
-    iteration = dataObj['iterationRuns'][index]
-    while iteration.step():
-        if not dataObj['run_state']:
-            return
-        if iteration.current_count % 20 == 0:
-            await send(Div(generate_iterations(dataObj, full = False), id="iterate"))
-            await asyncio.sleep(0.001)
-    await send(Div(generate_iterations(dataObj), id="iterateFull"))
+    index = dataObj['iteration_focus'] or 0
+    indices = [index]
+
+    while len(indices) > 0:
+        index = indices.pop(0)
+        dataObj['iteration_focus'] = index
+        iteration = dataObj['iterationRuns'][index]
+        while iteration.step():
+            if not dataObj['run_state']:
+                return
+            if iteration.current_count % 20 == 0:
+                await send(Div(generate_iterations(dataObj, full = False), id="iterate"))
+                await asyncio.sleep(0.001)
+        await send(Div(generate_iterations(dataObj), id="iterateFull"))
+        await asyncio.sleep(0.001)
+
+@app.ws('/iterRunAll', conn=on_connect_iter, disconn=on_disconnect_iter)
+async def iterRunAll(send, localId: str):
+    dataObj = get_Data_obj(localId)
+    dataObj['run_state'] = True
+    indices = [i for i in range(len(dataObj['iterationRuns']))]
+
+    while len(indices) > 0:
+        index = indices.pop(0)
+        dataObj['iteration_focus'] = index
+        iteration = dataObj['iterationRuns'][index]
+        await send(Div(generate_iterations(dataObj), id="iterateFull"))
+        await asyncio.sleep(0.001)        
+        while iteration.step():
+            if not dataObj['run_state']:
+                return
+            if iteration.current_count % 20 == 0:
+                await send(Div(generate_iterations(dataObj, full = False), id="iterate"))
+                await asyncio.sleep(0.001)
+        await send(Div(generate_iterations(dataObj), id="iterateFull"))
+        await asyncio.sleep(0.001)
 
 @app.post("/removeComp/{comp_id}")
 def removeComp(session, comp_id: str, localId: str):
@@ -364,19 +399,19 @@ def removeComp(session, comp_id: str, tp: str, localId: str):
     sim.replaceTypeById(comp_id, tp)
     return sim.render()
 
-@app.post("/store")
-def stop(localId: str):
-    dataObj = get_Data_obj(localId)
-    sim = get_sim_obj(localId)
-    s = jsonpickle.encode(sim)
-    db = dataset.connect(db_path)
-    table = db['simulation']
-    table.insert(dict(name=sim.name, desctiption=sim.description, content=s))
+# @app.post("/store")
+# def stop(localId: str):
+#     dataObj = get_Data_obj(localId)
+#     sim = get_sim_obj(localId)
+#     s = jsonpickle.encode(sim)
+#     db = dataset.connect(db_path)
+#     table = db['simulation']
+#     table.insert(dict(name=sim.name, desctiption=sim.description, content=s))
 
-    for simx in db['simulation']:
-        print(simx['name'], simx['desctiption'])
+#     for simx in db['simulation']:
+#         print(simx['name'], simx['desctiption'])
 
-    return generate_design(dataObj)
+#     return generate_design(dataObj)
 
 @app.post("/design")
 def store(localId: str):
@@ -428,6 +463,18 @@ def load(id: str, localId: str):
     sim.finalize()
     dataObj['cavityData'] = sim
     return generate_design(dataObj)
+
+@app.post("/store_iter/{label}")
+def store(label: str, localId: str):
+    dataObj = get_Data_obj(localId)
+    iterations = dataObj['iterationRuns']
+    db = dataset.connect(db_path)
+    table = db['iterations']
+    for iteration in iterations:
+        print(dict(labels=f"@{label}@", content=jsonpickle.encode(iteration)))
+        #table.insert(dict(labels=f"@{label}@", content=jsonpickle.encode(iteration)))
+
+    return generate_iterations(dataObj)
 
 @app.post("/tabgeo/{tabid}")
 def load(tabid: str, localId: str):

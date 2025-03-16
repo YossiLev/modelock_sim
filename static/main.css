@@ -69,6 +69,11 @@ button  {
   cursor:pointer;
 }
 
+.buttonH {
+  color: #130d0d;
+  background: linear-gradient(180deg, #f7ec4b 0%, #ebf835 100%);
+}
+
 button:disabled {
     background: gray;
 }

@@ -85,10 +85,12 @@ function calcCurrentCavityMatrices() {
 }
 
 function calcOriginalSimMatrices() {
-    let MLong = MMultV(MDist(0.0005), MDist(0.081818181), MLens(0.075), MDist(0.9), 
-                    MDist(0.9), MLens(0.075), MDist(0.081818181), MDist(0.0005));
-    let MShort = MMultV(MDist(0.0005), MDist(0.075), MLens(0.075), MDist(0.5), 
-                    MDist(0.5), MLens(0.075), MDist(0.075), MDist(0.0005));
+    //let positionLens = 0.0005;
+    let positionLens = -0.00015;
+    let MLong = MMultV(MDist(positionLens), MDist(0.081818181), MLens(0.075), MDist(0.9), 
+                    MDist(0.9), MLens(0.075), MDist(0.081818181), MDist(positionLens));
+    let MShort = MMultV(MDist(0.001 - positionLens), MDist(0.075), MLens(0.075), MDist(0.5), 
+                    MDist(0.5), MLens(0.075), MDist(0.075), MDist(0.001 - positionLens));
 
     MatSide = [MShort, MLong];
 
@@ -378,7 +380,7 @@ function linearCavityOneSide(side) {
 }
 
 function prepareGainPump() {
-    let epsilon = 0.2;
+    let epsilon = 0.55;//0.2;   // rrrrrr
     let pumpWidth = 0.000030 * 0.5;
     let g0 = 1 / mirrorLoss + epsilon;
     pumpGain0 = [];
@@ -403,7 +405,7 @@ function prepareAperture() {
     for (let ix = 0; ix < nSamples; ix++) {
         let x = (ix - nSamples / 2) * dx0;
         let xw = x / diffractionWidth;
-        f.push(math.exp(- xw * xw));
+        multiTimeDiffraction.push(math.exp(- xw * xw));
     }
     
 }

@@ -344,7 +344,6 @@ class CavityDataPartsKerr(CavityDataParts):
         self.disp_par = self.dispersionFactor * 1e-3 * 2 * np.pi / self.spec_G_par  # net dispersion
         #self.epsilon = self.epsilon  # 0.2 small number to add to the linear gain
         self.dispersion = np.exp(-1j * self.disp_par * self.w**2)  # exp(-i phi(w)) dispersion
-        print(F"final epsilon = {self.epsilon}")
         self.g0 = 1 / self.mirror_loss + self.epsilon  # linear gain
 
 

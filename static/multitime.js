@@ -33,6 +33,7 @@ var gainReductionWithOrigin = [];
 var gainReductionAfterAperture = [];
 var gainReductionAfterDiffraction = [];
 var gainFactor = 0.50;
+var epsilon = 0.2;
 var dispersionFactor = 1.0;
 var lensingFactor = 1.0;
 var IsFactor = 200 * 352000;
@@ -380,7 +381,6 @@ function linearCavityOneSide(side) {
 }
 
 function prepareGainPump() {
-    let epsilon = 0.55;//0.2;   // rrrrrr
     let pumpWidth = 0.000030 * 0.5;
     let g0 = 1 / mirrorLoss + epsilon;
     pumpGain0 = [];
@@ -722,6 +722,11 @@ function progressMultiTime(direction) {
 
     drawOption = true;
     drawMultiMode(startCalc);
+}
+
+function epsilonChanged() {
+    epsilon = getFieldFloat('epsilon', epsilon);
+    prepareGainPump();
 }
 
 function gainFactorChanged() {

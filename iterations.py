@@ -19,11 +19,23 @@ class Iteration():
         self.n_values = n_values
         self.values_mode = values_mode
         self.name = name
+        self.show = 1
         self.date_create = datetime.datetime.now().strftime("%d-%m-%Y%H:%M:%S")
         if values_mode == "log":
             self.values = np.exp(np.linspace(np.log(value_start), np.log(value_end), n_values))
         else:
             self.values = np.linspace(value_start, value_end, n_values)
+        self.clear()
+        # self.state = ['----------' for v in self.values]
+        # self.reports = [[] for v in self.values]
+        # self.reportsFinal = ["Wait.." for v in self.values]
+        # self.seeds = [-1 for v in self.values]
+
+        # self.current_index = 0
+        # self.current_count = 0
+        self.max_count = max_count
+
+    def clear(self):
         self.state = ['----------' for v in self.values]
         self.reports = [[] for v in self.values]
         self.reportsFinal = ["Wait.." for v in self.values]
@@ -31,7 +43,10 @@ class Iteration():
 
         self.current_index = 0
         self.current_count = 0
-        self.max_count = max_count
+
+    
+    def toggle_show(self):
+        self.show = 1 - self.show
 
     def step(self):
         if self.current_index < self.n_values:
@@ -107,7 +122,7 @@ def generate_iter_chart(dataObj, parameterName):
     vecY = []
     vecL = []
     for iteration in dataObj['iterationRuns']:
-        if (iteration.current_index >= iteration.n_values):
+        if (iteration.current_index >= iteration.n_values and iteration.show != 0):
             power = list(map(lambda x: extract_paramater_value(x, parameterName), iteration.reportsFinal))
             vecX.append(iteration.values)
             vecY.append(power)
@@ -141,7 +156,10 @@ def generate_iterations(dataObj, full = True):
                                                    cls=("buttonH" if x[0] == index else "")), enumerate(dataObj['iterationRuns']))),
                         Div(
                             Button("Update", hx_post=f"/iterUpdate/{index}", hx_target="#iterateFull", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
-                            Button("Delete", hx_post=f"/iterDelete/{index}", hx_target="#iterateFull", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}')
+                            Button("Delete", hx_post=f"/iterDelete/{index}", hx_target="#iterateFull", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
+                            Button("Clear", hx_post=f"/iterClear/{index}", hx_target="#iterateFull", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
+                            Button("Hide" if (iteration.show != 0) else "Show", hx_post=f"/iterToggleShow/{index}", 
+                                   hx_target="#iterateFull", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}')
                         ),
                     ),
                     iteration.render() if iteration is not None else Div("no values"),

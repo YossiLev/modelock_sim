@@ -327,6 +327,22 @@ def step(localId: str, index: int):
 
     return generate_iterations(dataObj)
 
+@app.post("/iterToggleShow/{index}")
+def step(localId: str, index: int):
+    dataObj = get_Data_obj(localId)
+    if (len(dataObj['iterationRuns']) > index):
+        dataObj['iterationRuns'][index].toggle_show()
+
+    return generate_iterations(dataObj)
+
+@app.post("/iterClear/{index}")
+def step(localId: str, index: int):
+    dataObj = get_Data_obj(localId)
+    if (len(dataObj['iterationRuns']) > index):
+        dataObj['iterationRuns'][index].clear()
+
+    return generate_iterations(dataObj)
+
 async def on_connect_iter(session, send):
     print('_iterConnected!')
 

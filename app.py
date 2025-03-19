@@ -97,20 +97,25 @@ def make_page(data_obj):
         case "Iterations":
             return my_frame("Iterations", 
                 Div( Button("Prepare", hx_post=f"/iterInit", hx_target="#iterateFull", 
-                        hx_include="#iterSeedInit, #iterStartValue, #iterEndValue, #iterValueSteps, #interpolationType, #iterName, #iterMaxCount",
+                        hx_include="#iterSeedInit, #iterParams *, #iterName, #iterMaxCount",
                         hx_vals='js:{localId: getLocalId()}', hx_swap="outerHTML"), 
                     Input(type="text", id="iterSeedInit", name="iterSeedInit", placeholder="Initial seed", style="width:90px;"),
-                    Input(type="text", id="iterStartValue", name="iterStartValue", placeholder="Start value", style="width:70px;"),
-                    Input(type="text", id="iterEndValue", name="iterEndValue", placeholder="End value", style="width:70px;"),
-                    Input(type="text", id="iterValueSteps", name="iterValueSteps", placeholder="Iteration steps number", style="width:70px;"),
-                    Select(Option("Linear"), Option("Logarithmic"), id="interpolationType"),
                     Input(type="text", id="iterName", name="iterName", placeholder="Label", style="width:190px;"),
                     Button("Step", hx_post="/iterStep", hx_target="#iterateFull", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
                     Button("Run", hx_ext="ws", ws_connect="/iterRun", ws_send=True, hx_target="#iterateFull", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
                     Button("Stop", hx_post="/iterStop", hx_target="#iterateFull", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
                     Input(type="text", id="iterMaxCount", name="iterMaxCount", placeholder="End value", style="width:70px;", value="1500"),
                     Button("Run All ", hx_ext="ws", ws_connect="/iterRunAll", ws_send=True, hx_target="#iterateFull", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
-
+                    Div(
+                        *[Div(p[1].render(1), 
+                            Input(type="text", id=f"iterStartValue{p[0]}", name=f"iterStartValue{p[0]}", placeholder="Start", style="width:70px; margin: 5px 4px 4px 8px;"),
+                            Input(type="text", id=f"iterEndValue{p[0]}", name=f"iterEndValue{p[0]}", placeholder="End", style="width:70px; margin: 5px 4px 4px 0px;"),
+                            Input(type="text", id=f"iterValueSteps{p[0]}", name=f"iterValueSteps{p[0]}", placeholder="Steps number", style="width:70px; margin: 5px 4px 4px 0px;"),
+                            Select(Option("Linear"), Option("Logarithmic"), id=f"interpolationType{p[0]}"), cls="rowx"
+                              ) for p in enumerate(data_obj['cavityData'].getPinnedParameters(1))], 
+                        Div(*[p.render() for p in data_obj['cavityData'].getPinnedParameters(2)], cls="rowx"),
+                        id="iterParams"
+                    ),
                     Div(generate_iterations(data_obj), id="iterateFull"), style="width:1100px"))
         case "MultiMode":
             return my_frame("MultiMode", 
@@ -242,15 +247,17 @@ async def run(send, quick: bool, localId: str, matlab:bool = False):
 
 #------------------- iterations
 @app.post("/iterInit")
-def iterInit(iterSeedInit: str, iterStartValue:str, iterEndValue:str, iterValueSteps: str, 
-             interpolationType: str, iterName: str, iterMaxCount: str, localId: str):
+async def iterInit(request: Request, iterSeedInit: str, iterName: str, iterMaxCount: str, localId: str):
     dataObj = get_Data_obj(localId)
 
     if dataObj is None:
         dataObj = {'id': localId, 'count': 0, 
                 'run_state': False, 'cavityData': CavityDataPartsKerr(), 
                 'iterationRuns': []} 
-        insert_data_obj(localId, dataObj)    
+        insert_data_obj(localId, dataObj)   
+
+    form_data = await request.form()  # Get all form fields as a dict-like object
+    print(form_data)
 
     iterations = dataObj['iterationRuns']
     sim = dataObj['cavityData']
@@ -258,30 +265,32 @@ def iterInit(iterSeedInit: str, iterStartValue:str, iterEndValue:str, iterValueS
     modifications = sim.getPinnedParameters(2)
 
     seed = 0
-    value_start = 1.0
-    value_end = 10.0
-    n_values = 10
+    value_start = []
+    value_end = []
+    n_values = []
+    values_mode = []
     name = iterName.strip() if (len(iterName.strip()) > 0) else f"Iteration {len(iterations) + 1}"
 
-    if (interpolationType == "Logarithmic"):
-        values_mode = "log"
-    else:
-        values_mode = "lin"
+    try:
+        for i in range(len(parameters)):
+            value_start.append(float(form_data.get(f"iterStartValue{i}")))
+            value_end.append(float(form_data.get(f"iterEndValue{i}")))
+            n_values.append(int(form_data.get(f"iterValueSteps{i}")))
+            values_mode.append("log" if form_data.get(f"interpolationType{i}") == "Logarithmic" else "lin")
+    except:
+        pass
+
     try:
         seed = int(iterSeedInit)
     except:
         pass
 
     try:
-        value_start = float(iterStartValue)
-        value_end = float(iterEndValue)
-        n_values = int(iterValueSteps)
         max_count = int(iterMaxCount)
-        
     except:
         pass
 
-    iterations.append(Iteration(sim, seed, modifications, parameters[0],value_start, value_end, n_values, values_mode, max_count, name = name))
+    iterations.append(Iteration(sim, seed, modifications, parameters, value_start, value_end, n_values, values_mode, max_count, name = name))
     dataObj['iteration_focus'] = len(iterations) - 1
 
     return generate_iterations(dataObj)

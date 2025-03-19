@@ -3,6 +3,8 @@ import numpy as np
 import json
 from fasthtml.common import *
 from controls import *
+from itertools import product
+
 
 from app import get_Data_obj
 
@@ -12,8 +14,8 @@ class Iteration():
         self.seed = seed
         self.modifications = modifications
         self.modification_values = list(map(lambda _: "", modifications))
-        self.parameterId = parameter.id
-        self.parameterName = parameter.name
+        self.parameterId = list(map(lambda p: p.id, parameter))
+        self.parameterName = list(map(lambda p: p.name, parameter))
         self.value_start = value_start
         self.value_end = value_end
         self.n_values = n_values
@@ -21,25 +23,22 @@ class Iteration():
         self.name = name
         self.show = 1
         self.date_create = datetime.datetime.now().strftime("%d-%m-%Y%H:%M:%S")
-        if values_mode == "log":
-            self.values = np.exp(np.linspace(np.log(value_start), np.log(value_end), n_values))
-        else:
-            self.values = np.linspace(value_start, value_end, n_values)
+        self.values = list(product(*[self.build_values(i) for i in range(len(parameter))]))
         self.clear()
-        # self.state = ['----------' for v in self.values]
-        # self.reports = [[] for v in self.values]
-        # self.reportsFinal = ["Wait.." for v in self.values]
-        # self.seeds = [-1 for v in self.values]
-
-        # self.current_index = 0
-        # self.current_count = 0
         self.max_count = max_count
 
+    def build_values(self, i):
+        if self.values_mode[i] == "log":
+            return list(np.exp(np.linspace(np.log(self.value_start[i]), np.log(self.value_end[i]), self.n_values[i])))
+        else:
+            return list(np.linspace(self.value_start[i], self.value_end[i], self.n_values[i]))
+        
     def clear(self):
-        self.state = ['----------' for v in self.values]
-        self.reports = [[] for v in self.values]
-        self.reportsFinal = ["Wait.." for v in self.values]
-        self.seeds = [-1 for v in self.values]
+        for i in range(len(self.parameterId)):
+            self.state = ['----------' for v in self.values]
+            self.reports = [[] for v in self.values]
+            self.reportsFinal = ["Wait.." for v in self.values]
+            self.seeds = [-1 for v in self.values]
 
         self.current_index = 0
         self.current_count = 0
@@ -49,7 +48,7 @@ class Iteration():
         self.show = 1 - self.show
 
     def step(self):
-        if self.current_index < self.n_values:
+        if self.current_index < len(self.values): #self.n_values[self.current_param_index]:
             if self.current_count < self.max_count:
                 if self.current_count == 0:
                     if self.seed != 0:
@@ -59,11 +58,13 @@ class Iteration():
                     self.seeds[self.current_index] = seed
 
                     self.sim.restart(seed)
-                    p, part = self.sim.getParameter(self.parameterId)
-                    v = self.values[self.current_index]
-                    p.set_value(str(v))
-                    if (part):
-                        part.finalize()
+                    vs = self.values[self.current_index]
+                    ps = self.parameterId
+                    for vi, pi in zip(vs, ps):
+                        p, part = self.sim.getParameter(pi)
+                        p.set_value(str(vi))
+                        if (part):
+                            part.finalize()
                     self.sim.finalize()
                 self.sim.simulation_step()
                 self.current_count += 1
@@ -90,13 +91,11 @@ class Iteration():
                 p, _ = self.sim.getParameter(self.modifications[i].id)
                 #print(F"setting value for rendering {self.modifications[i].id} as {self.modification_values[i]}")
                 p.set_value(self.modification_values[i])
-
         return Div(
-            #Div(self.name), 
             Div(Div(*[p.render() for p in self.modifications], cls="rowx"), cls="rowx"),
             Table(
-                Tr(Th(self.parameterName), Th("Seed"), Th("State", style="min-width:140px;"), Th("Report")),
-                *[Tr(Td(f"{value:.4f}", cls="monoRight"), 
+                Tr(*[Th(pn) for pn in self.parameterName], Th("Seed"), Th("State", style="min-width:140px;"), Th("Report")),
+                *[Tr(*[Td(f"{v:.4f}", cls="monoRight") for v in list(value)], 
                      Td(f"{seed}", cls="monoRight"), 
                      Td(state, cls="mono", style="min-width:100px;"), 
                      Td(report, style="font-size:11px;")) for value, seed, state, report in zip(self.values, self.seeds, self.state, self.reportsFinal)]
@@ -121,10 +120,13 @@ def generate_iter_chart(dataObj, parameterName):
     vecX = []
     vecY = []
     vecL = []
+    
     for iteration in dataObj['iterationRuns']:
-        if (iteration.current_index >= iteration.n_values and iteration.show != 0):
-            power = list(map(lambda x: extract_paramater_value(x, parameterName), iteration.reportsFinal))
-            vecX.append(iteration.values)
+        fullIndex = math.prod(iteration.n_values)
+        skip = math.prod(iteration.n_values[1:])  
+        if (iteration.current_index >= fullIndex and iteration.show != 0):
+            power = list(map(lambda x: extract_paramater_value(x, parameterName), iteration.reportsFinal[0::skip]))
+            vecX.append(list(map(lambda x: x[0], iteration.values[0::skip])))
             vecY.append(power)
             vecL.append(iteration.name)
 
@@ -149,7 +151,6 @@ def generate_iterations(dataObj, full = True):
             FlexN([
                 Div(
                     Div(counts, id="iter_count") ,
-                    Div(Div(*[p.render() for p in dataObj['cavityData'].getPinnedParameters(1)], cls="rowx"), cls="rowx"),
                     Div(
                         *list(map(lambda x: Button(x[1].name, hx_post=f"/iterChange/{x[0]}", 
                                                    hx_target="#iterateFull", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}',
@@ -160,9 +161,9 @@ def generate_iterations(dataObj, full = True):
                             Button("Clear", hx_post=f"/iterClear/{index}", hx_target="#iterateFull", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
                             Button("Hide" if (iteration.show != 0) else "Show", hx_post=f"/iterToggleShow/{index}", 
                                    hx_target="#iterateFull", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}')
-                        ),
+                        ) if iteration else Div(),
                     ),
-                    iteration.render() if iteration is not None else Div("no values"),
+                    iteration.render() if iteration is not None else Div(),
                     cls="column", id="iterate"
                 ),
                 Div(Div(generate_iter_chart(dataObj, "peakPower")),

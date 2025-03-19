@@ -241,16 +241,19 @@ class SimParameterNumber(SimParameter):
         self.value = value
         self.strValue = str(value)
 
-    def render(self):
+    def render(self, mode =  0):
         color = ['#D3D3D3', '#07be17', '#6747be'][self.pinned]
-        return Form(Div(self.name, Span(NotStr(f"<svg width='24' height='24' viewBox='0 0 24 24' fill={color} xmlns='http://www.w3.org/2000/svg'><path transform='rotate(45 0 10)' d='M12 2C10.8954 2 10 2.89543 10 4V10H8V12H16V10H14V4C14 2.89543 13.1046 2 12 2ZM10 13H14L12 21L10 13Z'/></svg>"),   
-                                       hx_post=f"parpinn/{self.id}",hx_vals='js:{localId: getLocalId()}', hx_target=f"#form{self.id}"), cls="paramName"), 
-                    Input(type="text", name="param", value=str(self.strValue), 
-                          hx_post=f"/parnum/{self.id}", hx_vals='js:{localId: getLocalId()}', hx_trigger="keyup changed delay:1s",
-                          hx_target="closest form", hx_swap="outerHTML",
-                            style=f"margin-left: 40px; margin-top: 5px; width:50px;{'background: #f7e2e2; color: red;' if self.value_error else ''}"),
-                            id=f"form{self.id}", 
-                            )
+        inp = Input(type="text", name="param", value=str(self.strValue), 
+                            hx_post=f"/parnum/{self.id}", hx_vals='js:{localId: getLocalId()}', hx_trigger="keyup changed delay:1s",
+                            hx_target="closest form", hx_swap="outerHTML",
+                                style=f"margin-left: {40 * (1 - mode)}px; margin-top: 5px; width:50px;{'background: #f7e2e2; color: red;' if self.value_error else ''}")
+        spn = Span(NotStr(f"<svg width='24' height='24' viewBox='0 0 24 24' fill={color} xmlns='http://www.w3.org/2000/svg'><path transform='rotate(45 0 10)' d='M12 2C10.8954 2 10 2.89543 10 4V10H8V12H16V10H14V4C14 2.89543 13.1046 2 12 2ZM10 13H14L12 21L10 13Z'/></svg>"),   
+                                        hx_post=f"parpinn/{self.id}",hx_vals='js:{localId: getLocalId()}', hx_target=f"#form{self.id}")
+
+        if mode == 0:
+            return Form(Div(self.name, spn, cls="paramName"), inp, id=f"form{self.id}")
+        else:
+            return Form(Span(self.name, spn, cls="paramName"), inp, id=f"form{self.id}")
 
     def get_value(self):
         return self.value

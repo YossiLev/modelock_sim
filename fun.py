@@ -235,6 +235,8 @@ def generate_multimode(data_obj, tab, offset = 0):
                            style="width:50px;", value=f'1.0', **{'onchange':"dispersionFactorChanged();"},),
                     Input(type="number", id=f'lensingFactor', title="Kerr lensing factor", 
                            style="width:50px;", value=f'1.0', **{'onchange':"lensingFactorChanged();"},),
+                    Input(type="number", id=f'modulationGainFactor', title="Modulation gain factor", 
+                           style="width:50px;", value=f'0.1', **{'onchange':"modulationGainFactorChanged();"},),
                     Input(type="number", id=f'isFactor', title="Intensity saturation factor", 
                            style="width:120px;", value=f'{200 * 352000}', **{'onchange':"isFactorChanged();"},),
                     Select(Option("256"), Option("512"), Option("1024"), Option("2048"), Option("4096"), id="nSamples", **{'onchange':"nSamplesChanged();"},),

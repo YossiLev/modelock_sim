@@ -26,6 +26,8 @@ var Ikl = 0.02;
 let IklTimesI = math.complex(0, Ikl * 160 * 0.000000006);
 var rangeW = [];
 var spectralGain = [];
+var modulationGainFactor = 0.1;
+var modulatorGain = [];
 var dispersion = [];
 var sumPowerIx = [];
 var gainReduction = [];
@@ -191,6 +193,7 @@ function initGainByFrequency() {
     dispersion = math.exp(math.multiply(math.complex(0, - disp_par), math.square(rangeW)));
     let expW = math.exp(math.multiply(math.complex(0, - 2 * Math.PI), rangeW));
     frequencyTotalMultFactor = math.multiply(0.5, math.add(1.0, math.dotMultiply(expW, math.dotMultiply(spectralGain, dispersion))));
+    modulatorGain = rangeW.map((w) => 1.0 + modulationGainFactor * math.cos(2 * Math.PI * w / nTimeSamples));
 }
 
 function multiTimeRoundTrip(iCount) {
@@ -211,6 +214,9 @@ function multiTimeRoundTrip(iCount) {
         phaseChangeDuringKerr(side);
 
         spectralGainDispersion();
+        if (side == 1) {
+            modulatorGainMultiply();
+        }
         // gainByfrequency (V)
         // dispersionByFrequency (V)
 
@@ -348,6 +354,12 @@ function spectralGainDispersion() {
     ifftToTime();
 }
 
+function modulatorGainMultiply() {
+    for (let ix = 0; ix < nSamples; ix++) {
+        multiTimeFronts[ix] = math.dotMultiply(multiTimeFronts[ix], modulatorGain);
+    }  
+}
+
 function linearCavityOneSide(side) {
     multiTimeFrontsSaves[side * 3 + 1] = math.clone(multiTimeFronts);
 
@@ -389,6 +401,7 @@ function prepareGainPump() {
         let xw = x / pumpWidth;
         pumpGain0.push(g0 * math.exp(- xw * xw));
     }
+
 }
 
 function prepareAperture() {
@@ -740,6 +753,11 @@ function dispersionFactorChanged() {
 function lensingFactorChanged() {
     lensingFactor = getFieldFloat('lensingFactor', lensingFactor);
 }
+function modulationGainFactorChanged() {
+    modulationGainFactor = getFieldFloat('modulationGainFactor', modulationGainFactor);
+    initGainByFrequency();
+}
+
 function isFactorChanged() {
     IsFactor = getFieldFloat('isFactor', IsFactor);
 }

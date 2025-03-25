@@ -24,6 +24,7 @@ app = FastHTML(ws_hdr=True, hdrs=(
         Link(rel="shortcut icon", type="image/x-icon", href="static/favicon.ico"),
         Link(rel="stylesheet", href="https://cdnjs.cloudflare.com/ajax/libs/flexboxgrid/6.3.1/flexboxgrid.min.css", type="text/css"),
         Link(rel="stylesheet", href="static/main.css", type="text/css"),
+        Link(rel="stylesheet", href="static/snackbar.css", type="text/css"),
         Script(src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/3.3.0/math.min.js"),
         Script(src="static/localid.js"),
         Script(src="static/fieldValue.js"),
@@ -58,6 +59,7 @@ def content_table(current_page):
 
 def my_frame(current_page, content):
     return Div(
+            Div("Some text some message..", id="snackbar"),
             Div(H1('Kerr Mode Locking Simulation')),
             Div(content_table(current_page), content, cls="rowx"),
             id="fullPage"

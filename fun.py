@@ -241,7 +241,7 @@ def generate_multimode(data_obj, tab, offset = 0):
                            style="width:120px;", value=f'{200 * 352000}', **{'onchange':"isFactorChanged();"},),
                     Select(Option("256"), Option("512"), Option("1024"), Option("2048"), Option("4096"), id="nSamples", **{'onchange':"nSamplesChanged();"},),
                     Input(type="text", id=f'stepsCounter', title="Number of roundtrips made", 
-                           style="width:60px; text-align: right", value=f'0', **{'readonly':"readonly", 'onchange':"isFactorChanged();"},),
+                           style="width:60px; text-align: right", value=f'0', **{'readonly':"readonly"},),
                     Button(">", onclick="shiftFronts(- 5);"),
                     Button("<", onclick="shiftFronts(5);"),
                     Button(">>", onclick="shiftFronts(- 50);"),

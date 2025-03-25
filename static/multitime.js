@@ -157,8 +157,8 @@ function initMultiTime() {
         }
     }
 
-    gainFactorChanged();
-    isFactorChanged();
+    gainFactorChanged(false);
+    isFactorChanged(false);
     nRoundsChanged();
 
     updateContentOptions();
@@ -168,7 +168,7 @@ function initMultiTime() {
     prepareGainPump();
     initGainByFrequency();
 
-    multiTimeApertureChanged();
+    multiTimeApertureChanged(false);
 
     fftToFrequency();
     ifftToTime();
@@ -471,16 +471,16 @@ function totalIxPower() {
     }
 }
 
-function SatGain() {
-    factorGainByIx = [];
+// function SatGain() {
+//     factorGainByIx = [];
 
-    for (let ix = 0; ix < nSamples; ix++) {
-        if (ix == nSamples / 2) {
-            console.log(`ix=${ix}, int=${intensityTotalByIx[ix]}`)
-        }
-        factorGainByIx.push(g0 / (1 + intensityTotalByIx[ix] / IntensitySaturationLevel))
-    }
-}
+//     for (let ix = 0; ix < nSamples; ix++) {
+//         if (ix == nSamples / 2) {
+//             console.log(`ix=${ix}, int=${intensityTotalByIx[ix]}`)
+//         }
+//         factorGainByIx.push(g0 / (1 + intensityTotalByIx[ix] / IntensitySaturationLevel))
+//     }
+// }
 
 function drawTimeFrontsWithOptions(opt, view, canvas) {
     if (opt == 0) {
@@ -740,29 +740,42 @@ function progressMultiTime(direction) {
 function epsilonChanged() {
     epsilon = getFieldFloat('epsilon', epsilon);
     prepareGainPump();
+    snackBar(`Change epsilon to ${epsilon}`);
 }
 
-function gainFactorChanged() {
+function gainFactorChanged(showSnack = true) {
     gainFactor = getFieldFloat('gainFactor', gainFactor);
+    if (showSnack) {
+        snackBar(`Change gain factor to ${gainFactor}`);
+    }
 }
 
 function dispersionFactorChanged() {
     dispersionFactor = getFieldFloat('dispersionFactor', dispersionFactor);
     initGainByFrequency();
+    snackBar(`Change dispersion factor to ${dispersionFactor}`);
 }
 function lensingFactorChanged() {
     lensingFactor = getFieldFloat('lensingFactor', lensingFactor);
+    snackBar(`Change lensing factor to ${lensingFactor}`);
 }
 function modulationGainFactorChanged() {
     modulationGainFactor = getFieldFloat('modulationGainFactor', modulationGainFactor);
     initGainByFrequency();
+    snackBar(`Change modulation factor to ${modulationGainFactor}`);
 }
 
-function isFactorChanged() {
+function isFactorChanged(showSnack = true) {
     IsFactor = getFieldFloat('isFactor', IsFactor);
+    if (showSnack) {
+        snackBar(`Change Intensity saturation factor to ${IsFactor}`);
+    }
 }
 
-function multiTimeApertureChanged() {
+function multiTimeApertureChanged(showSnack = true) {
     multiTimeApertureVal = getFieldFloat('aperture', multiTimeApertureVal);
     prepareAperture();
+    if (showSnack) {
+        snackBar(`Change aperture`);
+    }
 }

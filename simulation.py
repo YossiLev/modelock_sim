@@ -8,7 +8,7 @@ from controls import *
 
 
 def generate_all_charts(dataObj):
-    try:
+    # try:
         if dataObj is None:
             return  "No data"
         count = dataObj['count']
@@ -29,5 +29,5 @@ def generate_all_charts(dataObj):
 
             , cls="column"
         )
-    except:
-        return  "Error in data"
+    # except:
+    #     return  "Error in data"

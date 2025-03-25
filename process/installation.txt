@@ -14,3 +14,7 @@ sudo systemctl restart nginx
 sudo apt install certbot python3-certbot-nginx
 sudo certbot --nginx -d sim.yossilev.me -d sim.yossilev.me
 
+#reactivate uvicorn
+- kill the running uvicorn app
+- uvicorn app:app --host 0.0.0.0 --port 8082 &
+

@@ -293,8 +293,9 @@ class CavityDataPartsKerr(CavityDataParts):
         self.n = 2 ** np.ceil(np.log2(self.nbins)).astype(int)  # number of simulated time-bins, power of 2 for FFT efficiency
         self.bw = self.n  # simulated bandwidth
         self.n = self.n + 1  # to make the space between frequencies 1
-        self.w = np.linspace(-self.bw/2, self.bw/2, self.n)  # frequency is in units of reprate, time is in units of round-trip time
+        self.w = np.linspace(-self.bw/2, self.bw/2, self.n)[:-1]  # frequency is in units of reprate, time is in units of round-trip time
         self.expW = np.exp(-1j * 2 * np.pi * self.w)
+        self.n = self.n - 1
 
         crystals = self.getPartsOfClass(TiSapphs)
         if len(crystals) == 1:
@@ -333,8 +334,8 @@ class CavityDataPartsKerr(CavityDataParts):
             self.RM = mirrors[0].radius
 
 
-        self.dw = self.bw / (self.n - 1)
-        self.t = np.linspace(-1/(2*self.dw), 1/(2*self.dw), self.n)
+        self.dw = self.bw / (self.n)
+        self.t = np.linspace(-1/(2*self.dw), 1/(2*self.dw), self.n + 1)[:-1]
         self.dt = 1 / (self.n * self.dw)
   
         #self.spec_G_par = 200  # Gaussian linewidth parameter

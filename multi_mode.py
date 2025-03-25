@@ -1,296 +1,242 @@
 import numpy as np
+class MultiModeSimulation:
+    def __init__(self):
+        self.lambda_ = 0.000000780
+        self.initial_range = 0.01047
+        self.multi_ranges = [[], []]
+        self.n_samples = 256
+        self.n_max_matrices = 1000
+        self.n_rounds = 0
 
-lambda_ = 0.000000780
-initial_range = 0.01047
-multi_ranges = [[], []]
-n_samples = 256
-n_max_matrices = 1000
-n_rounds = 0
+        self.steps_counter = 0
+        self.n_time_samples = 1024
+        self.multi_time_fronts = []
+        self.multi_frequency_fronts = []
+        self.multi_time_fronts_saves = [[], [], [], [], [], []]
 
-steps_counter = 0
-n_time_samples = 1024
-multi_time_fronts = []
-multi_frequency_fronts = []
-multi_time_fronts_saves = [[], [], [], [], [], []]
+        self.intensity_saturation_level = 400000000000000.0
+        self.intensity_total_by_ix = []
+        self.factor_gain_by_ix = []
+        self.ikl = 0.02
+        self.ikl_times_i = 1j * self.ikl * 160 * 0.000000006
+        self.range_w = []
+        self.spectral_gain = []
+        self.modulation_gain_factor = 0.1
+        self.modulator_gain = []
+        self.dispersion = []
+        self.sum_power_ix = []
+        self.gain_reduction = []
+        self.gain_reduction_with_origin = []
+        self.gain_reduction_after_aperture = []
+        self.gain_reduction_after_diffraction = []
+        self.gain_factor = 0.50
+        self.epsilon = 0.2
+        self.dispersion_factor = 1.0
+        self.lensing_factor = 1.0
+        self.is_factor = 200 * 352000
+        self.pump_gain0 = []
+        self.multi_time_aperture = []
+        self.multi_time_aperture_val = 0.000056
+        self.multi_time_diffraction = []
+        self.multi_time_diffraction_val = 0.000030
+        self.frequency_total_mult_factor = []
+        self.mirror_loss = 0.95
+        self.fresnel_data = []
+        self.total_range = 0.001000
+        self.dx0 = self.total_range / self.n_samples
+        self.scalar_one = 1 + 0j
+        self.n_time_samples_ones = [self.scalar_one] * self.n_time_samples
+        self.n_samples_ones = [self.scalar_one] * self.n_samples
+        self.n_samples_ones_r = [1.0] * self.n_samples
+        self.ps1 = []
 
-intensity_saturation_level = 400000000000000.0
-intensity_total_by_ix = []
-factor_gain_by_ix = []
-ikl = 0.02
-ikl_times_i = 1j * ikl * 160 * 0.000000006
-range_w = []
-spectral_gain = []
-modulation_gain_factor = 0.1
-modulator_gain = []
-dispersion = []
-sum_power_ix = []
-gain_reduction = []
-gain_reduction_with_origin = []
-gain_reduction_after_aperture = []
-gain_reduction_after_diffraction = []
-gain_factor = 0.50
-epsilon = 0.2
-dispersion_factor = 1.0
-lensing_factor = 1.0
-is_factor = 200 * 352000
-pump_gain0 = []
-multi_time_aperture = []
-multi_time_aperture_val = 0.000056
-multi_time_diffraction = []
-multi_time_diffraction_val = 0.000030
-frequency_total_mult_factor = []
-mirror_loss = 0.95
-fresnel_data = []
-total_range = 0.001000
-dx0 = total_range / n_samples
-scalar_one = 1 + 0j
-n_time_samples_ones = [scalar_one] * n_time_samples
-n_samples_ones = [scalar_one] * n_samples
-n_samples_ones_r = [1.0] * n_samples
-kerr_focal_length = 0.0075
-ps1 = []
-ps2 = []
-time_content_option = 0
-freq_content_option = 0
-time_content_view = 0
-freq_content_view = 0
-content_option_vals = ["F", "1", "2", "3", "4", "5", "6", "M"]
-content_view_vals = ["Am", "ph"]
-matrices = []
+        self.mat_side = [[[-1.2947E+00, 4.8630E-03], [1.5111E+02, -1.3400E+00]],  # right
+                         [[1.1589E+00, 8.2207E-04], [2.9333E+02, 1.0709E+00]]]    # left
 
-mat_side = [[[-1.2947E+00, 4.8630E-03], [1.5111E+02, -1.3400E+00]],  # right
-            [[1.1589E+00, 8.2207E-04], [2.9333E+02, 1.0709E+00]]]    # left
+    def vectors_for_fresnel(self, M, N, dx0, gain, is_back):
+        A, B = M[0]
+        C, D = M[1]
+        dxf = B * self.lambda_ / (N * dx0)
+        factor = 1j * gain * np.sqrt(-1 / (B * self.lambda_))
+        if is_back:
+            factor *= 1j * gain
+        co0 = -np.pi * dx0 * dx0 * A / (B * self.lambda_)
+        cof = -np.pi * dxf * dxf * D / (B * self.lambda_)
 
-def vectors_for_fresnel(M, N, dx0, gain, is_back):
-    A, B = M[0]
-    C, D = M[1]
-    dxf = B * lambda_ / (N * dx0)
-    factor = 1j * gain * np.sqrt(-1 / (B * lambda_))
-    if is_back:
-        factor *= 1j * gain
-    co0 = -np.pi * dx0 * dx0 * A / (B * lambda_)
-    cof = -np.pi * dxf * dxf * D / (B * lambda_)
+        vec0 = [np.exp(1j * co0 * (i - N / 2) ** 2) for i in range(N)]
+        vecF = [factor * np.exp(1j * cof * (i - N / 2) ** 2) for i in range(N)]
 
-    vec0 = [np.exp(1j * co0 * (i - N / 2) ** 2) for i in range(N)]
-    vecF = [factor * np.exp(1j * cof * (i - N / 2) ** 2) for i in range(N)]
+        return {'dx': dx0, 'vecs': [vec0, vecF]}
 
-    return {'dx': dx0, 'vecs': [vec0, vecF]}
+    def spectral_gain_dispersion(self):
+        self.multi_frequency_fronts = np.fft.fft(self.multi_time_fronts[self.n_samples // 2], norm='ortho')
 
-def spectral_gain_dispersion():
-    global multi_time_fronts, multi_frequency_fronts, n_samples, frequency_total_mult_factor, sum_power_ix
+        for ix in range(self.n_samples):
+            self.multi_frequency_fronts[ix] = np.multiply(self.multi_frequency_fronts[ix], self.frequency_total_mult_factor)
 
-    multi_frequency_fronts = np.fft.fft(multi_time_fronts[n_samples // 2], norm='ortho')
+        self.multi_time_fronts = np.fft.ifft(self.multi_frequency_fronts, norm='ortho')
 
-    for ix in range(n_samples):
-        multi_frequency_fronts[ix] = np.multiply(multi_frequency_fronts[ix], frequency_total_mult_factor)
+    def modulator_gain_multiply(self):
+        for ix in range(self.n_samples):
+            self.multi_time_fronts[ix] = np.multiply(self.multi_time_fronts[ix], self.modulator_gain)
 
-    multi_time_fronts = np.fft.ifft(multi_frequency_fronts, norm='ortho')
+    def prepare_gain_pump(self):
+        pump_width = 0.000030 * 0.5
+        g0 = 1 / self.mirror_loss + self.epsilon
+        self.pump_gain0 = []
+        for ix in range(self.n_samples):
+            x = (ix - self.n_samples / 2) * self.dx0
+            xw = x / pump_width
+            self.pump_gain0.append(g0 * np.exp(-xw * xw))
 
+    def prepare_aperture(self):
+        self.multi_time_aperture = []
+        aperture_width = self.multi_time_aperture_val * 0.5
+        for ix in range(self.n_samples):
+            x = (ix - self.n_samples / 2) * self.dx0
+            xw = x / aperture_width
+            self.multi_time_aperture.append(np.exp(-xw * xw))
 
-def modulator_gain_multiply():
-    global multi_time_fronts, n_samples, modulator_gain
-    for ix in range(n_samples):
-        multi_time_fronts[ix] = np.multiply(multi_time_fronts[ix], modulator_gain)
+        self.multi_time_diffraction = []
+        diffraction_width = self.multi_time_diffraction_val
+        for ix in range(self.n_samples):
+            x = (ix - self.n_samples / 2) * self.dx0
+            xw = x / diffraction_width
+            self.multi_time_diffraction.append(np.exp(-xw * xw))
 
-    return multi_time_fronts
+    def prepare_linear_fresnel_help_data(self):
+        self.fresnel_data = []
+        dx = self.total_range / self.n_samples
 
-def prepare_gain_pump():
-    global n_samples, dx0, mirror_loss, epsilon, pump_gain0
-    pump_width = 0.000030 * 0.5
-    g0 = 1 / mirror_loss + epsilon
-    pump_gain0 = []
-    for ix in range(n_samples):
-        x = (ix - n_samples / 2) * dx0
-        xw = x / pump_width
-        pump_gain0.append(g0 * np.exp(-xw * xw))
-    return pump_gain0
+        for index_side, side_m in enumerate(self.mat_side):
+            A, B, C, D = side_m[0][0], side_m[0][1], side_m[1][0], side_m[1][1]
+            if A > 0:
+                M2 = [[A, B / (A + 1)], [C, D - C * B / (A + 1)]]
+                M1 = [[1, B / (A + 1)], [0, 1]]
+            else:
+                M2 = [[-A, -B / (-A + 1)], [-C, -D - C * B / (-A + 1)]]
+                M1 = [[-1, B / (-A + 1)], [0, -1]]
 
-def prepare_aperture(n_samples, dx0, multi_time_aperture_val, multi_time_diffraction_val):
-    multi_time_aperture = []
-    aperture_width = multi_time_aperture_val * 0.5
-    for ix in range(n_samples):
-        x = (ix - n_samples / 2) * dx0
-        xw = x / aperture_width
-        multi_time_aperture.append(np.exp(-xw * xw))
+            fresnel_side_data = []
+            for index, M in enumerate([M1, M2]):
+                loss = self.mirror_loss if index == 0 and index_side == 1 else 1
+                fresnel_side_data.append(self.vectors_for_fresnel(M, self.n_samples, dx, loss, M[0][0] < 0))
+                dx = M[0][1] * self.lambda_ / (self.n_samples * dx)
 
-    multi_time_diffraction = []
-    diffraction_width = multi_time_diffraction_val
-    for ix in range(n_samples):
-        x = (ix - n_samples / 2) * dx0
-        xw = x / diffraction_width
-        multi_time_diffraction.append(np.exp(-xw * xw))
-    
-    return multi_time_aperture, multi_time_diffraction
+            self.fresnel_data.append(fresnel_side_data)
 
-def prepare_linear_fresnel_help_data():
-    global n_samples, total_range, dx0, lambda_, mat_side, mirror_loss, fresnel_data
+    def total_ix_power(self):
+        self.intensity_total_by_ix = []
+        for ix in range(self.n_samples):
+            self.intensity_total_by_ix.append(np.sum(np.multiply(self.multi_time_fronts[ix], np.conj(self.multi_time_fronts[ix]))))
 
-    fresnel_data = []
-    dx = total_range / n_samples
+    def init_gain_by_frequency(self):
+        spec_gain = 200
+        disp_par = self.dispersion_factor * 0.5e-3 * 2 * np.pi / spec_gain
+        self.range_w = np.array([complex(v) for v in np.arange(-self.n_time_samples / 2, self.n_time_samples / 2)])
+        ones = np.ones_like(self.range_w, dtype=complex)
+        mid = self.range_w / spec_gain
+        self.spectral_gain = ones / (mid ** 2 + 1)
+        self.dispersion = np.exp(-1j * disp_par * self.range_w ** 2)
+        exp_w = np.exp(-1j * 2 * np.pi * self.range_w)
+        self.frequency_total_mult_factor = 0.5 * (1.0 + exp_w * self.spectral_gain * self.dispersion)
+        self.modulator_gain = [1.0 + self.modulation_gain_factor * np.cos(2 * np.pi * w / self.n_time_samples) for w in self.range_w]
 
-    for index_side, side_m in enumerate(mat_side):
-        A, B, C, D = side_m[0][0], side_m[0][1], side_m[1][0], side_m[1][1]
-        if A > 0:
-            M2 = [[A, B / (A + 1)], [C, D - C * B / (A + 1)]]
-            M1 = [[1, B / (A + 1)], [0, 1]]
-        else:
-            M2 = [[-A, -B / (-A + 1)], [-C, -D - C * B / (-A + 1)]]
-            M1 = [[-1, B / (-A + 1)], [0, -1]]
+    def get_init_front(self, p_par=-1):
+        vf = []
+        self.initial_range = 0.01047  # Example value, replace with actual value
+        waist0 = p_par if p_par > 0.0 else 0.0005  # Example value, replace with actual value
+        beam_dist = 0.0  # Example value, replace with actual value
+        RayleighRange = np.pi * waist0 * waist0 / self.lambda_
+        theta = 0 if abs(beam_dist) < 0.000001 else np.pi / (self.lambda_ * beam_dist)
+        waist = waist0 * np.sqrt(1 + beam_dist / RayleighRange)
+        dx = self.initial_range / self.n_samples
+        x0 = (self.n_samples - 1) / 2 * dx
 
-        fresnel_side_data = []
-        for index, M in enumerate([M1, M2]):
-            loss = mirror_loss if index == 0 and index_side == 1 else 1
-            fresnel_side_data.append(vectors_for_fresnel(M, n_samples, dx, loss, M[0][0] < 0))
-            dx = M[0][1] * lambda_ / (n_samples * dx)
-        
-        fresnel_data.append(fresnel_side_data)
-    
-    return fresnel_data
+        for i in range(self.n_samples):
+            px = i * dx
+            x = px - x0
+            xw = x / waist
+            f_val = np.exp(complex(-xw * xw, -theta * x * x))
+            vf.append(f_val)
 
-def total_ix_power(multi_time_fronts, n_samples):
-    intensity_total_by_ix = []
-    for ix in range(n_samples):
-        intensity_total_by_ix.append(np.sum(np.multiply(multi_time_fronts[ix], np.conj(multi_time_fronts[ix]))))
-    return intensity_total_by_ix
+        return vf
 
-def init_gain_by_frequency():
-    global spectral_gain, dispersion, range_w, frequency_total_mult_factor, modulator_gain
+    def init_multi_time(self):
+        self.multi_time_fronts = [[] for _ in range(self.n_samples)]
+        self.multi_frequency_fronts = [[] for _ in range(self.n_samples)]
+        self.multi_time_fronts_saves = [[], [], [], [], [], []]
 
-    spec_gain = 200
-    disp_par = dispersion_factor * 0.5e-3 * 2 * np.pi / spec_gain
-    range_w = np.array([complex(v) for v in np.arange(-n_time_samples / 2, n_time_samples / 2)])
-    ones = np.ones_like(range_w, dtype=complex)
-    mid = range_w / spec_gain
-    spectral_gain = ones / (mid ** 2 + 1)
-    dispersion = np.exp(-1j * disp_par * range_w ** 2)
-    exp_w = np.exp(-1j * 2 * np.pi * range_w)
-    frequency_total_mult_factor = 0.5 * (1.0 + exp_w * spectral_gain * dispersion)
-    modulator_gain = [1.0 + modulation_gain_factor * np.cos(2 * np.pi * w / n_time_samples) for w in range_w]
+        for i_time in range(self.n_time_samples):
+            rnd = np.random.uniform(-1, 1) + 1j * np.random.uniform(-1, 1)
+            fr = rnd * self.get_init_front()
+            for i in range(self.n_samples):
+                self.multi_time_fronts[i].append(fr[i])
+                self.multi_frequency_fronts[i].append(0 + 0j)
 
-def get_init_front(p_par=-1):
-    global initial_range, n_samples, lambda_
+        self.prepare_linear_fresnel_help_data()
+        self.prepare_gain_pump()
+        self.init_gain_by_frequency()
 
-    vf = []
-    initial_range = 0.01047  # Example value, replace with actual value
-    waist0 = p_par if p_par > 0.0 else 0.0005  # Example value, replace with actual value
-    beam_dist = 0.0  # Example value, replace with actual value
-    RayleighRange = np.pi * waist0 * waist0 / lambda_
-    theta = 0 if abs(beam_dist) < 0.000001 else np.pi / (lambda_ * beam_dist)
-    waist = waist0 * np.sqrt(1 + beam_dist / RayleighRange)
-    dx = initial_range / n_samples
-    x0 = (n_samples - 1) / 2 * dx
+    def phase_change_during_kerr(self):
+        self.sum_power_ix = []
+        self.ps1 = []
+        total_kerr_lensing = np.multiply(self.lensing_factor, self.ikl_times_i)
 
-    for i in range(n_samples):
-        px = i * dx
-        x = px - x0
-        xw = x / waist
-        f_val = np.exp(complex(-xw * xw, -theta * x * x))
-        vf.append(f_val)
+        for ix in range(self.n_samples):
+            bin = self.multi_time_fronts[ix]
+            bin2 = np.abs(np.multiply(bin, np.conj(bin)))
+            self.sum_power_ix.append(np.sum(bin2))
+            phase_shift1 = np.multiply(total_kerr_lensing, bin2)
+            self.multi_time_fronts[ix] = np.multiply(bin, np.exp(phase_shift1))
+            self.ps1.append(phase_shift1[0].imag)
 
-    return vf
+        self.multi_time_fronts_saves[self.side * 3 + 0] = np.copy(self.multi_time_fronts)
 
-def init_multi_time():
-    global multi_time_fronts, multi_frequency_fronts, multi_time_fronts_saves
+        multi_time_fronts_trans = np.transpose(self.multi_time_fronts)
+        for i_time in range(self.n_time_samples):
+            fr = multi_time_fronts_trans[i_time]
+            p_fr_before = np.sum(np.multiply(fr, np.conj(fr)))
+            fr_after = np.multiply(fr, self.multi_time_aperture)
+            p_fr_after = np.sum(np.multiply(fr_after, np.conj(fr_after)))
+            fr = np.multiply(fr_after, np.sqrt(p_fr_before / p_fr_after))
+            multi_time_fronts_trans[i_time] = fr
 
-    multi_time_fronts = [[] for _ in range(n_samples)]
-    multi_frequency_fronts = [[] for _ in range(n_samples)]
-    multi_time_fronts_saves = [[], [], [], [], [], []]
+        self.multi_time_fronts = np.transpose(multi_time_fronts_trans)
 
-    for i_time in range(n_time_samples):
-        rnd = np.random.uniform(-1, 1) + 1j * np.random.uniform(-1, 1)
-        fr = rnd * get_init_front()
-        for i in range(n_samples):
-            multi_time_fronts[i].append(fr[i])
-            multi_frequency_fronts[i].append(0 + 0j)
+    def linear_cavity_one_side(self):
+        self.multi_time_fronts_saves[self.side * 3 + 1] = np.copy(self.multi_time_fronts)
 
-    #gain_factor_changed(False)
-    #is_factor_changed(False)
-    #n_rounds_changed()
+        Is = self.is_factor
+        self.gain_reduction = np.real(np.multiply(self.pump_gain0, np.divide(self.n_samples_ones, 1 + np.divide(self.sum_power_ix, Is * self.n_time_samples))))
+        self.gain_reduction_with_origin = np.multiply(self.gain_factor, 1 + self.gain_reduction)
+        self.gain_reduction_after_diffraction = np.multiply(self.gain_reduction_with_origin, self.multi_time_diffraction)
 
-    #update_content_options()
+        multi_time_fronts_trans = np.transpose(self.multi_time_fronts)
 
-    prepare_linear_fresnel_help_data()
+        for i_time in range(self.n_time_samples):
+            fr = multi_time_fronts_trans[i_time]
+            fr = np.multiply(fr, self.gain_reduction_after_diffraction)
+            for fresnel_side_data in self.fresnel_data[self.side]:
+                fr = np.multiply(fr, fresnel_side_data['vecs'][0])
+                fr = np.fft.fft(fr, norm='ortho') * fresnel_side_data['dx']
+                fr = np.multiply(fr, fresnel_side_data['vecs'][1])
+            multi_time_fronts_trans[i_time] = fr
 
-    prepare_gain_pump()
-    init_gain_by_frequency()
+        self.multi_time_fronts = np.transpose(multi_time_fronts_trans)
+        self.multi_time_fronts_saves[self.side * 3 + 2] = np.copy(self.multi_time_fronts)
 
-    #multi_time_aperture_changed(False)
+    def multi_time_round_trip(self):
+        if self.i_count % 10 == 0:
+            fs = np.abs(self.multi_time_fronts)
+            fs = np.multiply(fs, fs)
+            mean_v = np.mean(fs, axis=0)
+            mean_mean = np.mean(mean_v)
 
-    #fft_to_frequency()
-    #ifft_to_time()
-
-    #draw_multi_mode()
-
-def phase_change_during_kerr():
-    global side, multi_time_fronts, n_samples, lensing_factor, ikl_times_i, dx0, lambda_, multi_time_aperture, n_time_samples
-    
-    sum_power_ix = []
-    ps1 = []
-    ps2 = []
-    total_kerr_lensing = np.multiply(lensing_factor, ikl_times_i)
-
-    for ix in range(n_samples):
-        bin = multi_time_fronts[ix]
-        bin2 = np.abs(np.multiply(bin, np.conj(bin)))
-        sum_power_ix.append(np.sum(bin2))
-        phase_shift1 = np.multiply(total_kerr_lensing, bin2)
-        multi_time_fronts[ix] = np.multiply(bin, np.exp(phase_shift1))
-        ps1.append(phase_shift1[0].imag)
-
-    multi_time_fronts_saves[side * 3 + 0] = np.copy(multi_time_fronts)
-
-    multi_time_fronts_trans = np.transpose(multi_time_fronts)
-    for i_time in range(n_time_samples):
-        fr = multi_time_fronts_trans[i_time]
-        p_fr_before = np.sum(np.multiply(fr, np.conj(fr)))
-        fr_after = np.multiply(fr, multi_time_aperture)
-        p_fr_after = np.sum(np.multiply(fr_after, np.conj(fr_after)))
-        fr = np.multiply(fr_after, np.sqrt(p_fr_before / p_fr_after))
-        multi_time_fronts_trans[i_time] = fr
-
-    multi_time_fronts = np.transpose(multi_time_fronts_trans)
-    multi_time_fronts, sum_power_ix, ps1, ps2
-
-def linear_cavity_one_side():
-    global side, multi_time_fronts, multi_time_fronts_saves, pump_gain0, n_samples_ones, sum_power_ix, Is_factor, n_time_samples, gain_factor, multi_time_diffraction, fresnel_data
-
-    multi_time_fronts_saves[side * 3 + 1] = np.copy(multi_time_fronts)
-
-    Is = Is_factor
-    gain_reduction = np.real(np.multiply(pump_gain0, np.divide(n_samples_ones, 1 + np.divide(sum_power_ix, Is * n_time_samples))))
-    gain_reduction_with_origin = np.multiply(gain_factor, 1 + gain_reduction)
-    gain_reduction_after_diffraction = np.multiply(gain_reduction_with_origin, multi_time_diffraction)
-
-    multi_time_fronts_trans = np.transpose(multi_time_fronts)
-
-    for i_time in range(n_time_samples):
-        fr = multi_time_fronts_trans[i_time]
-        fr = np.multiply(fr, gain_reduction_after_diffraction)
-        for fresnel_side_data in fresnel_data[side]:
-            fr = np.multiply(fr, fresnel_side_data['vecs'][0])
-            fr = np.fft.fft(fr, norm='ortho') * fresnel_side_data['dx']
-            fr = np.multiply(fr, fresnel_side_data['vecs'][1])
-        multi_time_fronts_trans[i_time] = fr
-
-    multi_time_fronts = np.transpose(multi_time_fronts_trans)
-    multi_time_fronts_saves[side * 3 + 2] = np.copy(multi_time_fronts)
-
-def multi_time_round_trip():
-    global i_count, start_time, multi_time_fronts, update_steps_counter
-    
-    if i_count % 10 == 0:
-
-        fs = np.abs(multi_time_fronts)
-        fs = np.multiply(fs, fs)
-        mean_v = np.mean(fs, axis=0)
-        mean_mean = np.mean(mean_v)
-
-    for side in [0, 1]:
-        phase_change_during_kerr()
-
-        multi_time_fronts = spectral_gain_dispersion()
-        if side == 1:
-            multi_time_fronts = modulator_gain_multiply()
-
-        linear_cavity_one_side()
+        for self.side in [0, 1]:
+            self.phase_change_during_kerr()
+            self.spectral_gain_dispersion()
+            if self.side == 1:
+                self.modulator_gain_multiply()
+            self.linear_cavity_one_side()
 

@@ -264,7 +264,7 @@ def generate_multimode(data_obj, tab, offset = 0):
                 funCanvas("Test", width=1400, height=256, useZoom=True),
                 graphCanvas(width=1400)
             )
-        case 4:
+        case 4: # tester
             added = Div(
                 Div(initBeamType(), 
                     Button("Init", onclick="initElementsMultiMode(); initMultiMode(4);"),
@@ -285,6 +285,59 @@ def generate_multimode(data_obj, tab, offset = 0):
                 funCanvas(1),
                 graphCanvas()
             )
+        case 5: # MultiTime on server
+            added = Div(
+                Div(initBeamType(beamParamInit = 0.00003, beamDistInit = 0.0), 
+                    Button("Init", onclick="initElementsMultiMode(); initMultiTime();"),
+                    Button("Phase", onclick="timeCavityStep(1, true)"),
+                    Button("Full", onclick="timeCavityStep(5, false)"),
+                    Select(Option("0"), Option("1"), Option("2"), Option("3"), Option("4"), id="nRounds", **{'onchange':"nRoundsChanged();"}),
+                    # Button("New Cavity", onclick="refreshCavityMatrices()"),
+                    # Button("CavSim Orig", onclick="calcOriginalSimMatrices()", title="Initialize the linear cavity as the original simulation for single mode"),
+                    # Button("This Cavity", onclick="calcCurrentCavityMatrices()", title="Initialize the linear cavity according to the stucture define below"),
+                ),
+                Div(
+                    Input(type="number", id=f'initialRange', title="The range of the wave front (meters)", step="0.0001", style="width:100px;", value=f'0.00024475293'),
+                    #Input(type="number", id=f'power', placeholder="power", step="1000000", style="width:80px;", value=f'30000000'),
+                    Input(type="number", id=f'aperture', title="Width of a Gaussian aperture (meters)", 
+                           style="width:80px;", value=f'0.000056', **{'onchange':"multiTimeApertureChanged();"},),
+                    Input(type="number", id=f'epsilon', title="Gain Epsilon", 
+                           style="width:50px;", value=f'0.2', **{'onchange':"epsilonChanged();"},),
+                    Input(type="number", id=f'gainFactor', title="Gain factor", 
+                           style="width:50px;", value=f'0.5', **{'onchange':"gainFactorChanged();"},),
+                    Input(type="number", id=f'dispersionFactor', title="Dispersion factor", 
+                           style="width:50px;", value=f'1.0', **{'onchange':"dispersionFactorChanged();"},),
+                    Input(type="number", id=f'lensingFactor', title="Kerr lensing factor", 
+                           style="width:50px;", value=f'1.0', **{'onchange':"lensingFactorChanged();"},),
+                    Input(type="number", id=f'modulationGainFactor', title="Modulation gain factor", 
+                           style="width:50px;", value=f'0.1', **{'onchange':"modulationGainFactorChanged();"},),
+                    Input(type="number", id=f'isFactor', title="Intensity saturation factor", 
+                           style="width:120px;", value=f'{200 * 352000}', **{'onchange':"isFactorChanged();"},),
+                    Select(Option("256"), Option("512"), Option("1024"), Option("2048"), Option("4096"), id="nSamples", **{'onchange':"nSamplesChanged();"},),
+                    Input(type="text", id=f'stepsCounter', title="Number of roundtrips made", 
+                           style="width:60px; text-align: right", value=f'0', **{'readonly':"readonly"},),
+                    Button(">", onclick="shiftFronts(- 5);"),
+                    Button("<", onclick="shiftFronts(5);"),
+                    Button(">>", onclick="shiftFronts(- 50);"),
+                    Button("<<", onclick="shiftFronts(50);"),
+                ),
+                Div(
+                    *[Element(el, i, tab) for i, el in enumerate(elements[2])],
+                    Button(NotStr("&#43;"), escapse=False, hx_post="/addElement/2", hx_target="#fun", hx_vals='js:{localId: getLocalId()}'), 
+                ),
+                FlexN([funCanvas("Time", width=1024, height=256, useZoom=False), Div(id="TimeCanvasOptions"), Div(id="TimeCanvasViews")]),
+                FlexN([funCanvas("Frequency", width=1024, height=256, useZoom=False), Div(id="FrequencyCanvasOptions"), Div(id="FrequencyCanvasViews")]),
+                FlexN([graphCanvas(id="gainSat", width=256, height = 200, options=False), 
+                       graphCanvas(id="meanPower", width=256, height = 200, options=False),
+                       graphCanvas(id="sampleX", width=256, height = 200, options=False),
+                       graphCanvas(id="kerrPhase", width=256, height = 200, options=False),
+                ]),
+                graphCanvas(id="sampleY", width=1024, height = 200, options=False),
+                Button("Progress left", onclick="progressMultiTime(1)"),
+                Button("Progress right", onclick="progressMultiTime(2)"),
+                funCanvas("Test", width=1400, height=256, useZoom=True),
+                graphCanvas(width=1400)
+            )
 
     my_base64_jpgData = []
     for image in images:
@@ -300,6 +353,8 @@ def generate_multimode(data_obj, tab, offset = 0):
         TabMaker("Crystal", "/tabfun/2", tab == 2),
         TabMaker("Multitime", "/tabfun/3", tab == 3),
         TabMaker("Tester", "/tabfun/4", tab == 4),
+        TabMaker("MultitimeS", "/tabfun/5", tab == 5),
+
         ),
         # Div("Multimode",  hx_post="/tabfun/1", hx_target="#fun", cls=f"tab {'tabselected' if tab == 1 else ''}", hx_vals='js:{localId: getLocalId()}'),
         # Div("Crystal", hx_post="tabfun/2", hx_target="#fun", cls=f"tab {'tabselected' if tab == 2 else ''}", hx_vals='js:{localId: getLocalId()}'),

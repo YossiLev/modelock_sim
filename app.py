@@ -12,6 +12,7 @@ from fun import generate_multimode
 from design import generate_design
 from iterations import generate_iterations, Iteration
 from cavity import CavityDataPartsKerr, CavityData
+from multi_mode import MultiModeSimulation
 
 import app
 import jsonpickle
@@ -259,7 +260,6 @@ async def iterInit(request: Request, iterSeedInit: str, iterName: str, iterMaxCo
         insert_data_obj(localId, dataObj)   
 
     form_data = await request.form()  # Get all form fields as a dict-like object
-    print(form_data)
 
     iterations = dataObj['iterationRuns']
     sim = dataObj['cavityData']
@@ -401,6 +401,35 @@ async def iterRunAll(send, localId: str):
                 await asyncio.sleep(0.001)
         await send(Div(generate_iterations(dataObj), id="iterateFull"))
         await asyncio.sleep(0.001)
+
+@app.post("/mmInit")
+async def mmInit(request: Request, localId: str):
+    print("mmInit")
+    dataObj = get_Data_obj(localId)
+    if dataObj is None:
+        dataObj = {'id': localId, 'count': 0, 
+                'run_state': False, 
+                'cavityData': CavityDataPartsKerr(), 
+                'mmData': MultiModeSimulation(),
+                'iterationRuns': []}
+    
+    form_data = await request.form()  # Get all form fields as a dict-like object
+    dataObj['mmData'].set({
+        "gain_factor": float(form_data.get("gainFactor")),
+        "aperture": float(form_data.get("aperture")),
+        "epsilon": float(form_data.get("epsilon")),
+        "dispersion_factor": float(form_data.get("dispersionFactor")),
+        "lensing_factor": float(form_data.get("lensingFactor")),
+        "modulationGainFactor": float(form_data.get("modulationGainFactor")),
+        "isFactor": float(form_data.get("isFactor")),
+        "initialRange": float(form_data.get("initialRange")),
+        "stepsCounter": int(form_data.get("stepsCounter")),
+    })
+    print(dataObj['mmData'])
+    dataObj['mmData'].init_multi_time()
+    
+    return generate_multimode(dataObj, 5)
+
 
 @app.post("/removeComp/{comp_id}")
 def removeComp(session, comp_id: str, localId: str):

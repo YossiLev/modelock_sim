@@ -1,4 +1,6 @@
 import numpy as np
+import json
+
 class MultiModeSimulation:
     def __init__(self):
         self.lambda_ = 0.000000780
@@ -53,11 +55,25 @@ class MultiModeSimulation:
         self.mat_side = [[[-1.2947E+00, 4.8630E-03], [1.5111E+02, -1.3400E+00]],  # right
                          [[1.1589E+00, 8.2207E-04], [2.9333E+02, 1.0709E+00]]]    # left
 
+    def set(self, params):
+        for key, value in params.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
+
+    def get(self, params):
+        for key in params.keys():
+            if hasattr(self, key):
+                params[key] = getattr(self, key)
+        return params
+
+
+
     def vectors_for_fresnel(self, M, N, dx0, gain, is_back):
         A, B = M[0]
         C, D = M[1]
+        #print(A, B, C, D, self.lambda_)
         dxf = B * self.lambda_ / (N * dx0)
-        factor = 1j * gain * np.sqrt(-1 / (B * self.lambda_))
+        factor = 1j * gain * np.sqrt(-1j / (B * self.lambda_))
         if is_back:
             factor *= 1j * gain
         co0 = -np.pi * dx0 * dx0 * A / (B * self.lambda_)
@@ -169,7 +185,7 @@ class MultiModeSimulation:
 
         for i_time in range(self.n_time_samples):
             rnd = np.random.uniform(-1, 1) + 1j * np.random.uniform(-1, 1)
-            fr = rnd * self.get_init_front()
+            fr = np.multiply(rnd, self.get_init_front())
             for i in range(self.n_samples):
                 self.multi_time_fronts[i].append(fr[i])
                 self.multi_frequency_fronts[i].append(0 + 0j)
@@ -240,3 +256,5 @@ class MultiModeSimulation:
                 self.modulator_gain_multiply()
             self.linear_cavity_one_side()
 
+    def serialize_data(self):
+        return json.dumps({"multi_time_fronts": "1.0"})

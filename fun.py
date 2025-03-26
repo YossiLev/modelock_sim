@@ -159,6 +159,13 @@ def initBeamType(beamParamInit = 0.0005, beamDistInit = 0.0):
         style="display:inline-block;"
     )
 
+def collectData(data_obj):
+    if (data_obj is None):
+        return Div()
+    mmData = data_obj["mmData"]
+    mmDataSer = mmData.serialize_data()
+    return Div(mmDataSer)
+
 def generate_multimode(data_obj, tab, offset = 0):
 
     images = []
@@ -209,18 +216,10 @@ def generate_multimode(data_obj, tab, offset = 0):
         case 3: # MultiTime
             added = Div(
                 Div(initBeamType(beamParamInit = 0.00003, beamDistInit = 0.0), 
-                    Button("Init", onclick="initElementsMultiMode(); initMultiTime();"),
+                    Button("Init", onclick="initElementsMultiMode(); initMultiTime();", ),
                     Button("Phase", onclick="timeCavityStep(1, true)"),
-                    #Input(type="number", id=f'phase', placeholder="phase", step="0.0001", style="width:60px;", value=f'0.0001'),
-                    #Button("Gain", onclick="timeCavityStep(2, true)"),
-                    #Button("R", onclick="timeCavityStep(3, true)"),
-                    #Button("L", onclick="timeCavityStep(4, true)"),
                     Button("Full", onclick="timeCavityStep(5, false)"),
                     Select(Option("0"), Option("1"), Option("2"), Option("3"), Option("4"), id="nRounds", **{'onchange':"nRoundsChanged();"}),
-                    #Button("Switch view", onclick="switchViewMultiMode()"),
-                    Button("New Cavity", onclick="refreshCavityMatrices()"),
-                    Button("CavSim Orig", onclick="calcOriginalSimMatrices()", title="Initialize the linear cavity as the original simulation for single mode"),
-                    Button("This Cavity", onclick="calcCurrentCavityMatrices()", title="Initialize the linear cavity according to the stucture define below"),
                 ),
                 Div(
                     Input(type="number", id=f'initialRange', title="The range of the wave front (meters)", step="0.0001", style="width:100px;", value=f'0.00024475293'),
@@ -288,34 +287,34 @@ def generate_multimode(data_obj, tab, offset = 0):
         case 5: # MultiTime on server
             added = Div(
                 Div(initBeamType(beamParamInit = 0.00003, beamDistInit = 0.0), 
-                    Button("Init", onclick="initElementsMultiMode(); initMultiTime();"),
-                    Button("Phase", onclick="timeCavityStep(1, true)"),
-                    Button("Full", onclick="timeCavityStep(5, false)"),
+                    Button("Init", hx_post=f"/mmInit", hx_include="#nRounds, #multiTimeOptionsForm *", hx_vals='js:{localId: getLocalId()}', hx_swap="outerHTML", hx_target="#genMultiMode", ),
+                    #Button("Full", hx_ext="ws", ws_connect="/mmRun", ws_send=True, hx_include="#nRounds, #multiTimeOptionsForm *", hx_vals='js:{localId: getLocalId()}'),
                     Select(Option("0"), Option("1"), Option("2"), Option("3"), Option("4"), id="nRounds", **{'onchange':"nRoundsChanged();"}),
-                    # Button("New Cavity", onclick="refreshCavityMatrices()"),
-                    # Button("CavSim Orig", onclick="calcOriginalSimMatrices()", title="Initialize the linear cavity as the original simulation for single mode"),
-                    # Button("This Cavity", onclick="calcCurrentCavityMatrices()", title="Initialize the linear cavity according to the stucture define below"),
+                    Button("Update", hx_put=f"/mmUpdate", hx_include="#multiTimeOptionsForm *", hx_vals='js:{localId: getLocalId()}'),
                 ),
                 Div(
-                    Input(type="number", id=f'initialRange', title="The range of the wave front (meters)", step="0.0001", style="width:100px;", value=f'0.00024475293'),
-                    #Input(type="number", id=f'power', placeholder="power", step="1000000", style="width:80px;", value=f'30000000'),
-                    Input(type="number", id=f'aperture', title="Width of a Gaussian aperture (meters)", 
-                           style="width:80px;", value=f'0.000056', **{'onchange':"multiTimeApertureChanged();"},),
-                    Input(type="number", id=f'epsilon', title="Gain Epsilon", 
-                           style="width:50px;", value=f'0.2', **{'onchange':"epsilonChanged();"},),
-                    Input(type="number", id=f'gainFactor', title="Gain factor", 
-                           style="width:50px;", value=f'0.5', **{'onchange':"gainFactorChanged();"},),
-                    Input(type="number", id=f'dispersionFactor', title="Dispersion factor", 
-                           style="width:50px;", value=f'1.0', **{'onchange':"dispersionFactorChanged();"},),
-                    Input(type="number", id=f'lensingFactor', title="Kerr lensing factor", 
-                           style="width:50px;", value=f'1.0', **{'onchange':"lensingFactorChanged();"},),
-                    Input(type="number", id=f'modulationGainFactor', title="Modulation gain factor", 
-                           style="width:50px;", value=f'0.1', **{'onchange':"modulationGainFactorChanged();"},),
-                    Input(type="number", id=f'isFactor', title="Intensity saturation factor", 
-                           style="width:120px;", value=f'{200 * 352000}', **{'onchange':"isFactorChanged();"},),
-                    Select(Option("256"), Option("512"), Option("1024"), Option("2048"), Option("4096"), id="nSamples", **{'onchange':"nSamplesChanged();"},),
-                    Input(type="text", id=f'stepsCounter', title="Number of roundtrips made", 
-                           style="width:60px; text-align: right", value=f'0', **{'readonly':"readonly"},),
+                    Div(
+                        Input(type="number", id=f'initialRange', title="The range of the wave front (meters)", step="0.0001", style="width:100px;", value=f'0.00024475293'),
+                        #Input(type="number", id=f'power', placeholder="power", step="1000000", style="width:80px;", value=f'30000000'),
+                        Input(type="number", id=f'aperture', title="Width of a Gaussian aperture (meters)", 
+                            style="width:80px;", value=f'0.000056', **{'onchange':"multiTimeApertureChanged();"},),
+                        Input(type="number", id=f'epsilon', title="Gain Epsilon", 
+                            style="width:50px;", value=f'0.2', **{'onchange':"epsilonChanged();"},),
+                        Input(type="number", id=f'gainFactor', title="Gain factor", 
+                            style="width:50px;", value=f'0.5', **{'onchange':"gainFactorChanged();"},),
+                        Input(type="number", id=f'dispersionFactor', title="Dispersion factor", 
+                            style="width:50px;", value=f'1.0', **{'onchange':"dispersionFactorChanged();"},),
+                        Input(type="number", id=f'lensingFactor', title="Kerr lensing factor", 
+                            style="width:50px;", value=f'1.0', **{'onchange':"lensingFactorChanged();"},),
+                        Input(type="number", id=f'modulationGainFactor', title="Modulation gain factor", 
+                            style="width:50px;", value=f'0.1', **{'onchange':"modulationGainFactorChanged();"},),
+                        Input(type="number", id=f'isFactor', title="Intensity saturation factor", 
+                            style="width:120px;", value=f'{200 * 352000}', **{'onchange':"isFactorChanged();"},),
+                        Select(Option("256"), Option("512"), Option("1024"), Option("2048"), Option("4096"), id="nSamples", **{'onchange':"nSamplesChanged();"},),
+                        Input(type="text", id=f'stepsCounter', title="Number of roundtrips made", 
+                            style="width:60px; text-align: right", value=f'0', **{'readonly':"readonly"},),
+                        id="multiTimeOptionsForm"
+                    ),
                     Button(">", onclick="shiftFronts(- 5);"),
                     Button("<", onclick="shiftFronts(5);"),
                     Button(">>", onclick="shiftFronts(- 50);"),
@@ -332,6 +331,7 @@ def generate_multimode(data_obj, tab, offset = 0):
                        graphCanvas(id="sampleX", width=256, height = 200, options=False),
                        graphCanvas(id="kerrPhase", width=256, height = 200, options=False),
                 ]),
+                Div(collectData(data_obj)),
                 graphCanvas(id="sampleY", width=1024, height = 200, options=False),
                 Button("Progress left", onclick="progressMultiTime(1)"),
                 Button("Progress right", onclick="progressMultiTime(2)"),
@@ -361,6 +361,8 @@ def generate_multimode(data_obj, tab, offset = 0):
         # Div("Multitime", hx_post="tabfun/3", hx_target="#fun", cls=f"tab {'tabselected' if tab == 3 else ''}", hx_vals='js:{localId: getLocalId()}'),
         # Div("Tester", hx_post="tabfun/4", hx_target="#fun", cls=f"tab {'tabselected' if tab == 4 else ''}", hx_vals='js:{localId: getLocalId()}')),
         added,
+
+        id="genMultiMode"
     )
 
     #return Img(src=f'data:image/jpg;base64,{str(my_base64_jpgData, "utf-8")}')

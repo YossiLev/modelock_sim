@@ -287,8 +287,8 @@ def generate_multimode(data_obj, tab, offset = 0):
         case 5: # MultiTime on server
             added = Div(
                 Div(initBeamType(beamParamInit = 0.00003, beamDistInit = 0.0), 
-                    Button("Init", hx_post=f"/mmInit", hx_include="#nRounds, #multiTimeOptionsForm *", hx_vals='js:{localId: getLocalId()}', hx_swap="outerHTML", hx_target="#genMultiMode", ),
-                    #Button("Full", hx_ext="ws", ws_connect="/mmRun", ws_send=True, hx_include="#nRounds, #multiTimeOptionsForm *", hx_vals='js:{localId: getLocalId()}'),
+                    Button("Init", hx_post=f"/mmInit", hx_include="#nRounds, #multiTimeOptionsForm *", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML", hx_target="#numData"),
+                    Button("Full", hx_ext="ws", ws_connect="/mmRun", ws_send=True, hx_include="#nRounds, #multiTimeOptionsForm", hx_vals='js:{localId: getLocalId()}'),
                     Select(Option("0"), Option("1"), Option("2"), Option("3"), Option("4"), id="nRounds", **{'onchange':"nRoundsChanged();"}),
                     Button("Update", hx_put=f"/mmUpdate", hx_include="#multiTimeOptionsForm *", hx_vals='js:{localId: getLocalId()}'),
                 ),
@@ -331,7 +331,7 @@ def generate_multimode(data_obj, tab, offset = 0):
                        graphCanvas(id="sampleX", width=256, height = 200, options=False),
                        graphCanvas(id="kerrPhase", width=256, height = 200, options=False),
                 ]),
-                Div(collectData(data_obj)),
+                Div(collectData(data_obj), id="numData"),
                 graphCanvas(id="sampleY", width=1024, height = 200, options=False),
                 Button("Progress left", onclick="progressMultiTime(1)"),
                 Button("Progress right", onclick="progressMultiTime(2)"),

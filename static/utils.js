@@ -1,3 +1,18 @@
+document.addEventListener("DOMContentLoaded", function () {
+    const fullPageDiv = document.getElementById('fullPage');
+
+    function mutationCallback(mutationsList, observer) {
+        if (document.getElementById('numData')) {
+            setTimeout(numDataMutated, 10);
+        }
+    }
+
+    if (fullPageDiv) {
+        const observer = new MutationObserver(mutationCallback);
+        const mutationConfig = { attributes: true, childList: true, subtree: true, characterData: true };
+        observer.observe(fullPageDiv, mutationConfig);
+    }
+});
 
 function drawTextBG(ctx, txt, x, y, color = '#000', font = "10pt Courier") {
     ctx.save();

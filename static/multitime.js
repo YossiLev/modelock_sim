@@ -599,6 +599,92 @@ function drawTimeFronts(fs, view, canvas) {
         drawTextBG(ctx, (totalSumPower).toFixed(1), 10, 50);
     }
 }
+function drawTimeNumData(fs, view, canvas) {
+    if (fs == null || canvas == null) {
+        return;
+    }
+
+    const ctx = canvas.getContext("2d");
+    drawMid = canvas.height / 2;
+
+    var canvasWidth = canvas.width;
+    var canvasHeight = canvas.height;
+    var id = ctx.getImageData(0, 0, canvasWidth, canvasHeight);
+    var pixels = id.data;
+    
+    let maxV, maxS, meanV, meanS, meanMean, totalSumPower, meanH, maxH;
+
+    if (view == 0) {
+        fs = math.abs(fs);
+        fs = math.dotMultiply(fs, fs);
+        totalSumPower = math.sum(fs);
+        maxV = math.max(fs, 0);
+        maxS = math.max(maxV);
+        meanV = math.mean(fs, 0);
+        meanS = math.max(meanV) * nSamples;
+        meanMean = math.mean(meanV);
+        //maxH = math.max(meanH) * nSamples;
+    }
+
+    let sum0;
+    console.log(`nSamples = ${nSamples} nTimeSamples = ${nTimeSamples}`);
+    for (let i = 0; i < nSamples; i++) {
+        if (view == 0) {
+            if (i == 0) {
+                sum0 = math.clone(fs[i]);
+            } else {
+                sum0 = math.add(sum0, fs[i]);
+            }
+        }
+        let off = i * nTimeSamples * 4;
+        let line = (view == 0) ? math.dotDivide(fs[i], maxS): fs[i];
+        for (let iTime = 0; iTime < nTimeSamples; iTime++) {
+            if (view == 0) {
+                c = Math.floor(line[iTime] * 255.0);
+            } else {
+                c = Math.floor((line[iTime].toPolar().phi / (2 * Math.PI) + 0.5) * 255.0);
+            }
+            pixels[off++] = c;
+            pixels[off++] = c;
+            pixels[off++] = c;
+            pixels[off++] = 255;
+        }
+    }
+
+    ctx.putImageData(id, 0, 0);
+
+
+    // if (view == 0) {
+    //     let maxSum0 = math.max(sum0);
+    //     factor = (canvas.height - 10) / maxSum0;
+    //     sum0 = math.multiply(sum0, factor);
+    
+    //     let maxVN = math.floor(math.multiply(maxV, (canvas.height - 10) / (maxS + 0.0001)));
+    //     let y = canvas.height - 5 - sum0[0];
+    //     ctx.strokeStyle = 'red';
+    //     ctx.beginPath();
+    //     ctx.moveTo(0, y);
+    //     for (let iTime = 1; iTime < nTimeSamples; iTime++) {
+    //         y = canvas.height - 0 - sum0[iTime];
+    //         ctx.lineTo(iTime, y);
+    //     }
+    //     ctx.stroke();
+    //     // let meanVN = math.floor(math.multiply(meanV, (canvas.height - 10) / (meanS + 0.0001)));
+    //     // y = canvas.height - 1 - meanVN[0];
+    //     // ctx.strokeStyle = 'green';
+    //     // ctx.fillStyle = 'green';
+    //     // ctx.beginPath();
+    //     // ctx.moveTo(0, y);
+    //     // for (let iTime = 1; iTime < nTimeSamples; iTime++) {
+    //     //     y = canvas.height - 1 - meanVN[iTime];
+    //     //     ctx.lineTo(iTime, y);
+    //     // }
+    //     // ctx.stroke();
+    //     drawTextBG(ctx, (meanS).toFixed(1), 10, 10);
+    //     drawTextBG(ctx, (meanMean).toFixed(1), 10, 30);
+    //     drawTextBG(ctx, (totalSumPower).toFixed(1), 10, 50);
+    // }
+}
 function focalFromPhase(phase) {
     let deriv2NoZero = vecDeriv2(phase, dx0).map((v) => Math.abs(v) < 0.000000001 ? 0.000000001 : v)
     let focalVec = math.dotDivide(nSamplesOnesR, math.multiply(-  lambda / (2 * Math.PI), deriv2NoZero));
@@ -777,5 +863,35 @@ function multiTimeApertureChanged(showSnack = true) {
     prepareAperture();
     if (showSnack) {
         snackBar(`Change aperture`);
+    }
+}
+
+function numDataMutated() {
+    numData = document.getElementById("numData");
+    console.log('numdata mutated');
+    s = numData.innerText;
+    if (s.length > 0) {
+        console.log(`numdata has value ${s.length}`);
+        data = JSON.parse(s);
+        console.log(data);
+        multiTimeFronts = data.multi_time_fronts.map(l => l.map((v) => {
+            if (v.length == 0) {
+                return math.complex(0);
+            }
+            let t = v.split(',');
+            return math.complex(t[0], t[1]);
+        }
+        ));
+        multiFrequencyFronts = data.multi_frequency_fronts.map(l => l.map((v) => {
+            if (v.length == 0) {
+                return math.complex(0);
+            }
+            let t = v.split(',');
+            return math.complex(t[0], t[1]);
+        }
+        ));
+        numData.innerText = "";
+        drawTimeNumData(multiTimeFronts, 0, document.getElementById("funCanvasTime"));
+        drawTimeNumData(multiFrequencyFronts, 0, document.getElementById("funCanvasFrequency"));
     }
 }

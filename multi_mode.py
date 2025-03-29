@@ -1,6 +1,12 @@
 import numpy as np
 import json
 
+
+def fft_shift(input_list):
+    input_array = np.array(input_list)
+    half_length = len(input_array) // 2
+    return np.concatenate((input_array[half_length:], input_array[:half_length]))
+
 class MultiModeSimulation:
     def __init__(self):
         self.lambda_ = 0.000000780
@@ -85,12 +91,10 @@ class MultiModeSimulation:
         return {'dx': dx0, 'vecs': [vec0, vecF]}
 
     def spectral_gain_dispersion(self):
-        self.multi_frequency_fronts = np.fft.fft(self.multi_time_fronts[self.n_samples // 2], norm='ortho')
-
         for ix in range(self.n_samples):
-            self.multi_frequency_fronts[ix] = np.multiply(self.multi_frequency_fronts[ix], self.frequency_total_mult_factor)
-
-        self.multi_time_fronts = np.fft.ifft(self.multi_frequency_fronts, norm='ortho')
+            self.multi_frequency_fronts[ix] = np.multiply(fft_shift(np.fft.fft(fft_shift(self.multi_time_fronts[ix]))), self.frequency_total_mult_factor)
+            #self.multi_frequency_fronts[ix] = fft_shift(np.fft.fft(fft_shift(self.multi_time_fronts[ix])))
+            self.multi_time_fronts[ix] = fft_shift(np.fft.ifft(fft_shift(self.multi_frequency_fronts[ix])))
 
     def modulator_gain_multiply(self):
         for ix in range(self.n_samples):
@@ -139,6 +143,7 @@ class MultiModeSimulation:
                 fresnel_side_data.append(self.vectors_for_fresnel(M, self.n_samples, dx, loss, M[0][0] < 0))
                 dx = M[0][1] * self.lambda_ / (self.n_samples * dx)
 
+            #print(f"fresnel_side_data = {fresnel_side_data}")
             self.fresnel_data.append(fresnel_side_data)
 
     def total_ix_power(self):
@@ -160,8 +165,8 @@ class MultiModeSimulation:
 
     def get_init_front(self, p_par=-1):
         vf = []
-        self.initial_range = 0.01047  # Example value, replace with actual value
-        waist0 = p_par if p_par > 0.0 else 0.0005  # Example value, replace with actual value
+        self.initial_range = 0.00024475293  # Example value, replace with actual value
+        waist0 = p_par if p_par > 0.0 else 0.00003  # Example value, replace with actual value
         beam_dist = 0.0  # Example value, replace with actual value
         RayleighRange = np.pi * waist0 * waist0 / self.lambda_
         theta = 0 if abs(beam_dist) < 0.000001 else np.pi / (self.lambda_ * beam_dist)
@@ -192,6 +197,7 @@ class MultiModeSimulation:
 
         self.prepare_linear_fresnel_help_data()
         self.prepare_gain_pump()
+        self.prepare_aperture()
         self.init_gain_by_frequency()
 
     def phase_change_during_kerr(self):
@@ -220,6 +226,7 @@ class MultiModeSimulation:
 
         self.multi_time_fronts = np.transpose(multi_time_fronts_trans)
 
+    
     def linear_cavity_one_side(self):
         self.multi_time_fronts_saves[self.side * 3 + 1] = np.copy(self.multi_time_fronts)
 
@@ -230,24 +237,24 @@ class MultiModeSimulation:
 
         multi_time_fronts_trans = np.transpose(self.multi_time_fronts)
 
-        for i_time in range(self.n_time_samples):
-            fr = multi_time_fronts_trans[i_time]
-            fr = np.multiply(fr, self.gain_reduction_after_diffraction)
-            for fresnel_side_data in self.fresnel_data[self.side]:
-                fr = np.multiply(fr, fresnel_side_data['vecs'][0])
-                fr = np.fft.fft(fr, norm='ortho') * fresnel_side_data['dx']
-                fr = np.multiply(fr, fresnel_side_data['vecs'][1])
-            multi_time_fronts_trans[i_time] = fr
+        # for i_time in range(self.n_time_samples):
+        #     fr = multi_time_fronts_trans[i_time]
+        #     fr = np.multiply(fr, self.gain_reduction_after_diffraction)
+        #     for fresnel_side_data in self.fresnel_data[self.side]:
+        #         fr = np.multiply(fr, fresnel_side_data['vecs'][0])
+        #         fr = fft_shift(np.fft.fft(fft_shift(fr), norm='ortho') * fresnel_side_data['dx'])
+        #         fr = np.multiply(fr, fresnel_side_data['vecs'][1])
+        #     multi_time_fronts_trans[i_time] = fr
 
         self.multi_time_fronts = np.transpose(multi_time_fronts_trans)
         self.multi_time_fronts_saves[self.side * 3 + 2] = np.copy(self.multi_time_fronts)
 
     def multi_time_round_trip(self):
-        if self.i_count % 10 == 0:
-            fs = np.abs(self.multi_time_fronts)
-            fs = np.multiply(fs, fs)
-            mean_v = np.mean(fs, axis=0)
-            mean_mean = np.mean(mean_v)
+        #if self.i_count % 10 == 0:
+        fs = np.abs(self.multi_time_fronts)
+        fs = np.multiply(fs, fs)
+        mean_v = np.mean(fs, axis=0)
+        mean_mean = np.mean(mean_v)
 
         for self.side in [0, 1]:
             self.phase_change_during_kerr()
@@ -257,4 +264,8 @@ class MultiModeSimulation:
             self.linear_cavity_one_side()
 
     def serialize_data(self):
-        return json.dumps({"multi_time_fronts": "1.0"})
+        s = json.dumps({
+            "multi_time_fronts": [[f"{np.real(val):.2f},{np.imag(val):.2f}" if np.abs(val) > 0.001 else "" for val in row] for row in self.multi_time_fronts],
+            "multi_frequency_fronts": [[f"{np.real(val):.2f},{np.imag(val):.2f}" if np.abs(val) > 0.001 else "" for val in row] for row in self.multi_frequency_fronts]
+            })
+        return s

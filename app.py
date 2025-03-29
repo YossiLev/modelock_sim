@@ -1,3 +1,4 @@
+from fastapi import WebSocket
 from fasthtml import FastHTML
 from fasthtml.common import *
 import numpy as np
@@ -8,7 +9,7 @@ import time
 from gen_data import *
 from simulation import generate_all_charts
 from geometry import generate_geometry, generate_beam_params
-from fun import generate_multimode
+from fun import generate_multimode, collectData
 from design import generate_design
 from iterations import generate_iterations, Iteration
 from cavity import CavityDataPartsKerr, CavityData
@@ -404,7 +405,6 @@ async def iterRunAll(send, localId: str):
 
 @app.post("/mmInit")
 async def mmInit(request: Request, localId: str):
-    print("mmInit")
     dataObj = get_Data_obj(localId)
     if dataObj is None:
         dataObj = {'id': localId, 'count': 0, 
@@ -412,6 +412,7 @@ async def mmInit(request: Request, localId: str):
                 'cavityData': CavityDataPartsKerr(), 
                 'mmData': MultiModeSimulation(),
                 'iterationRuns': []}
+        insert_data_obj(localId, dataObj)   
     
     form_data = await request.form()  # Get all form fields as a dict-like object
     dataObj['mmData'].set({
@@ -425,12 +426,51 @@ async def mmInit(request: Request, localId: str):
         "initialRange": float(form_data.get("initialRange")),
         "stepsCounter": int(form_data.get("stepsCounter")),
     })
-    print(dataObj['mmData'])
     dataObj['mmData'].init_multi_time()
     
-    return generate_multimode(dataObj, 5)
+    #await send(Div(generate_all_charts(dataObj), id="charts", cls="rowx"))
 
+    return collectData(dataObj)
 
+@app.ws('/mmRun')
+async def mmRun(send, nRounds: str, initialRange: str, aperture: str, localId: str):
+    dataObj = get_Data_obj(localId)
+    if dataObj is None:
+        print("Error: mmRun dataObj is None")
+        dataObj = {'id': localId, 'count': 0, 
+                'run_state': False, 
+                'cavityData': CavityDataPartsKerr(), 
+                'mmData': MultiModeSimulation(),
+                'iterationRuns': []}
+        insert_data_obj(localId, dataObj)
+    
+    dataObj['mmData'].set({
+    #     "gain_factor": float(form_data.get("gainFactor")),
+         "aperture": float(aperture),
+    #     "epsilon": float(form_data.get("epsilon")),
+    #     "dispersion_factor": float(form_data.get("dispersionFactor")),
+    #     "lensing_factor": float(form_data.get("lensingFactor")),
+    #     "modulationGainFactor": float(form_data.get("modulationGainFactor")),
+    #     "isFactor": float(form_data.get("isFactor")),
+         "initialRange": float(initialRange),
+    #     "stepsCounter": int(form_data.get("stepsCounter")),
+    })
+
+    count = 10 ** int(nRounds)
+    print(f"nRounds = {count}")
+    dataObj['run_state'] = True
+    for i in range(count):
+        print(f"round {i}")
+        if not dataObj['run_state']:
+            return       
+        dataObj['mmData'].multi_time_round_trip()
+        
+        await send(Div(collectData(dataObj), id="numData"))
+        await asyncio.sleep(0.001)
+    
+    dataObj['run_state'] = False
+
+        
 @app.post("/removeComp/{comp_id}")
 def removeComp(session, comp_id: str, localId: str):
     sim = get_sim_obj(localId)

@@ -62,3 +62,15 @@ function snackBar(message) {
     x.className = "show";
     setTimeout(function(){ x.className = x.className.replace("show", ""); }, 3000);
   }
+
+randomSeed = 12345;
+function randomLCG() {
+    let a = 1664525;
+    let c = 1013904223;
+    let m = Math.pow(2, 32);
+    randomSeed = (a * randomSeed + c) % m;
+    return randomSeed / m; // Returns a float between 0 and 1
+}
+function randomLCGSetSeed(seed) {
+    randomSeed = seed;
+}

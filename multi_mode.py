@@ -1,11 +1,59 @@
 import numpy as np
+from numpy.fft import fftshift, ifftshift
+from controls import random_lcg_set_seed, random_lcg
 import json
+
 
 
 def fft_shift(input_list):
     input_array = np.array(input_list)
     half_length = len(input_array) // 2
     return np.concatenate((input_array[half_length:], input_array[:half_length]))
+
+def m_dist(d):
+    return [[1, d], [0, 1]]
+
+def m_lens(f):
+    return [[1, 0], [-1 / f, 1]]
+
+def m_mult_v(*Ms):
+    result = [[1.0, 0.0], [0.0, 1.0]]
+    for m in Ms:
+        result = m_mult(m, result)
+    return result
+
+def m_mult(m, m2):
+    a = m[0][0] * m2[0][0] + m[0][1] * m2[1][0]
+    b = m[0][0] * m2[0][1] + m[0][1] * m2[1][1]
+    c = m[1][0] * m2[0][0] + m[1][1] * m2[1][0]
+    d = m[1][0] * m2[0][1] + m[1][1] * m2[1][1]
+    return [[a, b], [c, d]]
+
+def m_mult_inv(m, m2):
+    a = m[0][0] * m2[1][1] - m[0][1] * m2[1][0]
+    b = -m[0][0] * m2[0][1] + m[0][1] * m2[0][0]
+    c = m[1][0] * m2[1][1] - m[1][1] * m2[1][0]
+    d = -m[1][0] * m2[0][1] + m[1][1] * m2[0][0]
+    return [[a, b], [c, d]]
+
+def m_inv(m):
+    return [[m[1][1], -m[0][1]], [-m[1][0], m[0][0]]]
+
+
+
+def calc_original_sim_matrices():
+    position_lens = -0.00015
+    m_long = m_mult_v(m_dist(position_lens), m_dist(0.081818181), m_lens(0.075), m_dist(0.9),
+                        m_dist(0.9), m_lens(0.075), m_dist(0.081818181), m_dist(position_lens))
+    m_short = m_mult_v(m_dist(0.001 - position_lens), m_dist(0.075), m_lens(0.075), m_dist(0.5),
+                        m_dist(0.5), m_lens(0.075), m_dist(0.075), m_dist(0.001 - position_lens))
+
+    mat_side = [m_short, m_long]
+    print(f"MShort = {m_short}")
+    print(f"MLong = {m_long}")
+
+    return mat_side
+
 
 class MultiModeSimulation:
     def __init__(self):
@@ -61,6 +109,12 @@ class MultiModeSimulation:
         self.mat_side = [[[-1.2947E+00, 4.8630E-03], [1.5111E+02, -1.3400E+00]],  # right
                          [[1.1589E+00, 8.2207E-04], [2.9333E+02, 1.0709E+00]]]    # left
 
+        self.mat_side = calc_original_sim_matrices()
+
+    def printSamples(self):
+        print("----------------------------------")
+        print(f"{self.multi_time_fronts[128][63]}")
+
     def set(self, params):
         for key, value in params.items():
             if hasattr(self, key):
@@ -91,14 +145,18 @@ class MultiModeSimulation:
         return {'dx': dx0, 'vecs': [vec0, vecF]}
 
     def spectral_gain_dispersion(self):
-        for ix in range(self.n_samples):
-            self.multi_frequency_fronts[ix] = np.multiply(fft_shift(np.fft.fft(fft_shift(self.multi_time_fronts[ix]))), self.frequency_total_mult_factor)
-            #self.multi_frequency_fronts[ix] = fft_shift(np.fft.fft(fft_shift(self.multi_time_fronts[ix])))
-            self.multi_time_fronts[ix] = fft_shift(np.fft.ifft(fft_shift(self.multi_frequency_fronts[ix])))
+        self.multi_frequency_fronts = fftshift(np.fft.fft(np.fft.ifftshift(self.multi_time_fronts, axes=1), axis=1), axes=1) * self.frequency_total_mult_factor
+        self.multi_time_fronts = fftshift(np.fft.ifft(np.fft.ifftshift(self.multi_frequency_fronts, axes=1), axis=1), axes=1)
+        
+        # for ix in range(self.n_samples):
+        #     self.multi_frequency_fronts[ix] = np.multiply(fft_shift(np.fft.fft(fft_shift(self.multi_time_fronts[ix]))), self.frequency_total_mult_factor)
+        #     #self.multi_frequency_fronts[ix] = fft_shift(np.fft.fft(fft_shift(self.multi_time_fronts[ix])))
+        #     self.multi_time_fronts[ix] = fft_shift(np.fft.ifft(fft_shift(self.multi_frequency_fronts[ix])))
 
     def modulator_gain_multiply(self):
-        for ix in range(self.n_samples):
-            self.multi_time_fronts[ix] = np.multiply(self.multi_time_fronts[ix], self.modulator_gain)
+        self.multi_time_fronts = self.multi_time_fronts * self.modulator_gain
+        # for ix in range(self.n_samples):
+        #     self.multi_time_fronts[ix] = np.multiply(self.multi_time_fronts[ix], self.modulator_gain)
 
     def prepare_gain_pump(self):
         pump_width = 0.000030 * 0.5
@@ -143,7 +201,6 @@ class MultiModeSimulation:
                 fresnel_side_data.append(self.vectors_for_fresnel(M, self.n_samples, dx, loss, M[0][0] < 0))
                 dx = M[0][1] * self.lambda_ / (self.n_samples * dx)
 
-            #print(f"fresnel_side_data = {fresnel_side_data}")
             self.fresnel_data.append(fresnel_side_data)
 
     def total_ix_power(self):
@@ -162,6 +219,7 @@ class MultiModeSimulation:
         exp_w = np.exp(-1j * 2 * np.pi * self.range_w)
         self.frequency_total_mult_factor = 0.5 * (1.0 + exp_w * self.spectral_gain * self.dispersion)
         self.modulator_gain = [1.0 + self.modulation_gain_factor * np.cos(2 * np.pi * w / self.n_time_samples) for w in self.range_w]
+        print(f"modulator_gain = {self.modulator_gain[80]} {self.modulator_gain[180]} ")
 
     def get_init_front(self, p_par=-1):
         vf = []
@@ -188,8 +246,10 @@ class MultiModeSimulation:
         self.multi_frequency_fronts = [[] for _ in range(self.n_samples)]
         self.multi_time_fronts_saves = [[], [], [], [], [], []]
 
+        random_lcg_set_seed(123)
         for i_time in range(self.n_time_samples):
-            rnd = np.random.uniform(-1, 1) + 1j * np.random.uniform(-1, 1)
+            #rnd = np.random.uniform(-1, 1) + 1j * np.random.uniform(-1, 1)
+            rnd = (random_lcg() * 2 - 1) + 1j * (random_lcg() * 2 - 1)
             fr = np.multiply(rnd, self.get_init_front())
             for i in range(self.n_samples):
                 self.multi_time_fronts[i].append(fr[i])
@@ -225,7 +285,6 @@ class MultiModeSimulation:
             multi_time_fronts_trans[i_time] = fr
 
         self.multi_time_fronts = np.transpose(multi_time_fronts_trans)
-
     
     def linear_cavity_one_side(self):
         self.multi_time_fronts_saves[self.side * 3 + 1] = np.copy(self.multi_time_fronts)
@@ -237,14 +296,14 @@ class MultiModeSimulation:
 
         multi_time_fronts_trans = np.transpose(self.multi_time_fronts)
 
-        # for i_time in range(self.n_time_samples):
-        #     fr = multi_time_fronts_trans[i_time]
-        #     fr = np.multiply(fr, self.gain_reduction_after_diffraction)
-        #     for fresnel_side_data in self.fresnel_data[self.side]:
-        #         fr = np.multiply(fr, fresnel_side_data['vecs'][0])
-        #         fr = fft_shift(np.fft.fft(fft_shift(fr), norm='ortho') * fresnel_side_data['dx'])
-        #         fr = np.multiply(fr, fresnel_side_data['vecs'][1])
-        #     multi_time_fronts_trans[i_time] = fr
+        for i_time in range(self.n_time_samples):
+            fr = multi_time_fronts_trans[i_time]
+            fr = np.multiply(fr, self.gain_reduction_after_diffraction)
+            for fresnel_side_data in self.fresnel_data[self.side]:
+                fr = np.multiply(fr, fresnel_side_data['vecs'][0])
+                fr = fft_shift(np.fft.fft(fft_shift(fr))) * fresnel_side_data['dx']
+                fr = np.multiply(fr, fresnel_side_data['vecs'][1])
+            multi_time_fronts_trans[i_time] = fr
 
         self.multi_time_fronts = np.transpose(multi_time_fronts_trans)
         self.multi_time_fronts_saves[self.side * 3 + 2] = np.copy(self.multi_time_fronts)
@@ -258,10 +317,15 @@ class MultiModeSimulation:
 
         for self.side in [0, 1]:
             self.phase_change_during_kerr()
+
             self.spectral_gain_dispersion()
+
             if self.side == 1:
                 self.modulator_gain_multiply()
+
             self.linear_cavity_one_side()
+            #self.printSamples()
+
 
     def serialize_data(self):
         s = json.dumps({

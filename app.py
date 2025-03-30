@@ -421,10 +421,10 @@ async def mmInit(request: Request, localId: str):
         "epsilon": float(form_data.get("epsilon")),
         "dispersion_factor": float(form_data.get("dispersionFactor")),
         "lensing_factor": float(form_data.get("lensingFactor")),
-        "modulationGainFactor": float(form_data.get("modulationGainFactor")),
-        "isFactor": float(form_data.get("isFactor")),
-        "initialRange": float(form_data.get("initialRange")),
-        "stepsCounter": int(form_data.get("stepsCounter")),
+        "modulation_gain_factor": float(form_data.get("modulationGainFactor")),
+        "is_factor": float(form_data.get("isFactor")),
+        "initial_range": float(form_data.get("initialRange")),
+        "steps_sounter": int(form_data.get("stepsCounter")),
     })
     dataObj['mmData'].init_multi_time()
     
@@ -433,7 +433,8 @@ async def mmInit(request: Request, localId: str):
     return collectData(dataObj)
 
 @app.ws('/mmRun')
-async def mmRun(send, nRounds: str, initialRange: str, aperture: str, localId: str):
+async def mmRun(send, nRounds: str, gainFactor: str, aperture: str, epsilon: str, dispersionFactor: str,
+                 lensingFactor: str, modulationGainFactor: str, isFactor: str, initialRange: str, localId: str):
     dataObj = get_Data_obj(localId)
     if dataObj is None:
         print("Error: mmRun dataObj is None")
@@ -445,30 +446,31 @@ async def mmRun(send, nRounds: str, initialRange: str, aperture: str, localId: s
         insert_data_obj(localId, dataObj)
     
     dataObj['mmData'].set({
-    #     "gain_factor": float(form_data.get("gainFactor")),
+         "gain_factor": float(gainFactor),
          "aperture": float(aperture),
-    #     "epsilon": float(form_data.get("epsilon")),
-    #     "dispersion_factor": float(form_data.get("dispersionFactor")),
-    #     "lensing_factor": float(form_data.get("lensingFactor")),
-    #     "modulationGainFactor": float(form_data.get("modulationGainFactor")),
-    #     "isFactor": float(form_data.get("isFactor")),
-         "initialRange": float(initialRange),
-    #     "stepsCounter": int(form_data.get("stepsCounter")),
+         "epsilon": float(epsilon),
+         "dispersion_factor": float(dispersionFactor),
+         "lensing_factor": float(lensingFactor),
+         "modulation_gain_factor": float(modulationGainFactor),
+         "is_factor": float(isFactor),
+         "initial_range": float(initialRange),
+    #     "steps_counter": int(form_data.get("stepsCounter")),
     })
 
     count = 10 ** int(nRounds)
-    print(f"nRounds = {count}")
     dataObj['run_state'] = True
     for i in range(count):
         print(f"round {i}")
         if not dataObj['run_state']:
             return       
         dataObj['mmData'].multi_time_round_trip()
-        
-        await send(Div(collectData(dataObj), id="numData"))
-        await asyncio.sleep(0.001)
+        if i % 50 == 0:
+            await send(Div(collectData(dataObj), id="numData"))
+            await asyncio.sleep(0.001)
     
     dataObj['run_state'] = False
+    await send(Div(collectData(dataObj), id="numData"))
+    await asyncio.sleep(0.001)
 
         
 @app.post("/removeComp/{comp_id}")

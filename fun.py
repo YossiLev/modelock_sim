@@ -164,7 +164,7 @@ def collectData(data_obj):
         return Div()
     mmData = data_obj["mmData"]
     mmDataSer = mmData.serialize_data()
-    return Div(mmDataSer)
+    return Div(mmDataSer, style="height:1px; overflow:hidden;")
 
 def generate_multimode(data_obj, tab, offset = 0):
 
@@ -220,6 +220,11 @@ def generate_multimode(data_obj, tab, offset = 0):
                     Button("Phase", onclick="timeCavityStep(1, true)"),
                     Button("Full", onclick="timeCavityStep(5, false)"),
                     Select(Option("0"), Option("1"), Option("2"), Option("3"), Option("4"), id="nRounds", **{'onchange':"nRoundsChanged();"}),
+                    Div(collectData(data_obj), id="numData"),
+                    Button("New Cavity", onclick="refreshCavityMatrices()"),
+                    Button("CavSim Orig", onclick="calcOriginalSimMatrices()", title="Initialize the linear cavity as the original simulation for single mode"),
+                    Button("This Cavity", onclick="calcCurrentCavityMatrices()", title="Initialize the linear cavity according to the stucture define below"),
+
                 ),
                 Div(
                     Input(type="number", id=f'initialRange', title="The range of the wave front (meters)", step="0.0001", style="width:100px;", value=f'0.00024475293'),
@@ -331,12 +336,12 @@ def generate_multimode(data_obj, tab, offset = 0):
                        graphCanvas(id="sampleX", width=256, height = 200, options=False),
                        graphCanvas(id="kerrPhase", width=256, height = 200, options=False),
                 ]),
-                Div(collectData(data_obj), id="numData"),
                 graphCanvas(id="sampleY", width=1024, height = 200, options=False),
                 Button("Progress left", onclick="progressMultiTime(1)"),
                 Button("Progress right", onclick="progressMultiTime(2)"),
                 funCanvas("Test", width=1400, height=256, useZoom=True),
-                graphCanvas(width=1400)
+                graphCanvas(width=1400),
+                Div(collectData(data_obj), id="numData"),
             )
 
     my_base64_jpgData = []

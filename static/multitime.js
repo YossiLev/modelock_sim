@@ -96,6 +96,8 @@ function calcOriginalSimMatrices() {
                     MDist(0.5), MLens(0.075), MDist(0.075), MDist(0.001 - positionLens));
 
     MatSide = [MShort, MLong];
+    console.log(`MShort = ${MShort}`);
+    console.log(`MLong = ${MLong}`);
 
     return MatSide
 }
@@ -148,8 +150,9 @@ function initMultiTime() {
         multiTimeFronts.push([]);
         multiFrequencyFronts.push([]);
     }
+    randomLCGSetSeed(123);
     for (let iTime = 0; iTime < nTimeSamples; iTime++) {
-        let rnd = math.complex((Math.random() * 2 - 1), (Math.random() * 2 - 1));
+        let rnd = math.complex((randomLCG() * 2 - 1), (randomLCG() * 2 - 1));
         let fr = math.multiply(rnd, getInitFront(beamParam));
         for (let i = 0; i < nSamples; i++) {
             multiTimeFronts[i].push(fr[i]);
@@ -194,6 +197,7 @@ function initGainByFrequency() {
     let expW = math.exp(math.multiply(math.complex(0, - 2 * Math.PI), rangeW));
     frequencyTotalMultFactor = math.multiply(0.5, math.add(1.0, math.dotMultiply(expW, math.dotMultiply(spectralGain, dispersion))));
     modulatorGain = rangeW.map((w) => 1.0 + modulationGainFactor * math.cos(2 * Math.PI * w / nTimeSamples));
+    console.log(`modulatorGain = ${modulatorGain[80]} ${modulatorGain[180]}`);
 }
 
 function multiTimeRoundTrip(iCount) {
@@ -211,16 +215,23 @@ function multiTimeRoundTrip(iCount) {
     }
 
     [0, 1].forEach((side) => {
+        console.log(`Side ${side}`);
         phaseChangeDuringKerr(side);
+        printSamples();
+
 
         spectralGainDispersion();
+        printSamples();
         if (side == 1) {
             modulatorGainMultiply();
+            printSamples();
         }
         // gainByfrequency (V)
         // dispersionByFrequency (V)
 
         linearCavityOneSide(side);
+        printSamples();
+
         // gainCorrectionDueToSaturation
         // oneSideCavity
         // mirrorLoss (only on left side)
@@ -295,6 +306,11 @@ function ifftToTime() {
     }
 }
 
+function printSamples() {
+    console.log('-----------------------------------')
+    console.log(`${multiTimeFronts[128][63]}`)
+}
+
 function phaseChangeDuringKerr(side) {
 
     sumPowerIx = [];
@@ -329,7 +345,6 @@ function phaseChangeDuringKerr(side) {
         multiTimeFrontsTrans[iTime] = fr;
     }
     multiTimeFronts = math.transpose(multiTimeFrontsTrans) 
-
 }
 
 function spectralGainDispersion() {
@@ -457,7 +472,6 @@ function prepareLinearFresnelHelpData() {
             dx = M[0][1] * lambda / (nSamples * dx);
             //console.log(`After step ${index + 1} dx = ${dx}`);
         })
-        //console.log(fresnelSideData);
 
         fresnelData.push(fresnelSideData);
     });

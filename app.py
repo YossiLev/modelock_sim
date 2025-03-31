@@ -22,11 +22,13 @@ import dataset
 current_tab = "Simulation"
 db_path = "sqlite:///data/mydatabase.db"
 
-app = FastHTML(ws_hdr=True, hdrs=(
+app = FastHTML(htmx=False, ws_hdr=False, hdrs=(
         Link(rel="shortcut icon", type="image/x-icon", href="static/favicon.ico"),
         Link(rel="stylesheet", href="https://cdnjs.cloudflare.com/ajax/libs/flexboxgrid/6.3.1/flexboxgrid.min.css", type="text/css"),
         Link(rel="stylesheet", href="static/main.css", type="text/css"),
         Link(rel="stylesheet", href="static/snackbar.css", type="text/css"),
+        Script(src="static/htmx.min.js"),
+        Script(src="static/ws.js"),
         Script(src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/3.3.0/math.min.js"),
         Script(src="static/localid.js"),
         Script(src="static/fieldValue.js"),
@@ -402,7 +404,6 @@ async def iterRunAll(send, localId: str):
                 await asyncio.sleep(0.001)
         await send(Div(generate_iterations(dataObj), id="iterateFull"))
         await asyncio.sleep(0.001)
-
 @app.post("/mmInit")
 async def mmInit(request: Request, localId: str):
     dataObj = get_Data_obj(localId)
@@ -428,8 +429,33 @@ async def mmInit(request: Request, localId: str):
     })
     dataObj['mmData'].init_multi_time()
     
-    #await send(Div(generate_all_charts(dataObj), id="charts", cls="rowx"))
+    return collectData(dataObj)
 
+@app.post("/mmUpdate")
+async def mmUpdate(request: Request, localId: str):
+    dataObj = get_Data_obj(localId)
+    if dataObj is None:
+        dataObj = {'id': localId, 'count': 0, 
+                'run_state': False, 
+                'cavityData': CavityDataPartsKerr(), 
+                'mmData': MultiModeSimulation(),
+                'iterationRuns': []}
+        insert_data_obj(localId, dataObj)   
+    
+    form_data = await request.form()
+    print(form_data)
+    dataObj['mmData'].set({
+        "gain_factor": float(form_data.get("gainFactor")),
+        "aperture": float(form_data.get("aperture")),
+        "epsilon": float(form_data.get("epsilon")),
+        "dispersion_factor": float(form_data.get("dispersionFactor")),
+        "lensing_factor": float(form_data.get("lensingFactor")),
+        "modulation_gain_factor": float(form_data.get("modulationGainFactor")),
+        "is_factor": float(form_data.get("isFactor")),
+        "initial_range": float(form_data.get("initialRange")),
+        "steps_sounter": int(form_data.get("stepsCounter")),
+    })
+    
     return collectData(dataObj)
 
 @app.ws('/mmRun')

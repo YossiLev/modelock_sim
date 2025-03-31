@@ -147,16 +147,9 @@ class MultiModeSimulation:
     def spectral_gain_dispersion(self):
         self.multi_frequency_fronts = fftshift(np.fft.fft(np.fft.ifftshift(self.multi_time_fronts, axes=1), axis=1), axes=1) * self.frequency_total_mult_factor
         self.multi_time_fronts = fftshift(np.fft.ifft(np.fft.ifftshift(self.multi_frequency_fronts, axes=1), axis=1), axes=1)
-        
-        # for ix in range(self.n_samples):
-        #     self.multi_frequency_fronts[ix] = np.multiply(fft_shift(np.fft.fft(fft_shift(self.multi_time_fronts[ix]))), self.frequency_total_mult_factor)
-        #     #self.multi_frequency_fronts[ix] = fft_shift(np.fft.fft(fft_shift(self.multi_time_fronts[ix])))
-        #     self.multi_time_fronts[ix] = fft_shift(np.fft.ifft(fft_shift(self.multi_frequency_fronts[ix])))
 
     def modulator_gain_multiply(self):
         self.multi_time_fronts = self.multi_time_fronts * self.modulator_gain
-        # for ix in range(self.n_samples):
-        #     self.multi_time_fronts[ix] = np.multiply(self.multi_time_fronts[ix], self.modulator_gain)
 
     def prepare_gain_pump(self):
         pump_width = 0.000030 * 0.5

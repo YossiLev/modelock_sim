@@ -491,7 +491,7 @@ async def mmRun(send, nRounds: str, gainFactor: str, aperture: str, epsilon: str
             return       
         dataObj['mmData'].multi_time_round_trip()
         if i % 50 == 0:
-            await send(Div(collectData(dataObj), id="numData"))
+            await send(Div(collectData(dataObj, more=True), id="numData"))
             await asyncio.sleep(0.001)
     
     dataObj['run_state'] = False

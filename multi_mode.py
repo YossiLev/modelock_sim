@@ -54,6 +54,8 @@ def calc_original_sim_matrices():
 
     return mat_side
 
+def serialize_fronts(fs):
+    return [[f"{np.real(val):.2f},{np.imag(val):.2f}" if np.abs(val) > 0.001 else "" for val in row] for row in fs]
 
 class MultiModeSimulation:
     def __init__(self):
@@ -239,7 +241,7 @@ class MultiModeSimulation:
         self.multi_frequency_fronts = [[] for _ in range(self.n_samples)]
         self.multi_time_fronts_saves = [[], [], [], [], [], []]
 
-        random_lcg_set_seed(123)
+        random_lcg_set_seed(1323)
         for i_time in range(self.n_time_samples):
             #rnd = np.random.uniform(-1, 1) + 1j * np.random.uniform(-1, 1)
             rnd = (random_lcg() * 2 - 1) + 1j * (random_lcg() * 2 - 1)
@@ -307,6 +309,7 @@ class MultiModeSimulation:
         fs = np.multiply(fs, fs)
         mean_v = np.mean(fs, axis=0)
         mean_mean = np.mean(mean_v)
+        self.n_rounds += 1
 
         for self.side in [0, 1]:
             self.phase_change_during_kerr()
@@ -320,9 +323,12 @@ class MultiModeSimulation:
             #self.printSamples()
 
 
-    def serialize_data(self):
+
+    def serialize_mm_data(self, more):
         s = json.dumps({
-            "multi_time_fronts": [[f"{np.real(val):.2f},{np.imag(val):.2f}" if np.abs(val) > 0.001 else "" for val in row] for row in self.multi_time_fronts],
-            "multi_frequency_fronts": [[f"{np.real(val):.2f},{np.imag(val):.2f}" if np.abs(val) > 0.001 else "" for val in row] for row in self.multi_frequency_fronts]
+            "more": more,
+            "rounds": self.n_rounds,
+            "multi_time_fronts": serialize_fronts(self.multi_time_fronts),
+            "multi_frequency_fronts": serialize_fronts(self.multi_frequency_fronts)
             })
         return s

@@ -3,7 +3,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function mutationCallback(mutationsList, observer) {
         if (document.getElementById('numData')) {
-            setTimeout(numDataMutated, 10);
+            setTimeout(numDataMutated, 1);
         }
     }
 

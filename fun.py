@@ -159,11 +159,11 @@ def initBeamType(beamParamInit = 0.0005, beamDistInit = 0.0):
         style="display:inline-block;"
     )
 
-def collectData(data_obj):
+def collectData(data_obj, more=False):
     if (data_obj is None):
         return Div()
     mmData = data_obj["mmData"]
-    mmDataSer = mmData.serialize_data()
+    mmDataSer = mmData.serialize_mm_data(more)
     return Div(mmDataSer, style="height:1px; overflow:hidden;")
 
 def generate_multimode(data_obj, tab, offset = 0):
@@ -314,7 +314,7 @@ def generate_multimode(data_obj, tab, offset = 0):
                         Input(type="number", id=f'modulationGainFactor', title="Modulation gain factor", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
                                     hx_vals='js:{localId: getLocalId()}', style="width:50px;", value=f'0.1',),
                         Input(type="number", id=f'isFactor', title="Intensity saturation factor", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
-                                    hx_vals='js:{localId: getLocalId()}', style="width:120px;", value=f'{200 * 352000}',),
+                                    hx_vals='js:{localId: getLocalId()}', style="width:120px;", value=f'10000',),
                         Select(Option("256"), Option("512"), Option("1024"), Option("2048"), Option("4096"), id="nSamples",),
                         Input(type="text", id=f'stepsCounter', title="Number of roundtrips made", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
                             style="width:60px; text-align: right", value=f'0', **{'readonly':"readonly"},),

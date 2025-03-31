@@ -880,32 +880,42 @@ function multiTimeApertureChanged(showSnack = true) {
     }
 }
 
+function openVec(fs) {
+    if (fs == null) {
+        return null
+    }
+
+    return fs.map(l => l.map((v) => {
+        if (v.length == 0) {
+            return math.complex(0);
+        }
+        let t = v.split(',');
+        return math.complex(t[0], t[1]);
+    }));    
+}
 function numDataMutated() {
     numData = document.getElementById("numData");
-    console.log('numdata mutated');
     s = numData.innerText;
     if (s.length > 0) {
-        console.log(`numdata has value ${s.length}`);
         data = JSON.parse(s);
-        console.log(data);
-        multiTimeFronts = data.multi_time_fronts.map(l => l.map((v) => {
-            if (v.length == 0) {
-                return math.complex(0);
-            }
-            let t = v.split(',');
-            return math.complex(t[0], t[1]);
-        }
-        ));
-        multiFrequencyFronts = data.multi_frequency_fronts.map(l => l.map((v) => {
-            if (v.length == 0) {
-                return math.complex(0);
-            }
-            let t = v.split(',');
-            return math.complex(t[0], t[1]);
-        }
-        ));
+        multiTimeFronts = openVec(data.multi_time_fronts);
+        multiFrequencyFronts = openVec(data.multi_frequency_fronts);
         numData.innerText = "";
-        drawTimeNumData(multiTimeFronts, 0, document.getElementById("funCanvasTime"));
-        drawTimeNumData(multiFrequencyFronts, 0, document.getElementById("funCanvasFrequency"));
+        if (data.rounds) {
+            document.getElementById("stepsCounter").value = `${data.rounds}`;
+        }
+        if (data.more) {
+            document.getElementById("stepsCounter").style.color = "red";
+            document.getElementById("stepsCounter").style.animation = "blink 1s infinite";
+        } else {
+            document.getElementById("stepsCounter").style.color = "black";
+            document.getElementById("stepsCounter").style.animation = "";
+        }
+        if (multiTimeFronts) {
+            drawTimeNumData(multiTimeFronts, 0, document.getElementById("funCanvasTime"));
+        }
+        if (multiFrequencyFronts) {
+            drawTimeNumData(multiFrequencyFronts, 0, document.getElementById("funCanvasFrequency"));
+        }
     }
 }

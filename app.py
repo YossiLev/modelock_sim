@@ -483,6 +483,7 @@ async def mmRun(send, nRounds: str, gainFactor: str, aperture: str, epsilon: str
     #     "steps_counter": int(form_data.get("stepsCounter")),
     })
 
+    start_time = time.time()
     count = 10 ** int(nRounds)
     dataObj['run_state'] = True
     for i in range(count):
@@ -496,6 +497,9 @@ async def mmRun(send, nRounds: str, gainFactor: str, aperture: str, epsilon: str
     
     dataObj['run_state'] = False
     await send(Div(collectData(dataObj), id="numData"))
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"Elapsed time: {elapsed_time:.2f} seconds")
     await asyncio.sleep(0.001)
 
         

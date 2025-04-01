@@ -5,10 +5,10 @@ import json
 
 
 
-def fft_shift(input_list):
-    input_array = np.array(input_list)
-    half_length = len(input_array) // 2
-    return np.concatenate((input_array[half_length:], input_array[:half_length]))
+# def fft_shift(input_list):
+#     input_array = np.array(input_list)
+#     half_length = len(input_array) // 2
+#     return np.concatenate((input_array[half_length:], input_array[:half_length]))
 
 def m_dist(d):
     return [[1, d], [0, 1]]
@@ -260,26 +260,36 @@ class MultiModeSimulation:
         self.ps1 = []
         total_kerr_lensing = np.multiply(self.lensing_factor, self.ikl_times_i)
 
-        for ix in range(self.n_samples):
-            bin = self.multi_time_fronts[ix]
-            bin2 = np.abs(np.multiply(bin, np.conj(bin)))
-            self.sum_power_ix.append(np.sum(bin2))
-            phase_shift1 = np.multiply(total_kerr_lensing, bin2)
-            self.multi_time_fronts[ix] = np.multiply(bin, np.exp(phase_shift1))
-            self.ps1.append(phase_shift1[0].imag)
+        bin2 = np.abs(self.multi_time_fronts) ** 2
+        self.sum_power_ix = np.sum(bin2, axis=1).tolist()
+        phase_shift1 = total_kerr_lensing * bin2
+        self.multi_time_fronts *= np.exp(phase_shift1)
+        self.ps1 = phase_shift1[:, 0].imag.tolist()
+        # for ix in range(self.n_samples):
+        #     bin = self.multi_time_fronts[ix]
+        #     bin2 = np.abs(np.multiply(bin, np.conj(bin)))
+        #     self.sum_power_ix.append(np.sum(bin2))
+        #     phase_shift1 = np.multiply(total_kerr_lensing, bin2)
+        #     self.multi_time_fronts[ix] = np.multiply(bin, np.exp(phase_shift1))
+        #     self.ps1.append(phase_shift1[0].imag)
 
         self.multi_time_fronts_saves[self.side * 3 + 0] = np.copy(self.multi_time_fronts)
 
-        multi_time_fronts_trans = np.transpose(self.multi_time_fronts)
-        for i_time in range(self.n_time_samples):
-            fr = multi_time_fronts_trans[i_time]
-            p_fr_before = np.sum(np.multiply(fr, np.conj(fr)))
-            fr_after = np.multiply(fr, self.multi_time_aperture)
-            p_fr_after = np.sum(np.multiply(fr_after, np.conj(fr_after)))
-            fr = np.multiply(fr_after, np.sqrt(p_fr_before / p_fr_after))
-            multi_time_fronts_trans[i_time] = fr
+        multi_time_fronts_trans = self.multi_time_fronts.T
+        p_fr_before = np.sum(np.abs(multi_time_fronts_trans)**2, axis=1, keepdims=True)
+        fr_after = multi_time_fronts_trans * self.multi_time_aperture
+        p_fr_after = np.sum(np.abs(fr_after)**2, axis=1, keepdims=True)
+        multi_time_fronts_trans = fr_after * np.sqrt(p_fr_before / p_fr_after)
+        self.multi_time_fronts = multi_time_fronts_trans.T
 
-        self.multi_time_fronts = np.transpose(multi_time_fronts_trans)
+        # for i_time in range(self.n_time_samples):
+        #     fr = multi_time_fronts_trans[i_time]
+        #     p_fr_before = np.sum(np.multiply(fr, np.conj(fr)))
+        #     fr_after = np.multiply(fr, self.multi_time_aperture)
+        #     p_fr_after = np.sum(np.multiply(fr_after, np.conj(fr_after)))
+        #     fr = np.multiply(fr_after, np.sqrt(p_fr_before / p_fr_after))
+        #     multi_time_fronts_trans[i_time] = fr
+        # self.multi_time_fronts = np.transpose(multi_time_fronts_trans)
     
     def linear_cavity_one_side(self):
         self.multi_time_fronts_saves[self.side * 3 + 1] = np.copy(self.multi_time_fronts)
@@ -289,18 +299,32 @@ class MultiModeSimulation:
         self.gain_reduction_with_origin = np.multiply(self.gain_factor, 1 + self.gain_reduction)
         self.gain_reduction_after_diffraction = np.multiply(self.gain_reduction_with_origin, self.multi_time_diffraction)
 
-        multi_time_fronts_trans = np.transpose(self.multi_time_fronts)
+        multi_time_fronts_trans = self.multi_time_fronts.T
+        gain_factors = self.gain_reduction_after_diffraction
+        multi_time_fronts_trans = gain_factors * multi_time_fronts_trans
 
-        for i_time in range(self.n_time_samples):
-            fr = multi_time_fronts_trans[i_time]
-            fr = np.multiply(fr, self.gain_reduction_after_diffraction)
-            for fresnel_side_data in self.fresnel_data[self.side]:
-                fr = np.multiply(fr, fresnel_side_data['vecs'][0])
-                fr = fft_shift(np.fft.fft(fft_shift(fr))) * fresnel_side_data['dx']
-                fr = np.multiply(fr, fresnel_side_data['vecs'][1])
-            multi_time_fronts_trans[i_time] = fr
+        for fresnel_side_data in self.fresnel_data[self.side]:
+            vec0 = fresnel_side_data['vecs'][0]
+            vecF = fresnel_side_data['vecs'][1]
+            dx = fresnel_side_data['dx']
+            
+            multi_time_fronts_trans = vec0 * multi_time_fronts_trans
+            multi_time_fronts_trans = fftshift(np.fft.fft(fftshift(multi_time_fronts_trans, axes=1), axis=1), axes=1) * dx
+            multi_time_fronts_trans = vecF * multi_time_fronts_trans
 
-        self.multi_time_fronts = np.transpose(multi_time_fronts_trans)
+        self.multi_time_fronts = multi_time_fronts_trans.T
+
+        # multi_time_fronts_trans = np.transpose(self.multi_time_fronts)
+        # for i_time in range(self.n_time_samples):
+        #     fr = multi_time_fronts_trans[i_time]
+        #     fr = np.multiply(fr, self.gain_reduction_after_diffraction)
+        #     for fresnel_side_data in self.fresnel_data[self.side]:
+        #         fr = np.multiply(fr, fresnel_side_data['vecs'][0])
+        #         fr = fftshift(np.fft.fft(fftshift(fr))) * fresnel_side_data['dx']
+        #         fr = np.multiply(fr, fresnel_side_data['vecs'][1])
+        #     multi_time_fronts_trans[i_time] = fr
+        # self.multi_time_fronts = np.transpose(multi_time_fronts_trans)
+
         self.multi_time_fronts_saves[self.side * 3 + 2] = np.copy(self.multi_time_fronts)
 
     def multi_time_round_trip(self):

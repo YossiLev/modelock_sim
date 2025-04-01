@@ -107,6 +107,9 @@ class MultiModeSimulation:
         self.n_samples_ones = [self.scalar_one] * self.n_samples
         self.n_samples_ones_r = [1.0] * self.n_samples
         self.ps1 = []
+        self.view_on_x = self.n_time_samples // 2
+        self.view_on_y = self.n_samples // 2
+        self.view_on_sample = 0
 
         self.mat_side = [[[-1.2947E+00, 4.8630E-03], [1.5111E+02, -1.3400E+00]],  # right
                          [[1.1589E+00, 8.2207E-04], [2.9333E+02, 1.0709E+00]]]    # left
@@ -329,10 +332,10 @@ class MultiModeSimulation:
 
     def multi_time_round_trip(self):
         #if self.i_count % 10 == 0:
-        fs = np.abs(self.multi_time_fronts)
-        fs = np.multiply(fs, fs)
-        mean_v = np.mean(fs, axis=0)
-        mean_mean = np.mean(mean_v)
+        # fs = np.abs(self.multi_time_fronts)
+        # fs = np.multiply(fs, fs)
+        # mean_v = np.mean(fs, axis=0)
+        # mean_mean = np.mean(mean_v)
         self.n_rounds += 1
 
         for self.side in [0, 1]:
@@ -344,15 +347,50 @@ class MultiModeSimulation:
                 self.modulator_gain_multiply()
 
             self.linear_cavity_one_side()
-            #self.printSamples()
 
-
-
+    def get_x_values(self):
+        print(f"get_x_values {self.view_on_x}")
+        fs = self.multi_time_fronts if self.view_on_sample == 0 else self.multi_frequency_fronts
+        if isinstance(fs, np.ndarray):
+            fr = np.abs(fs.T[self.view_on_x])
+            return fr.tolist()
+        return []
+    
+    def get_y_values(self):
+        print(f"get_y_values {self.view_on_y}")
+        fs = self.multi_time_fronts if self.view_on_sample == 0 else self.multi_frequency_fronts
+        if isinstance(fs, np.ndarray):
+            fr = np.abs(fs[self.view_on_y])
+            return fr.tolist()
+        return []
+    
     def serialize_mm_data(self, more):
         s = json.dumps({
             "more": more,
             "rounds": self.n_rounds,
-            "multi_time_fronts": serialize_fronts(self.multi_time_fronts),
-            "multi_frequency_fronts": serialize_fronts(self.multi_frequency_fronts)
+            "samples": 
+                [
+                    {"name": "funCanvasSample1", "samples": serialize_fronts(self.multi_time_fronts)},
+                    {"name": "funCanvasSample2", "samples": serialize_fronts(self.multi_frequency_fronts)}
+                ],
+            "graphs": [
+                {"name": "gr1", "lines": []},
+                {"name": "gr2", "lines": []},
+                {"name": "gr3", "lines": [{"color": "red", "values": self.get_x_values()}]},
+                {"name": "gr4", "lines": []},
+                {"name": "gr5", "lines": [{"color": "red", "values": self.get_y_values()}]},
+
+            ]
+            })
+        return s
+    def serialize_mm_graphs(self):
+        s = json.dumps({
+            "graphs": [
+                {"name": "gr1", "lines": []},
+                {"name": "gr2", "lines": []},
+                {"name": "gr3", "lines": [{"color": "red", "values": self.get_x_values()}]},
+                {"name": "gr4", "lines": []},
+                {"name": "gr5", "lines": [{"color": "red", "values": self.get_y_values()}]},
+            ]
             })
         return s

@@ -699,6 +699,10 @@ function drawTimeNumData(fs, view, canvas) {
     //     drawTextBG(ctx, (totalSumPower).toFixed(1), 10, 50);
     // }
 }
+
+function drawGraphNumData(lines, canvas) {
+}
+
 function focalFromPhase(phase) {
     let deriv2NoZero = vecDeriv2(phase, dx0).map((v) => Math.abs(v) < 0.000000001 ? 0.000000001 : v)
     let focalVec = math.dotDivide(nSamplesOnesR, math.multiply(-  lambda / (2 * Math.PI), deriv2NoZero));
@@ -893,29 +897,39 @@ function openVec(fs) {
         return math.complex(t[0], t[1]);
     }));    
 }
+function spreadUpdatedData(data) {
+    if (data.rounds) {
+        document.getElementById("stepsCounter").value = `${data.rounds}`;
+    }
+    if (data.more) {
+        document.getElementById("stepsCounter").style.color = "red";
+        document.getElementById("stepsCounter").style.animation = "blink 1s infinite";
+    } else {
+        document.getElementById("stepsCounter").style.color = "black";
+        document.getElementById("stepsCounter").style.animation = "";
+    }
+    if (data.samples) {
+        for (sample of data.samples) {
+            drawTimeNumData(openVec(sample.samples), 0, document.getElementById(sample.name));
+        }
+    }
+    if (data.graphs) {
+        for (graph of data.graphs) {
+            let clear = true;
+            for (line of graph.lines) {
+                drawVector(line.values, clear, line.color, 1, true, graph.name, "", 0);
+                clear = false;
+            }
+        }
+    }
+}
 function numDataMutated() {
     numData = document.getElementById("numData");
     s = numData.innerText;
     if (s.length > 0) {
         data = JSON.parse(s);
-        multiTimeFronts = openVec(data.multi_time_fronts);
-        multiFrequencyFronts = openVec(data.multi_frequency_fronts);
         numData.innerText = "";
-        if (data.rounds) {
-            document.getElementById("stepsCounter").value = `${data.rounds}`;
-        }
-        if (data.more) {
-            document.getElementById("stepsCounter").style.color = "red";
-            document.getElementById("stepsCounter").style.animation = "blink 1s infinite";
-        } else {
-            document.getElementById("stepsCounter").style.color = "black";
-            document.getElementById("stepsCounter").style.animation = "";
-        }
-        if (multiTimeFronts) {
-            drawTimeNumData(multiTimeFronts, 0, document.getElementById("funCanvasTime"));
-        }
-        if (multiFrequencyFronts) {
-            drawTimeNumData(multiFrequencyFronts, 0, document.getElementById("funCanvasFrequency"));
-        }
+        spreadUpdatedData(data)
+
     }
 }

@@ -487,7 +487,8 @@ async def mmRun(send, nRounds: str, gainFactor: str, aperture: str, epsilon: str
     count = 10 ** int(nRounds)
     dataObj['run_state'] = True
     for i in range(count):
-        print(f"round {i}")
+        if i % 10 == 0:
+            print(f"round {i}")
         if not dataObj['run_state']:
             return       
         dataObj['mmData'].multi_time_round_trip()
@@ -502,6 +503,21 @@ async def mmRun(send, nRounds: str, gainFactor: str, aperture: str, epsilon: str
     print(f"Elapsed time: {elapsed_time:.2f} seconds")
     await asyncio.sleep(0.001)
 
+@app.post("/mmGraph/{sample}/{x}/{y}")
+async def mmGraph(request: Request, sample: int, x: int, y: int):
+    jj = await request.json()
+
+    localId = jj["localId"]
+    print(f"sample {sample} x {x} y {y} localId {localId}")
+    dataObj = get_Data_obj(localId)
+    if dataObj is None:
+        return "{}"
+    mmData = dataObj['mmData']
+    mmData.view_on_sample = sample
+    mmData.view_on_x = x
+    mmData.view_on_y = y
+
+    return mmData.serialize_mm_graphs()
         
 @app.post("/removeComp/{comp_id}")
 def removeComp(session, comp_id: str, localId: str):

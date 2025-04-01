@@ -1747,7 +1747,26 @@ function deltaCanvasMouseMove(e) {
     drawTextBG(ctx, gx.toFixed(6), ctx.canvas.width - 100, 10);
     drawTextBG(ctx, gy.toFixed(6), ctx.canvas.width - 100, 30);
 }
- 
+
+function fetchGraphData(sample, x, y) {
+    fetch(`/mmGraph/${sample}/${x}/${y}`, {
+        method: 'POST',
+        headers: {
+           'Accept': 'application/json',
+           'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({localId: getLocalId()})
+     })
+     .then(resp => resp.json()) // or, resp.text(), etc.
+     .then(data => {
+        console.log(data); // handle response data
+        spreadUpdatedData(data);
+     })
+     .catch(error => {
+        console.error(error);
+     });
+}
+
 function mainCanvasMouseMove(e) {
     if (drawMode == 3) {
         return deltaCanvasMouseMove(e)
@@ -1766,6 +1785,10 @@ function mainCanvasMouseMove(e) {
         fronts = multiFronts[1];
     } else if (id == "funCanvasTime" || id == "funCanvasFrequency") {
         multiTimeCanvasMouseMove(e);
+        return;
+    } else if (id == "funCanvasSample1") {
+        let [x, y] = getClientCoordinates(e);
+        fetchGraphData(0, x, y);
         return;
     } else {
         return;
@@ -1807,12 +1830,14 @@ function mainCanvasMouseUp(e) {
     isMouseDownOnMain = false;
     const id = e.target.id;
 
-    moverHide();
+    if (id != "funCanvasSample1" && id != "funCanvasSample2") {
+        moverHide();
 
-    let [x, y] = getClientCoordinates(e);
-    if (zoomHorizontalCenter != (x - drawSx) / ( drawW / distStep)) {
-        zoomHorizontalCenter = (x - drawSx) / ( drawW / distStep);
-        drawMultiMode();
+        let [x, y] = getClientCoordinates(e);
+        if (zoomHorizontalCenter != (x - drawSx) / ( drawW / distStep)) {
+            zoomHorizontalCenter = (x - drawSx) / ( drawW / distStep);
+            drawMultiMode();
+        }
     }
 
     if (id == "funCanvasTime" || id == "funCanvasFrequency") {

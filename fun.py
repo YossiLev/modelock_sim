@@ -166,6 +166,8 @@ def collectData(data_obj, more=False):
     mmDataSer = mmData.serialize_mm_data(more)
     return Div(mmDataSer, style="height:1px; overflow:hidden;")
 
+
+
 def generate_multimode(data_obj, tab, offset = 0):
 
     images = []
@@ -257,10 +259,10 @@ def generate_multimode(data_obj, tab, offset = 0):
                 ),
                 FlexN([funCanvas("Time", width=1024, height=256, useZoom=False), Div(id="TimeCanvasOptions"), Div(id="TimeCanvasViews")]),
                 FlexN([funCanvas("Frequency", width=1024, height=256, useZoom=False), Div(id="FrequencyCanvasOptions"), Div(id="FrequencyCanvasViews")]),
-                FlexN([graphCanvas(id="gainSat", width=256, height = 200, options=False), 
-                       graphCanvas(id="meanPower", width=256, height = 200, options=False),
-                       graphCanvas(id="sampleX", width=256, height = 200, options=False),
-                       graphCanvas(id="kerrPhase", width=256, height = 200, options=False),
+                FlexN([graphCanvas(id="gr1", width=256, height = 200, options=False), 
+                       graphCanvas(id="gr2", width=256, height = 200, options=False),
+                       graphCanvas(id="gr3", width=256, height = 200, options=False),
+                       graphCanvas(id="gr4", width=256, height = 200, options=False),
                 ]),
                 graphCanvas(id="sampleY", width=1024, height = 200, options=False),
                 Button("Progress left", onclick="progressMultiTime(1)"),
@@ -329,18 +331,18 @@ def generate_multimode(data_obj, tab, offset = 0):
                     *[Element(el, i, tab) for i, el in enumerate(elements[2])],
                     Button(NotStr("&#43;"), escapse=False, hx_post="/addElement/2", hx_target="#fun", hx_vals='js:{localId: getLocalId()}'), 
                 ),
-                FlexN([funCanvas("Time", width=1024, height=256, useZoom=False), Div(id="TimeCanvasOptions"), Div(id="TimeCanvasViews")]),
-                FlexN([funCanvas("Frequency", width=1024, height=256, useZoom=False), Div(id="FrequencyCanvasOptions"), Div(id="FrequencyCanvasViews")]),
-                FlexN([graphCanvas(id="gainSat", width=256, height = 200, options=False), 
-                       graphCanvas(id="meanPower", width=256, height = 200, options=False),
-                       graphCanvas(id="sampleX", width=256, height = 200, options=False),
-                       graphCanvas(id="kerrPhase", width=256, height = 200, options=False),
+                FlexN([funCanvas("Sample1", width=1024, height=256, useZoom=False), Div(id="TimeCanvasOptions"), Div(id="TimeCanvasViews")]),
+                FlexN([funCanvas("Sample2", width=1024, height=256, useZoom=False), Div(id="FrequencyCanvasOptions"), Div(id="FrequencyCanvasViews")]),
+                FlexN([graphCanvas(id="gr1", width=256, height = 200, options=False), 
+                       graphCanvas(id="gr2", width=256, height = 200, options=False),
+                       graphCanvas(id="gr3", width=256, height = 200, options=False),
+                       graphCanvas(id="gr4", width=256, height = 200, options=False),
                 ]),
-                graphCanvas(id="sampleY", width=1024, height = 200, options=False),
-                Button("Progress left", onclick="progressMultiTime(1)"),
-                Button("Progress right", onclick="progressMultiTime(2)"),
-                funCanvas("Test", width=1400, height=256, useZoom=True),
-                graphCanvas(width=1400),
+                graphCanvas(id="gr5", width=1024, height = 200, options=False),
+                # Button("Progress left", onclick="progressMultiTime(1)"),
+                # Button("Progress right", onclick="progressMultiTime(2)"),
+                # funCanvas("Test", width=1400, height=256, useZoom=True),
+                # graphCanvas(width=1400),
                 Div(collectData(data_obj), id="numData"),
             )
 

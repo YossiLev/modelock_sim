@@ -3,13 +3,6 @@ from numpy.fft import fftshift, ifftshift
 from controls import random_lcg_set_seed, random_lcg
 import json
 
-
-
-# def fft_shift(input_list):
-#     input_array = np.array(input_list)
-#     half_length = len(input_array) // 2
-#     return np.concatenate((input_array[half_length:], input_array[:half_length]))
-
 def m_dist(d):
     return [[1, d], [0, 1]]
 
@@ -38,8 +31,6 @@ def m_mult_inv(m, m2):
 
 def m_inv(m):
     return [[m[1][1], -m[0][1]], [-m[1][0], m[0][0]]]
-
-
 
 def calc_original_sim_matrices():
     position_lens = -0.00015
@@ -106,7 +97,10 @@ class MultiModeSimulation:
         self.n_time_samples_ones = [self.scalar_one] * self.n_time_samples
         self.n_samples_ones = [self.scalar_one] * self.n_samples
         self.n_samples_ones_r = [1.0] * self.n_samples
-        self.ps1 = []
+        self.ps = [[], []]
+        self.view_on_stage = ["1", "1"]
+        self.view_on_amp_freq = ["Amp", "Amp"]
+        self.view_on_abs_phase = ["Abs", "Abs"]
         self.view_on_x = self.n_time_samples // 2
         self.view_on_y = self.n_samples // 2
         self.view_on_sample = 0
@@ -234,11 +228,17 @@ class MultiModeSimulation:
             px = i * dx
             x = px - x0
             xw = x / waist
-            f_val = np.exp(complex(-xw * xw, -theta * x * x))
+            f_val = np.exp(complex(-xw * xw, -theta * x * x)) * (1.0 + 0.3 * random_lcg())
             vf.append(f_val)
 
         return vf
 
+    def update_helpData(self):
+        self.prepare_linear_fresnel_help_data()
+        self.prepare_gain_pump()
+        self.prepare_aperture()
+        self.init_gain_by_frequency()
+    
     def init_multi_time(self):
         self.multi_time_fronts = [[] for _ in range(self.n_samples)]
         self.multi_frequency_fronts = [[] for _ in range(self.n_samples)]
@@ -253,21 +253,18 @@ class MultiModeSimulation:
                 self.multi_time_fronts[i].append(fr[i])
                 self.multi_frequency_fronts[i].append(0 + 0j)
 
-        self.prepare_linear_fresnel_help_data()
-        self.prepare_gain_pump()
-        self.prepare_aperture()
-        self.init_gain_by_frequency()
+        self.update_helpData()
+
 
     def phase_change_during_kerr(self):
         self.sum_power_ix = []
-        self.ps1 = []
         total_kerr_lensing = np.multiply(self.lensing_factor, self.ikl_times_i)
 
         bin2 = np.abs(self.multi_time_fronts) ** 2
         self.sum_power_ix = np.sum(bin2, axis=1).tolist()
         phase_shift1 = total_kerr_lensing * bin2
         self.multi_time_fronts *= np.exp(phase_shift1)
-        self.ps1 = phase_shift1[:, 0].imag.tolist()
+        self.ps[self.side] = phase_shift1[:, self.view_on_x].imag.tolist()
         # for ix in range(self.n_samples):
         #     bin = self.multi_time_fronts[ix]
         #     bin2 = np.abs(np.multiply(bin, np.conj(bin)))
@@ -305,7 +302,6 @@ class MultiModeSimulation:
         multi_time_fronts_trans = self.multi_time_fronts.T
         gain_factors = self.gain_reduction_after_diffraction
         multi_time_fronts_trans = gain_factors * multi_time_fronts_trans
-
         for fresnel_side_data in self.fresnel_data[self.side]:
             vec0 = fresnel_side_data['vecs'][0]
             vecF = fresnel_side_data['vecs'][1]
@@ -314,7 +310,6 @@ class MultiModeSimulation:
             multi_time_fronts_trans = vec0 * multi_time_fronts_trans
             multi_time_fronts_trans = fftshift(np.fft.fft(fftshift(multi_time_fronts_trans, axes=1), axis=1), axes=1) * dx
             multi_time_fronts_trans = vecF * multi_time_fronts_trans
-
         self.multi_time_fronts = multi_time_fronts_trans.T
 
         # multi_time_fronts_trans = np.transpose(self.multi_time_fronts)
@@ -349,20 +344,18 @@ class MultiModeSimulation:
             self.linear_cavity_one_side()
 
     def get_x_values(self):
-        print(f"get_x_values {self.view_on_x}")
         fs = self.multi_time_fronts if self.view_on_sample == 0 else self.multi_frequency_fronts
         if isinstance(fs, np.ndarray):
-            fr = np.abs(fs.T[self.view_on_x])
-            return fr.tolist()
-        return []
+            fr = np.abs(fs.T[self.view_on_x]).tolist()
+            return {"values": fr, "text": f"M{max(fr):.2f}({fr.index(max(fr))})"}
+        return {}
     
     def get_y_values(self):
-        print(f"get_y_values {self.view_on_y}")
         fs = self.multi_time_fronts if self.view_on_sample == 0 else self.multi_frequency_fronts
         if isinstance(fs, np.ndarray):
-            fr = np.abs(fs[self.view_on_y])
-            return fr.tolist()
-        return []
+            fr = np.abs(fs[self.view_on_y]).tolist()
+            return {"values": fr, "text": f"M{max(fr):.2f}({fr.index(max(fr))})"}
+        return {}
     
     def serialize_mm_data(self, more):
         s = json.dumps({
@@ -376,9 +369,11 @@ class MultiModeSimulation:
             "graphs": [
                 {"name": "gr1", "lines": []},
                 {"name": "gr2", "lines": []},
-                {"name": "gr3", "lines": [{"color": "red", "values": self.get_x_values()}]},
-                {"name": "gr4", "lines": []},
-                {"name": "gr5", "lines": [{"color": "red", "values": self.get_y_values()}]},
+                {"name": "gr3", "lines": [{"color": "red", **self.get_x_values()}]},
+                {"name": "gr4", "lines": [{"color": "blue", "values": self.ps[0], "text": f"M{max(self.ps[0]):.2f}({self.ps[0].index(max(self.ps[0]))})"},
+                                          {"color": "green", "values": self.ps[1], "text": f"M{max(self.ps[1]):.2f}({self.ps[1].index(max(self.ps[1]))})"} ] 
+                                          if len(self.ps[0]) > 10 and len(self.ps[1]) > 10 else []},    
+                {"name": "gr5", "lines": [{"color": "red", **self.get_y_values()}]},
 
             ]
             })
@@ -388,9 +383,11 @@ class MultiModeSimulation:
             "graphs": [
                 {"name": "gr1", "lines": []},
                 {"name": "gr2", "lines": []},
-                {"name": "gr3", "lines": [{"color": "red", "values": self.get_x_values()}]},
-                {"name": "gr4", "lines": []},
-                {"name": "gr5", "lines": [{"color": "red", "values": self.get_y_values()}]},
+                {"name": "gr3", "lines": [{"color": "red", **self.get_x_values()}]},
+                {"name": "gr4", "lines": [{"color": "blue", "values": self.ps[0], "text": f"M{max(self.ps[0]):.2f}({self.ps[0].index(max(self.ps[0]))})"},
+                                          {"color": "green", "values": self.ps[1], "text": f"M{max(self.ps[1]):.2f}({self.ps[1].index(max(self.ps[1]))})"} ] 
+                                          if len(self.ps[0]) > 10 and len(self.ps[1]) > 10 else []},    
+                {"name": "gr5", "lines": [{"color": "red", **self.get_y_values()}]},
             ]
             })
         return s

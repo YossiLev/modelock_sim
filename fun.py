@@ -166,7 +166,78 @@ def collectData(data_obj, more=False):
     mmDataSer = mmData.serialize_mm_data(more)
     return Div(mmDataSer, style="height:1px; overflow:hidden;")
 
+def ViewButtons(data_obj, idd):
+    print("ViewButtons")
+    print("ViewButtons2")
+    if (data_obj is not None):
+        mmData = data_obj["mmData"]
+    return Div(
+        Button("Frq.", hx_post=f"/mmView/{idd}/Frq", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML", hx_target="#multiModeServer"),
+        Button("Amp.", hx_post=f"/mmView/{idd}/Amp", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML", hx_target="#multiModeServer"),
+        Button("Phs.", hx_post=f"/mmView/{idd}/Phs", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML", hx_target="#multiModeServer"),
+        Button("Abs.", hx_post=f"/mmView/{idd}/Abs", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML", hx_target="#multiModeServer"),
+        *[Button(f"{x}", hx_post=f"/mmView/{idd}/{x}", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML", hx_target="#multiModeServer") for x in range(1, 6)],
+        style="display:inline-block;"
+    )
 
+def generate_multi_on_server(data_obj):
+
+    return Div(
+        Div(initBeamType(beamParamInit = 0.00003, beamDistInit = 0.0), 
+            Button("Init", hx_post=f"/mmInit", hx_include="#nRounds, #multiTimeOptionsForm *", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML", hx_target="#numData"),
+            Button("Full", hx_ext="ws", ws_connect="/mmRun", ws_send=True, hx_include="#nRounds, #multiTimeOptionsForm", hx_vals='js:{localId: getLocalId()}'),
+            Select(Option("0"), Option("1"), Option("2"), Option("3"), Option("4"), id="nRounds", **{'onchange':"nRoundsChanged();"}),
+            Button("Update", hx_put=f"/mmUpdate", hx_include="#multiTimeOptionsForm *", hx_vals='js:{localId: getLocalId()}'),
+        ),
+        Div(
+            Div(
+                Input(type="number", id=f'initialRange', title="The range of the wave front (meters)", value=f'0.00024475293', 
+                        hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", hx_vals='js:{localId: getLocalId()}', style="width:100px;"),
+                Input(type="number", id=f'aperture', title="Width of a Gaussian aperture (meters)", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
+                            hx_vals='js:{localId: getLocalId()}', style="width:80px;", value=f'0.000056',),
+                Input(type="number", id=f'epsilon', title="Gain Epsilon", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
+                            hx_vals='js:{localId: getLocalId()}', style="width:50px;", value=f'0.8',),
+                Input(type="number", id=f'gainFactor', title="Gain factor", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
+                            hx_vals='js:{localId: getLocalId()}', style="width:50px;", value=f'0.5',),
+                Input(type="number", id=f'dispersionFactor', title="Dispersion factor", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
+                            hx_vals='js:{localId: getLocalId()}', style="width:50px;", value=f'1.0',),
+                Input(type="number", id=f'lensingFactor', title="Kerr lensing factor", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
+                            hx_vals='js:{localId: getLocalId()}', style="width:50px;", value=f'1.0',),
+                Input(type="number", id=f'modulationGainFactor', title="Modulation gain factor", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
+                            hx_vals='js:{localId: getLocalId()}', style="width:50px;", value=f'0.1',),
+                Input(type="number", id=f'isFactor', title="Intensity saturation factor", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
+                            hx_vals='js:{localId: getLocalId()}', style="width:120px;", value=f'10000',),
+                Select(Option("256"), Option("512"), Option("1024"), Option("2048"), Option("4096"), id="nSamples",),
+                Input(type="text", id=f'stepsCounter', title="Number of roundtrips made", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
+                    style="width:60px; text-align: right", value=f'0', **{'readonly':"readonly"},),
+                id="multiTimeOptionsForm"
+            ),
+            Button(">", onclick="shiftFronts(- 5);"),
+            Button("<", onclick="shiftFronts(5);"),
+            Button(">>", onclick="shiftFronts(- 50);"),
+            Button("<<", onclick="shiftFronts(50);"),
+        ),
+        Div(
+            *[Element(el, i, 5) for i, el in enumerate(elements[2])],
+            Button(NotStr("&#43;"), escapse=False, hx_post="/addElement/2", hx_target="#fun", hx_vals='js:{localId: getLocalId()}'), 
+        ),
+        ViewButtons(data_obj, 0),
+        funCanvas("Sample1", width=1024, height=256, useZoom=False),
+        ViewButtons(data_obj, 1),
+        funCanvas("Sample2", width=1024, height=256, useZoom=False),
+        FlexN([graphCanvas(id="gr1", width=256, height = 200, options=False), 
+                graphCanvas(id="gr2", width=256, height = 200, options=False),
+                graphCanvas(id="gr3", width=256, height = 200, options=False),
+                graphCanvas(id="gr4", width=256, height = 200, options=False),
+        ]),
+        graphCanvas(id="gr5", width=1024, height = 200, options=False),
+        # Button("Progress left", onclick="progressMultiTime(1)"),
+        # Button("Progress right", onclick="progressMultiTime(2)"),
+        # funCanvas("Test", width=1400, height=256, useZoom=True),
+        # graphCanvas(width=1400),
+        Div(collectData(data_obj), id="numData"),
+        id="multiModeServer",
+    )
 
 def generate_multimode(data_obj, tab, offset = 0):
 
@@ -259,10 +330,10 @@ def generate_multimode(data_obj, tab, offset = 0):
                 ),
                 FlexN([funCanvas("Time", width=1024, height=256, useZoom=False), Div(id="TimeCanvasOptions"), Div(id="TimeCanvasViews")]),
                 FlexN([funCanvas("Frequency", width=1024, height=256, useZoom=False), Div(id="FrequencyCanvasOptions"), Div(id="FrequencyCanvasViews")]),
-                FlexN([graphCanvas(id="gr1", width=256, height = 200, options=False), 
-                       graphCanvas(id="gr2", width=256, height = 200, options=False),
-                       graphCanvas(id="gr3", width=256, height = 200, options=False),
-                       graphCanvas(id="gr4", width=256, height = 200, options=False),
+                FlexN([graphCanvas(id="gainSat", width=256, height = 200, options=False), 
+                       graphCanvas(id="meanPower", width=256, height = 200, options=False),
+                       graphCanvas(id="sampleX", width=256, height = 200, options=False),
+                       graphCanvas(id="kerrPhase", width=256, height = 200, options=False),
                 ]),
                 graphCanvas(id="sampleY", width=1024, height = 200, options=False),
                 Button("Progress left", onclick="progressMultiTime(1)"),
@@ -292,59 +363,7 @@ def generate_multimode(data_obj, tab, offset = 0):
                 graphCanvas()
             )
         case 5: # MultiTime on server
-            added = Div(
-                Div(initBeamType(beamParamInit = 0.00003, beamDistInit = 0.0), 
-                    Button("Init", hx_post=f"/mmInit", hx_include="#nRounds, #multiTimeOptionsForm *", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML", hx_target="#numData"),
-                    Button("Full", hx_ext="ws", ws_connect="/mmRun", ws_send=True, hx_include="#nRounds, #multiTimeOptionsForm", hx_vals='js:{localId: getLocalId()}'),
-                    Select(Option("0"), Option("1"), Option("2"), Option("3"), Option("4"), id="nRounds", **{'onchange':"nRoundsChanged();"}),
-                    Button("Update", hx_put=f"/mmUpdate", hx_include="#multiTimeOptionsForm *", hx_vals='js:{localId: getLocalId()}'),
-                ),
-                Div(
-                    Div(
-                        Input(type="number", id=f'initialRange', title="The range of the wave front (meters)", value=f'0.00024475293', 
-                              hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", hx_vals='js:{localId: getLocalId()}', style="width:100px;"),
-                        Input(type="number", id=f'aperture', title="Width of a Gaussian aperture (meters)", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
-                                    hx_vals='js:{localId: getLocalId()}', style="width:80px;", value=f'0.000056',),
-                        Input(type="number", id=f'epsilon', title="Gain Epsilon", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
-                                    hx_vals='js:{localId: getLocalId()}', style="width:50px;", value=f'0.8',),
-                        Input(type="number", id=f'gainFactor', title="Gain factor", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
-                                    hx_vals='js:{localId: getLocalId()}', style="width:50px;", value=f'0.5',),
-                        Input(type="number", id=f'dispersionFactor', title="Dispersion factor", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
-                                    hx_vals='js:{localId: getLocalId()}', style="width:50px;", value=f'1.0',),
-                        Input(type="number", id=f'lensingFactor', title="Kerr lensing factor", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
-                                    hx_vals='js:{localId: getLocalId()}', style="width:50px;", value=f'1.0',),
-                        Input(type="number", id=f'modulationGainFactor', title="Modulation gain factor", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
-                                    hx_vals='js:{localId: getLocalId()}', style="width:50px;", value=f'0.1',),
-                        Input(type="number", id=f'isFactor', title="Intensity saturation factor", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
-                                    hx_vals='js:{localId: getLocalId()}', style="width:120px;", value=f'10000',),
-                        Select(Option("256"), Option("512"), Option("1024"), Option("2048"), Option("4096"), id="nSamples",),
-                        Input(type="text", id=f'stepsCounter', title="Number of roundtrips made", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
-                            style="width:60px; text-align: right", value=f'0', **{'readonly':"readonly"},),
-                        id="multiTimeOptionsForm"
-                    ),
-                    Button(">", onclick="shiftFronts(- 5);"),
-                    Button("<", onclick="shiftFronts(5);"),
-                    Button(">>", onclick="shiftFronts(- 50);"),
-                    Button("<<", onclick="shiftFronts(50);"),
-                ),
-                Div(
-                    *[Element(el, i, tab) for i, el in enumerate(elements[2])],
-                    Button(NotStr("&#43;"), escapse=False, hx_post="/addElement/2", hx_target="#fun", hx_vals='js:{localId: getLocalId()}'), 
-                ),
-                FlexN([funCanvas("Sample1", width=1024, height=256, useZoom=False), Div(id="TimeCanvasOptions"), Div(id="TimeCanvasViews")]),
-                FlexN([funCanvas("Sample2", width=1024, height=256, useZoom=False), Div(id="FrequencyCanvasOptions"), Div(id="FrequencyCanvasViews")]),
-                FlexN([graphCanvas(id="gr1", width=256, height = 200, options=False), 
-                       graphCanvas(id="gr2", width=256, height = 200, options=False),
-                       graphCanvas(id="gr3", width=256, height = 200, options=False),
-                       graphCanvas(id="gr4", width=256, height = 200, options=False),
-                ]),
-                graphCanvas(id="gr5", width=1024, height = 200, options=False),
-                # Button("Progress left", onclick="progressMultiTime(1)"),
-                # Button("Progress right", onclick="progressMultiTime(2)"),
-                # funCanvas("Test", width=1400, height=256, useZoom=True),
-                # graphCanvas(width=1400),
-                Div(collectData(data_obj), id="numData"),
-            )
+            added = generate_multi_on_server(data_obj)
 
     my_base64_jpgData = []
     for image in images:

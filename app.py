@@ -9,7 +9,7 @@ import time
 from gen_data import *
 from simulation import generate_all_charts
 from geometry import generate_geometry, generate_beam_params
-from fun import generate_multimode, collectData
+from fun import generate_multimode, collectData, generate_multi_on_server
 from design import generate_design
 from iterations import generate_iterations, Iteration
 from cavity import CavityDataPartsKerr, CavityData
@@ -431,32 +431,22 @@ async def mmInit(request: Request, localId: str):
     
     return collectData(dataObj)
 
-@app.post("/mmUpdate")
-async def mmUpdate(request: Request, localId: str):
+@app.post("/mmView/{part}/{action}")
+async def mmView(part: int, action: str, localId: str):
     dataObj = get_Data_obj(localId)
     if dataObj is None:
-        dataObj = {'id': localId, 'count': 0, 
-                'run_state': False, 
-                'cavityData': CavityDataPartsKerr(), 
-                'mmData': MultiModeSimulation(),
-                'iterationRuns': []}
-        insert_data_obj(localId, dataObj)   
+        return Div()
     
-    form_data = await request.form()
-    print(form_data)
-    dataObj['mmData'].set({
-        "gain_factor": float(form_data.get("gainFactor")),
-        "aperture": float(form_data.get("aperture")),
-        "epsilon": float(form_data.get("epsilon")),
-        "dispersion_factor": float(form_data.get("dispersionFactor")),
-        "lensing_factor": float(form_data.get("lensingFactor")),
-        "modulation_gain_factor": float(form_data.get("modulationGainFactor")),
-        "is_factor": float(form_data.get("isFactor")),
-        "initial_range": float(form_data.get("initialRange")),
-        "steps_sounter": int(form_data.get("stepsCounter")),
-    })
-    
-    return collectData(dataObj)
+    mmData = dataObj['mmData']
+    match action:
+        case "Amp" | "Frq":
+            mmData.view_on_amp_freq[part] = action
+        case "Abs" | "Phs":
+            mmData.view_on_abs_phase[part] = action
+        case "1" | "2" | "3" | "4" | "5" | "6":
+            mmData.view_on_sample[part] = action
+
+    return generate_multi_on_server(dataObj)
 
 @app.ws('/mmRun')
 async def mmRun(send, nRounds: str, gainFactor: str, aperture: str, epsilon: str, dispersionFactor: str,
@@ -493,8 +483,13 @@ async def mmRun(send, nRounds: str, gainFactor: str, aperture: str, epsilon: str
             return       
         dataObj['mmData'].multi_time_round_trip()
         if i % 50 == 0:
-            await send(Div(collectData(dataObj, more=True), id="numData"))
-            await asyncio.sleep(0.001)
+            try:
+                await send(Div(collectData(dataObj, more=True), id="numData"))
+                await asyncio.sleep(0.001)
+            except Exception as e:
+                print(f"Error sending data: {e}")
+                dataObj['run_state'] = False
+                return
     
     dataObj['run_state'] = False
     await send(Div(collectData(dataObj), id="numData"))

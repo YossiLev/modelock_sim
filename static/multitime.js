@@ -917,7 +917,7 @@ function spreadUpdatedData(data) {
         for (graph of data.graphs) {
             let clear = true;
             for (line of graph.lines) {
-                drawVector(line.values, clear, line.color, 1, true, graph.name, "", 0);
+                drawVector(line.values, clear, line.color, 1, true, graph.name, "",  0, line.text, 1);
                 clear = false;
             }
         }

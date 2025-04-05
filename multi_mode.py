@@ -1,5 +1,5 @@
 import numpy as np
-from numpy.fft import fftshift, ifftshift
+from numpy.fft import fftshift
 from controls import random_lcg_set_seed, random_lcg
 import json
 
@@ -85,7 +85,7 @@ class MultiModeSimulation:
         self.is_factor = 200 * 352000
         self.pump_gain0 = []
         self.multi_time_aperture = []
-        self.multi_time_aperture_val = 0.000056
+        self.aperture = 0.000056
         self.multi_time_diffraction = []
         self.multi_time_diffraction_val = 0.000030
         self.frequency_total_mult_factor = []
@@ -125,8 +125,6 @@ class MultiModeSimulation:
                 params[key] = getattr(self, key)
         return params
 
-
-
     def vectors_for_fresnel(self, M, N, dx0, gain, is_back):
         A, B = M[0]
         C, D = M[1]
@@ -161,7 +159,7 @@ class MultiModeSimulation:
 
     def prepare_aperture(self):
         self.multi_time_aperture = []
-        aperture_width = self.multi_time_aperture_val * 0.5
+        aperture_width = self.aperture * 0.5
         for ix in range(self.n_samples):
             x = (ix - self.n_samples / 2) * self.dx0
             xw = x / aperture_width
@@ -253,8 +251,9 @@ class MultiModeSimulation:
                 self.multi_time_fronts[i].append(fr[i])
                 self.multi_frequency_fronts[i].append(0 + 0j)
 
-        self.update_helpData()
+        self.multi_time_fronts_saves[0] = np.copy(self.multi_time_fronts)
 
+        self.update_helpData()
 
     def phase_change_during_kerr(self):
         self.sum_power_ix = []
@@ -344,48 +343,85 @@ class MultiModeSimulation:
             self.linear_cavity_one_side()
 
     def get_x_values(self):
-        fs = self.multi_time_fronts if self.view_on_sample == 0 else self.multi_frequency_fronts
-        if isinstance(fs, np.ndarray):
-            fr = np.abs(fs.T[self.view_on_x]).tolist()
+
+        target = int(self.view_on_stage[self.view_on_sample]) - 1
+        stage_data = np.copy(self.multi_time_fronts_saves[target])
+        if (self.view_on_amp_freq[self.view_on_sample] == "Frq"):
+            stage_data = fftshift(np.fft.fft(np.fft.ifftshift(stage_data, axes=1), axis=1), axes=1)
+        if (self.view_on_abs_phase[self.view_on_sample] == "Abs"):
+            stage_data = np.abs(stage_data).T
+        else:
+            stage_data = np.angle(stage_data).T
+
+        if isinstance(stage_data, np.ndarray) and len(stage_data) > self.view_on_x:
+            fr = stage_data[self.view_on_x].tolist()
             return {"values": fr, "text": f"M{max(fr):.2f}({fr.index(max(fr))})"}
         return {}
     
     def get_y_values(self):
-        fs = self.multi_time_fronts if self.view_on_sample == 0 else self.multi_frequency_fronts
-        if isinstance(fs, np.ndarray):
-            fr = np.abs(fs[self.view_on_y]).tolist()
+
+        target = int(self.view_on_stage[self.view_on_sample]) - 1
+        stage_data = np.copy(self.multi_time_fronts_saves[target])
+        if (self.view_on_amp_freq[self.view_on_sample] == "Frq"):
+            stage_data = fftshift(np.fft.fft(np.fft.ifftshift(stage_data, axes=1), axis=1), axes=1)
+        if (self.view_on_abs_phase[self.view_on_sample] == "Abs"):
+            stage_data = np.abs(stage_data)
+        else:
+            stage_data = np.angle(stage_data)
+        if isinstance(stage_data, np.ndarray) and len(stage_data) > self.view_on_y:
+            fr = stage_data[self.view_on_y].tolist()
             return {"values": fr, "text": f"M{max(fr):.2f}({fr.index(max(fr))})"}
         return {}
     
+    def select_source(self, target):
+        stage_data = self.multi_time_fronts_saves[int(self.view_on_stage[target]) - 1]
+        if (self.view_on_amp_freq[target] == "Frq"):
+            stage_data = fftshift(np.fft.fft(np.fft.ifftshift(stage_data, axes=1), axis=1), axes=1)
+        if (self.view_on_abs_phase[target] == "Abs"):
+            stage_data = np.abs(stage_data)
+        else:
+            stage_data = np.angle(stage_data)
+        return stage_data
+    
     def serialize_mm_data(self, more):
+        print("in serialize")
         s = json.dumps({
             "more": more,
             "rounds": self.n_rounds,
+            "pointer": [self.view_on_sample, self.view_on_x, self.view_on_y],
             "samples": 
                 [
-                    {"name": "funCanvasSample1", "samples": serialize_fronts(self.multi_time_fronts)},
-                    {"name": "funCanvasSample2", "samples": serialize_fronts(self.multi_frequency_fronts)}
+                    {"name": "funCanvasSample1", "samples": serialize_fronts(self.select_source(0))},
+                    {"name": "funCanvasSample2", "samples": serialize_fronts(self.select_source(1))}
                 ],
-            "graphs": [
-                {"name": "gr1", "lines": []},
-                {"name": "gr2", "lines": []},
-                {"name": "gr3", "lines": [{"color": "red", **self.get_x_values()}]},
-                {"name": "gr4", "lines": [{"color": "blue", "values": self.ps[0], "text": f"M{max(self.ps[0]):.2f}({self.ps[0].index(max(self.ps[0]))})"},
-                                          {"color": "green", "values": self.ps[1], "text": f"M{max(self.ps[1]):.2f}({self.ps[1].index(max(self.ps[1]))})"} ] 
-                                          if len(self.ps[0]) > 10 and len(self.ps[1]) > 10 else []},    
-                {"name": "gr5", "lines": [{"color": "red", **self.get_y_values()}]},
-
-            ]
-            })
+            "graphs": 
+                [
+                    {"name": "gr1", "lines": []},
+                    {"name": "gr2", "lines": []},
+                    {"name": "gr3", "lines": [{"color": "red", **self.get_x_values()}]},
+                    {"name": "gr4", "lines": [{"color": "blue", "values": self.ps[0], "text": f"M{max(self.ps[0]):.4f}({self.ps[0].index(max(self.ps[0]))})"},
+                                            {"color": "green", "values": self.ps[1], "text": f"M{max(self.ps[1]):.4f}({self.ps[1].index(max(self.ps[1]))})"} ] 
+                                            if len(self.ps[0]) > 10 and len(self.ps[1]) > 10 else []},    
+                    {"name": "gr5", "lines": [{"color": "red", **self.get_y_values()}]}
+                ],
+            "view_buttons": 
+                {
+                    "view_on_stage": self.view_on_stage,
+                    "view_on_amp_freq": self.view_on_amp_freq,
+                    "view_on_abs_phase": self.view_on_abs_phase,
+                }    
+            
+         })
         return s
     def serialize_mm_graphs(self):
         s = json.dumps({
+            "pointer": [self.view_on_sample, self.view_on_x, self.view_on_y],
             "graphs": [
                 {"name": "gr1", "lines": []},
                 {"name": "gr2", "lines": []},
                 {"name": "gr3", "lines": [{"color": "red", **self.get_x_values()}]},
-                {"name": "gr4", "lines": [{"color": "blue", "values": self.ps[0], "text": f"M{max(self.ps[0]):.2f}({self.ps[0].index(max(self.ps[0]))})"},
-                                          {"color": "green", "values": self.ps[1], "text": f"M{max(self.ps[1]):.2f}({self.ps[1].index(max(self.ps[1]))})"} ] 
+                {"name": "gr4", "lines": [{"color": "blue", "values": self.ps[0], "text": f"M{max(self.ps[0]):.4f}({self.ps[0].index(max(self.ps[0]))})"},
+                                          {"color": "green", "values": self.ps[1], "text": f"M{max(self.ps[1]):.4f}({self.ps[1].index(max(self.ps[1]))})"} ] 
                                           if len(self.ps[0]) > 10 and len(self.ps[1]) > 10 else []},    
                 {"name": "gr5", "lines": [{"color": "red", **self.get_y_values()}]},
             ]

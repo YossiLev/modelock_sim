@@ -1759,7 +1759,6 @@ function fetchGraphData(sample, x, y) {
      })
      .then(resp => resp.json()) // or, resp.text(), etc.
      .then(data => {
-        console.log(data); // handle response data
         spreadUpdatedData(data);
      })
      .catch(error => {
@@ -1786,9 +1785,13 @@ function mainCanvasMouseMove(e) {
     } else if (id == "funCanvasTime" || id == "funCanvasFrequency") {
         multiTimeCanvasMouseMove(e);
         return;
-    } else if (id == "funCanvasSample1") {
+    } else if (id == "funCanvasSample1top") {
         let [x, y] = getClientCoordinates(e);
         fetchGraphData(0, x, y);
+        return;
+    } else if (id == "funCanvasSample2top") {
+        let [x, y] = getClientCoordinates(e);
+        fetchGraphData(1, x, y);
         return;
     } else {
         return;
@@ -1830,7 +1833,7 @@ function mainCanvasMouseUp(e) {
     isMouseDownOnMain = false;
     const id = e.target.id;
 
-    if (id != "funCanvasSample1" && id != "funCanvasSample2") {
+    if (id != "funCanvasSample1top" && id != "funCanvasSample2top") {
         moverHide();
 
         let [x, y] = getClientCoordinates(e);

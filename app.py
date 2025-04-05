@@ -174,6 +174,11 @@ def init(session, seedInit: str, localId: str, matlab:bool = False):
                 'run_state': False, 'cavityData': CavityDataPartsKerr(matlab = matlab), 
                 'iterationRuns': []} 
         insert_data_obj(localId, dataObj)
+    elif 'cavityData' not in dataObj:
+        dataObj['count'] = 0
+        dataObj['run_state'] = False
+        dataObj['cavityData'] = CavityDataPartsKerr(matlab = matlab)
+        dataObj['iterationRuns'] = []    
     
     seed = 0
     try:
@@ -410,9 +415,7 @@ async def mmInit(request: Request, localId: str):
     if dataObj is None:
         dataObj = {'id': localId, 'count': 0, 
                 'run_state': False, 
-                'cavityData': CavityDataPartsKerr(), 
-                'mmData': MultiModeSimulation(),
-                'iterationRuns': []}
+                'mmData': MultiModeSimulation()}
         insert_data_obj(localId, dataObj)   
     
     form_data = await request.form()  # Get all form fields as a dict-like object
@@ -431,6 +434,32 @@ async def mmInit(request: Request, localId: str):
     
     return collectData(dataObj)
 
+@app.post("/mmUpdate")
+async def mmUpdate(request: Request, localId: str):
+    dataObj = get_Data_obj(localId)
+    if dataObj is None:
+        dataObj = {'id': localId, 'count': 0, 
+                'run_state': False, 
+                'mmData': MultiModeSimulation()}
+        insert_data_obj(localId, dataObj)   
+    
+    form_data = await request.form()  # Get all form fields as a dict-like object
+    print(form_data)
+    dataObj['mmData'].set({
+        "gain_factor": float(form_data.get("gainFactor")),
+        "aperture": float(form_data.get("aperture")),
+        "epsilon": float(form_data.get("epsilon")),
+        "dispersion_factor": float(form_data.get("dispersionFactor")),
+        "lensing_factor": float(form_data.get("lensingFactor")),
+        "modulation_gain_factor": float(form_data.get("modulationGainFactor")),
+        "is_factor": float(form_data.get("isFactor")),
+        "initial_range": float(form_data.get("initialRange")),
+        "steps_sounter": int(form_data.get("stepsCounter")),
+    })
+    dataObj['mmData'].update_helpData()
+    
+    return collectData(dataObj)
+
 @app.post("/mmView/{part}/{action}")
 async def mmView(part: int, action: str, localId: str):
     dataObj = get_Data_obj(localId)
@@ -444,9 +473,9 @@ async def mmView(part: int, action: str, localId: str):
         case "Abs" | "Phs":
             mmData.view_on_abs_phase[part] = action
         case "1" | "2" | "3" | "4" | "5" | "6":
-            mmData.view_on_sample[part] = action
+            mmData.view_on_stage[part] = action
 
-    return generate_multi_on_server(dataObj)
+    return collectData(dataObj)
 
 @app.ws('/mmRun')
 async def mmRun(send, nRounds: str, gainFactor: str, aperture: str, epsilon: str, dispersionFactor: str,

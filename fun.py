@@ -69,7 +69,9 @@ def Element(el, s, tab):
                 style="border: 1px solid red; display: inline-block; padding:2px;"
             )
 
-def funCanvas(idd, width=1000, height=800, useZoom = True ):
+def funCanvas(idd, width=1000, height=800, useZoom = True, 
+    style="background-color: #f5f5f9; background-image: radial-gradient(circle at center center, #dcf68e, #f5f5f9), repeating-radial-gradient(circle at center center, #dcf68e, #dcf68e, 10px, transparent 20px, transparent 10px);background-blend-mode: multiply;",
+ ):
     return Div(
         Div(
             Div(
@@ -99,8 +101,7 @@ def funCanvas(idd, width=1000, height=800, useZoom = True ):
                     onclick="zoomMultiMode(20);"
                 ),
             ) if useZoom else Div(),
-            Canvas(id=f"funCanvas{idd}", width=width, height=height, 
-                style="background-color: #f5f5f9; background-image: radial-gradient(circle at center center, #dcf68e, #f5f5f9), repeating-radial-gradient(circle at center center, #dcf68e, #dcf68e, 10px, transparent 20px, transparent 10px);background-blend-mode: multiply;",
+            Canvas(id=f"funCanvas{idd}", width=width, height=height, style=style,
                    **{'onmousemove':f"mainCanvasMouseMove(event);",
                       'onmousedown':f"mainCanvasMouseDown(event);",
                       'onmouseup':f"mainCanvasMouseUp(event);",
@@ -166,17 +167,21 @@ def collectData(data_obj, more=False):
     mmDataSer = mmData.serialize_mm_data(more)
     return Div(mmDataSer, style="height:1px; overflow:hidden;")
 
-def ViewButtons(data_obj, idd):
-    print("ViewButtons")
-    print("ViewButtons2")
+def ViewButton(label, part, highlight):
+    return Button(label, id=f"view_button-{part}-{label}", hx_post=f"/mmView/{part}/{label}", hx_vals='js:{localId: getLocalId()}', 
+                  hx_swap="innerHTML", hx_target="#numData", cls=("buttonH" if highlight else ""))
+
+def ViewButtons(data_obj, part):
     if (data_obj is not None):
         mmData = data_obj["mmData"]
     return Div(
-        Button("Frq.", hx_post=f"/mmView/{idd}/Frq", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML", hx_target="#multiModeServer"),
-        Button("Amp.", hx_post=f"/mmView/{idd}/Amp", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML", hx_target="#multiModeServer"),
-        Button("Phs.", hx_post=f"/mmView/{idd}/Phs", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML", hx_target="#multiModeServer"),
-        Button("Abs.", hx_post=f"/mmView/{idd}/Abs", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML", hx_target="#multiModeServer"),
-        *[Button(f"{x}", hx_post=f"/mmView/{idd}/{x}", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML", hx_target="#multiModeServer") for x in range(1, 6)],
+        *[ViewButton(f"{x}", part, data_obj and mmData.view_on_stage[part] == f"{x}") for x in range(1, 7)],
+        Div("", style="width:20px; display:inline-block;"),
+        ViewButton("Frq", part, data_obj and mmData.view_on_amp_freq[part] == "Frq"),
+        ViewButton("Amp", part, data_obj and mmData.view_on_amp_freq[part] == "Amp"),
+        Div("", style="width:20px; display:inline-block;"),
+        ViewButton("Phs", part, data_obj and mmData.view_on_abs_phase[part] == "Phs"),
+        ViewButton("Abs", part, data_obj and mmData.view_on_abs_phase[part] == "Abs"),
         style="display:inline-block;"
     )
 
@@ -222,9 +227,17 @@ def generate_multi_on_server(data_obj):
             Button(NotStr("&#43;"), escapse=False, hx_post="/addElement/2", hx_target="#fun", hx_vals='js:{localId: getLocalId()}'), 
         ),
         ViewButtons(data_obj, 0),
-        funCanvas("Sample1", width=1024, height=256, useZoom=False),
+        Div(
+            funCanvas("Sample1", width=1024, height=256, useZoom=False, style="position: absolute; top: 0; left: 0;"),
+            funCanvas("Sample1top", width=1024, height=256, useZoom=False, style="z-index:10; position: absolute; top: 0; left: 0;"),
+            style="position: relative; width: 1024px; height: 256px;"
+        ),
         ViewButtons(data_obj, 1),
-        funCanvas("Sample2", width=1024, height=256, useZoom=False),
+        Div(
+            funCanvas("Sample2", width=1024, height=256, useZoom=False, style="position: absolute; top: 0; left: 0;"),
+            funCanvas("Sample2top", width=1024, height=256, useZoom=False, style="z-index:10; position: absolute; top: 0; left: 0;"),
+            style="position: relative; width: 1024px; height: 256px;"
+        ),
         FlexN([graphCanvas(id="gr1", width=256, height = 200, options=False), 
                 graphCanvas(id="gr2", width=256, height = 200, options=False),
                 graphCanvas(id="gr3", width=256, height = 200, options=False),

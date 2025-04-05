@@ -4,14 +4,13 @@ v counter for number of steps
 v automatic cosideration of design data on screen.
 - go back to calculation of full gaussian rather than pixels
 - add prints for minimum maximum of graphs
-- update all data including xVec yVec on every update
-- fixing in the the frequancy domain
+v update all data including xVec yVec on every update
+- fixing in the frequancy domain
 v remove phases that carry no intensity
 - working in 2D (square the fine on width deviation)
 - Fresnel in rings (Bessel)
-- original sim with one lens only
+v original sim with one lens only
 - present focal length from 2nd derivative
--  
 */
 var stepsCounter = 0;
 var nTimeSamples = 1024;
@@ -641,7 +640,6 @@ function drawTimeNumData(fs, view, canvas) {
     }
 
     let sum0;
-    console.log(`nSamples = ${nSamples} nTimeSamples = ${nTimeSamples}`);
     for (let i = 0; i < nSamples; i++) {
         if (view == 0) {
             if (i == 0) {
@@ -897,6 +895,18 @@ function openVec(fs) {
         return math.complex(t[0], t[1]);
     }));    
 }
+function modifyPointer(pointer) {
+    let ctx = [document.getElementById("funCanvasSample1top").getContext("2d"),
+            document.getElementById("funCanvasSample2top").getContext("2d")];
+    ctx[0].reset();
+    ctx[1].reset();
+    ctx[0].fillStyle = "rgba(255, 128, 0, 0.4)";
+    ctx[0].arc(pointer[1], pointer[2], 10, 0, 2 * Math.PI);
+    ctx[0].fill();
+    ctx[1].fillStyle = "rgba(217, 0, 255, 0.4)";
+    ctx[1].arc(pointer[1], pointer[2], 10, 0, 2 * Math.PI);
+    ctx[1].fill();
+}
 function spreadUpdatedData(data) {
     if (data.rounds) {
         document.getElementById("stepsCounter").value = `${data.rounds}`;
@@ -913,12 +923,43 @@ function spreadUpdatedData(data) {
             drawTimeNumData(openVec(sample.samples), 0, document.getElementById(sample.name));
         }
     }
+    if (data.pointer) {
+        modifyPointer(data.pointer)
+    }
     if (data.graphs) {
         for (graph of data.graphs) {
             let clear = true;
             for (line of graph.lines) {
                 drawVector(line.values, clear, line.color, 1, true, graph.name, "",  0, line.text, 1);
                 clear = false;
+            }
+        }
+    }
+    if (data.view_buttons) {
+        for (let part in [0, 1]) {
+            for (let i = 0; i < 6; i++) {
+                but = document.getElementById(`view_button-${part}-${i + 1}`);  
+                if (data.view_buttons.view_on_stage[part] == `${i + 1}`) {
+                    but.classList.add("buttonH");
+                } else {
+                    but.classList.remove("buttonH");
+                }
+            }
+            for (let i of ["Frq", "Amp"]) {
+                but = document.getElementById(`view_button-${part}-${i}`);  
+                if (data.view_buttons.view_on_amp_freq[part] == `${i}`) {
+                    but.classList.add("buttonH");
+                } else {
+                    but.classList.remove("buttonH");
+                }
+            }
+            for (let i of ["Phs", "Abs"]) {
+                but = document.getElementById(`view_button-${part}-${i}`);  
+                if (data.view_buttons.view_on_abs_phase[part] == `${i}`) {
+                    but.classList.add("buttonH");
+                } else {
+                    but.classList.remove("buttonH");
+                }
             }
         }
     }

@@ -9,14 +9,15 @@ from controls import *
 
 def generate_all_charts(dataObj):
     # try:
-        if dataObj is None:
+        if dataObj is None or 'cavityData' not in dataObj.keys():
             return  "No data"
+        print(dataObj is None)
+        print('cavityData' not in dataObj.keys())
         count = dataObj['count']
         seed = dataObj['seed']
         charts = dataObj['cavityData'].get_state()
         analysis = dataObj['cavityData'].get_state_analysis()
         analysisP = {k: f"{v:.2e}" if isinstance(v,float) else v for k,v in analysis.items()}
-        
 
         return Div(
             Div(f"Seed {seed} - Step {count}", id="count"),

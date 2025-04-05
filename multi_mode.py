@@ -342,35 +342,34 @@ class MultiModeSimulation:
 
             self.linear_cavity_one_side()
 
-    def get_x_values(self):
-
-        target = int(self.view_on_stage[self.view_on_sample]) - 1
+    def get_x_values(self, sample):
+        target = int(self.view_on_stage[sample]) - 1
         stage_data = np.copy(self.multi_time_fronts_saves[target])
-        if (self.view_on_amp_freq[self.view_on_sample] == "Frq"):
+        if (self.view_on_amp_freq[sample] == "Frq"):
             stage_data = fftshift(np.fft.fft(np.fft.ifftshift(stage_data, axes=1), axis=1), axes=1)
-        if (self.view_on_abs_phase[self.view_on_sample] == "Abs"):
+        if (self.view_on_abs_phase[sample] == "Abs"):
             stage_data = np.abs(stage_data).T
         else:
             stage_data = np.angle(stage_data).T
 
         if isinstance(stage_data, np.ndarray) and len(stage_data) > self.view_on_x:
             fr = stage_data[self.view_on_x].tolist()
-            return {"values": fr, "text": f"M{max(fr):.2f}({fr.index(max(fr))})"}
+            return {"color": ["red", "blue"][sample], "values": fr, "text": f"M{max(fr):.2f}({fr.index(max(fr))})"}
         return {}
     
-    def get_y_values(self):
+    def get_y_values(self, sample):
 
-        target = int(self.view_on_stage[self.view_on_sample]) - 1
+        target = int(self.view_on_stage[sample]) - 1
         stage_data = np.copy(self.multi_time_fronts_saves[target])
-        if (self.view_on_amp_freq[self.view_on_sample] == "Frq"):
+        if (self.view_on_amp_freq[sample] == "Frq"):
             stage_data = fftshift(np.fft.fft(np.fft.ifftshift(stage_data, axes=1), axis=1), axes=1)
-        if (self.view_on_abs_phase[self.view_on_sample] == "Abs"):
+        if (self.view_on_abs_phase[sample] == "Abs"):
             stage_data = np.abs(stage_data)
         else:
             stage_data = np.angle(stage_data)
         if isinstance(stage_data, np.ndarray) and len(stage_data) > self.view_on_y:
             fr = stage_data[self.view_on_y].tolist()
-            return {"values": fr, "text": f"M{max(fr):.2f}({fr.index(max(fr))})"}
+            return {"color": ["red", "blue"][sample], "values": fr, "text": f"M{max(fr):.2f}({fr.index(max(fr))})"}
         return {}
     
     def select_source(self, target):
@@ -384,7 +383,7 @@ class MultiModeSimulation:
         return stage_data
     
     def serialize_mm_data(self, more):
-        print("in serialize")
+        sample = self.view_on_sample
         s = json.dumps({
             "more": more,
             "rounds": self.n_rounds,
@@ -398,11 +397,13 @@ class MultiModeSimulation:
                 [
                     {"name": "gr1", "lines": []},
                     {"name": "gr2", "lines": []},
-                    {"name": "gr3", "lines": [{"color": "red", **self.get_x_values()}]},
-                    {"name": "gr4", "lines": [{"color": "blue", "values": self.ps[0], "text": f"M{max(self.ps[0]):.4f}({self.ps[0].index(max(self.ps[0]))})"},
-                                            {"color": "green", "values": self.ps[1], "text": f"M{max(self.ps[1]):.4f}({self.ps[1].index(max(self.ps[1]))})"} ] 
+                    {"name": "gr3", "lines": [self.get_x_values(sample),
+                                              self.get_x_values(1 - sample)]},
+                    {"name": "gr4", "lines": [{"color": ["red", "blue"][sample], "values": self.ps[sample], "text": f"M{max(self.ps[sample]):.4f}({self.ps[sample].index(max(self.ps[sample]))})"},
+                                            {"color": ["red", "blue"][1 - sample], "values": self.ps[1 - sample], "text": f"M{max(self.ps[1 - sample]):.4f}({self.ps[1- sample].index(max(self.ps[1 - sample]))})"} ] 
                                             if len(self.ps[0]) > 10 and len(self.ps[1]) > 10 else []},    
-                    {"name": "gr5", "lines": [{"color": "red", **self.get_y_values()}]}
+                    {"name": "gr5", "lines": [self.get_y_values(sample),
+                                              self.get_y_values(1 - sample)]}
                 ],
             "view_buttons": 
                 {
@@ -414,16 +415,20 @@ class MultiModeSimulation:
          })
         return s
     def serialize_mm_graphs(self):
+        sample = self.view_on_sample
+
         s = json.dumps({
-            "pointer": [self.view_on_sample, self.view_on_x, self.view_on_y],
+            "pointer": [sample, self.view_on_x, self.view_on_y],
             "graphs": [
                 {"name": "gr1", "lines": []},
                 {"name": "gr2", "lines": []},
-                {"name": "gr3", "lines": [{"color": "red", **self.get_x_values()}]},
-                {"name": "gr4", "lines": [{"color": "blue", "values": self.ps[0], "text": f"M{max(self.ps[0]):.4f}({self.ps[0].index(max(self.ps[0]))})"},
-                                          {"color": "green", "values": self.ps[1], "text": f"M{max(self.ps[1]):.4f}({self.ps[1].index(max(self.ps[1]))})"} ] 
+                {"name": "gr3", "lines": [self.get_x_values(sample),
+                                          self.get_x_values(1 - sample)]},
+                {"name": "gr4", "lines": [{"color": ["red", "blue"][sample], "values": self.ps[sample], "text": f"M{max(self.ps[sample]):.4f}({self.ps[sample].index(max(self.ps[sample]))})"},
+                                          {"color": ["red", "blue"][1 - sample], "values": self.ps[1 - sample], "text": f"M{max(self.ps[1 - sample]):.4f}({self.ps[1 - sample].index(max(self.ps[1 - sample]))})"} ] 
                                           if len(self.ps[0]) > 10 and len(self.ps[1]) > 10 else []},    
-                {"name": "gr5", "lines": [{"color": "red", **self.get_y_values()}]},
+                {"name": "gr5", "lines": [self.get_y_values(sample),
+                                          self.get_y_values(1 - sample)]},
             ]
             })
         return s

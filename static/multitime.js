@@ -900,10 +900,10 @@ function modifyPointer(pointer) {
             document.getElementById("funCanvasSample2top").getContext("2d")];
     ctx[0].reset();
     ctx[1].reset();
-    ctx[0].fillStyle = "rgba(255, 128, 0, 0.4)";
+    ctx[0].fillStyle = "rgba(255, 0, 0, 0.4)";
     ctx[0].arc(pointer[1], pointer[2], 10, 0, 2 * Math.PI);
     ctx[0].fill();
-    ctx[1].fillStyle = "rgba(217, 0, 255, 0.4)";
+    ctx[1].fillStyle = "rgba(0, 0, 255, 0.4)";
     ctx[1].arc(pointer[1], pointer[2], 10, 0, 2 * Math.PI);
     ctx[1].fill();
 }

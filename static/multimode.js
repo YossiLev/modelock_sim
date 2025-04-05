@@ -635,19 +635,22 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowCha
         fac = 90 / fac
     }
     let zoomVal = parseFloat(document.getElementById(`${id}-zoomVal`).innerHTML);
+    let selectVal = parseInt(document.getElementById(`${id}-selectVal`).innerHTML);
     fac *= zoomVal;
     vectors.forEach((vo, iVec) => {
-        let sx = vo.s - pixelWidth * vo.z * vo.vec.length / 2 + canvas.width / 2;
-        let dx = pixelWidth * vo.z;
-        ctx.strokeStyle = vo.c;
-        ctx.beginPath();
-        ctx.moveTo(sx, 100 - Math.floor(fac * vo.vec[0]));
-        for (let i = 1; i < l; i++) {
-            ctx.lineTo(sx + i * dx, 100 - Math.floor(fac * vo.vec[i]));
-        }
-        ctx.stroke();
+        if (selectVal == 0 || iVec < selectVal) {
+            let sx = vo.s - pixelWidth * vo.z * vo.vec.length / 2 + canvas.width / 2;
+            let dx = pixelWidth * vo.z;
+            ctx.strokeStyle = vo.c;
+            ctx.beginPath();
+            ctx.moveTo(sx, 100 - Math.floor(fac * vo.vec[0]));
+            for (let i = 1; i < l; i++) {
+                ctx.lineTo(sx + i * dx, 100 - Math.floor(fac * vo.vec[i]));
+            }
+            ctx.stroke();
 
-        drawTextBG(ctx, `${vo.n}`, 20, 120 + (iVec + 1) * 16, vo.c);
+            drawTextBG(ctx, `${vo.n}`, 20, 120 + (iVec + 1) * 16, vo.c);
+        }
     });
     document.getElementById(`${id}-message`).innerHTML = vectors.map((c) => c.m).filter((c) => c.length > 0).join("</br>");
     if (prevCompare) {
@@ -732,6 +735,13 @@ function zoomGraph(id, change) {
     drawVector([], false, "red", drawW, true, id, "", 0);
 
 }
+
+function selectGraph(id) {
+    val = parseInt(document.getElementById(`${id}-selectVal`).innerHTML);
+    document.getElementById(`${id}-selectVal`).innerHTML = `${1 - val}`;
+    drawVector([], false, "red", drawW, true, id, "", 0);
+}
+
 function drawGraph() {
     if (!drawOption) {
         return

@@ -382,6 +382,59 @@ class MultiModeSimulation:
             stage_data = np.angle(stage_data)
         return stage_data
     
+    def get_kerr_influence(self, batch, direction):
+        if self.n_rounds < 10:
+            return []
+        if len(self.multi_time_fronts_saves[batch].T) <= self.view_on_x:
+            return []
+        fr_original = self.multi_time_fronts_saves[batch].T[self.view_on_x]
+       
+        total_kerr_lensing = np.multiply(self.lensing_factor, self.ikl_times_i)
+        phase_shift1 = total_kerr_lensing * (np.abs(fr_original) ** 2)
+        fr_with_kerr = fr_original * np.exp(phase_shift1)
+
+        p_fr_original_before1 = np.sum(np.abs(fr_original)**2)
+        fr_original_after1 = fr_original * self.multi_time_aperture
+        p_fr_original_after1 = np.sum(np.abs(fr_original_after1)**2)
+        fr_original1 = fr_original_after1 * np.sqrt(p_fr_original_before1 / p_fr_original_after1)
+        p_fr_with_kerr_before1 = np.sum(np.abs(fr_with_kerr)**2)
+        fr_with_kerr_after1 = fr_with_kerr * self.multi_time_aperture
+        p_fr_with_kerr_after1 = np.sum(np.abs(fr_with_kerr_after1)**2)
+        fr_with_kerr1 = fr_with_kerr_after1 * np.sqrt(p_fr_with_kerr_before1 / p_fr_with_kerr_after1)
+
+        fr_after = []
+        for fr in [fr_original1, fr_with_kerr1]:
+            for fresnel_side_data in self.fresnel_data[direction]:
+                vec0 = fresnel_side_data['vecs'][0]
+                vecF = fresnel_side_data['vecs'][1]
+                dx = fresnel_side_data['dx']
+                
+                fr_next = vec0 * fr
+                fr_next = fftshift(np.fft.fft(fftshift(fr_next))) * dx
+                fr_next = vecF * fr_next
+            fr_after.append(np.abs(fr_next).tolist())
+        
+        return [{"color": "black", "values": np.abs(fr_original).tolist(), "text": f"Start"},
+                {"color": "purple", "values": np.abs(fr_original1).tolist(), "text": f"squeeze({max(np.abs(fr_original1)):.2f})"},
+                {"color": "green", "values": fr_after[1], "text": f"with Kerr({max(fr_after[1]):.2f})"},
+                {"color": "red", "values": fr_after[0], "text": f"without Kerr({max(fr_after[0]):.2f})"}]
+        
+
+    def serialize_mm_graphs_data(self):
+        sample = self.view_on_sample
+
+        return [
+                {"name": "gr1", "lines": self.get_kerr_influence(0, 0)},
+                {"name": "gr2", "lines": self.get_kerr_influence(3, 1)},
+                {"name": "gr3", "lines": [self.get_x_values(sample),
+                                          self.get_x_values(1 - sample)]},
+                {"name": "gr4", "lines": [{"color": ["red", "blue"][sample], "values": self.ps[sample], "text": f"M{max(self.ps[sample]):.4f}({self.ps[sample].index(max(self.ps[sample]))})"},
+                                          {"color": ["red", "blue"][1 - sample], "values": self.ps[1 - sample], "text": f"M{max(self.ps[1 - sample]):.4f}({self.ps[1 - sample].index(max(self.ps[1 - sample]))})"} ] 
+                                          if len(self.ps[0]) > 10 and len(self.ps[1]) > 10 else []},    
+                {"name": "gr5", "lines": [self.get_y_values(sample),
+                                          self.get_y_values(1 - sample)]},
+            ]
+
     def serialize_mm_data(self, more):
         sample = self.view_on_sample
         s = json.dumps({
@@ -393,18 +446,7 @@ class MultiModeSimulation:
                     {"name": "funCanvasSample1", "samples": serialize_fronts(self.select_source(0))},
                     {"name": "funCanvasSample2", "samples": serialize_fronts(self.select_source(1))}
                 ],
-            "graphs": 
-                [
-                    {"name": "gr1", "lines": []},
-                    {"name": "gr2", "lines": []},
-                    {"name": "gr3", "lines": [self.get_x_values(sample),
-                                              self.get_x_values(1 - sample)]},
-                    {"name": "gr4", "lines": [{"color": ["red", "blue"][sample], "values": self.ps[sample], "text": f"M{max(self.ps[sample]):.4f}({self.ps[sample].index(max(self.ps[sample]))})"},
-                                            {"color": ["red", "blue"][1 - sample], "values": self.ps[1 - sample], "text": f"M{max(self.ps[1 - sample]):.4f}({self.ps[1- sample].index(max(self.ps[1 - sample]))})"} ] 
-                                            if len(self.ps[0]) > 10 and len(self.ps[1]) > 10 else []},    
-                    {"name": "gr5", "lines": [self.get_y_values(sample),
-                                              self.get_y_values(1 - sample)]}
-                ],
+            "graphs": self.serialize_mm_graphs_data(),
             "view_buttons": 
                 {
                     "view_on_stage": self.view_on_stage,
@@ -419,16 +461,6 @@ class MultiModeSimulation:
 
         s = json.dumps({
             "pointer": [sample, self.view_on_x, self.view_on_y],
-            "graphs": [
-                {"name": "gr1", "lines": []},
-                {"name": "gr2", "lines": []},
-                {"name": "gr3", "lines": [self.get_x_values(sample),
-                                          self.get_x_values(1 - sample)]},
-                {"name": "gr4", "lines": [{"color": ["red", "blue"][sample], "values": self.ps[sample], "text": f"M{max(self.ps[sample]):.4f}({self.ps[sample].index(max(self.ps[sample]))})"},
-                                          {"color": ["red", "blue"][1 - sample], "values": self.ps[1 - sample], "text": f"M{max(self.ps[1 - sample]):.4f}({self.ps[1 - sample].index(max(self.ps[1 - sample]))})"} ] 
-                                          if len(self.ps[0]) > 10 and len(self.ps[1]) > 10 else []},    
-                {"name": "gr5", "lines": [self.get_y_values(sample),
-                                          self.get_y_values(1 - sample)]},
-            ]
+            "graphs": self.serialize_mm_graphs_data(),
             })
         return s

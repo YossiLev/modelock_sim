@@ -14,7 +14,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 });
 
-function drawTextBG(ctx, txt, x, y, color = '#000', font = "10pt Courier") {
+function drawTextBG(ctx, txt, x, y, color = '#000', font = "8pt Courier") {
     ctx.save();
     ctx.font = font;
     ctx.textBaseline = 'top';

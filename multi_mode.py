@@ -32,8 +32,8 @@ def m_mult_inv(m, m2):
 def m_inv(m):
     return [[m[1][1], -m[0][1]], [-m[1][0], m[0][0]]]
 
-def calc_original_sim_matrices():
-    position_lens = -0.00015
+def calc_original_sim_matrices(crystal_shift=0.0):
+    position_lens = -0.00015 + crystal_shift  # -0.00015 shift needed due to conclusions from single lens usage in original simulation
     m_long = m_mult_v(m_dist(position_lens), m_dist(0.081818181), m_lens(0.075), m_dist(0.9),
                         m_dist(0.9), m_lens(0.075), m_dist(0.081818181), m_dist(position_lens))
     m_short = m_mult_v(m_dist(0.001 - position_lens), m_dist(0.075), m_lens(0.075), m_dist(0.5),
@@ -83,6 +83,7 @@ class MultiModeSimulation:
         self.dispersion_factor = 1.0
         self.lensing_factor = 1.0
         self.is_factor = 200 * 352000
+        self.crystal_shift = 0.0
         self.pump_gain0 = []
         self.multi_time_aperture = []
         self.aperture = 0.000056
@@ -173,6 +174,8 @@ class MultiModeSimulation:
             self.multi_time_diffraction.append(np.exp(-xw * xw))
 
     def prepare_linear_fresnel_help_data(self):
+        self.mat_side = calc_original_sim_matrices(self.crystal_shift)
+
         self.fresnel_data = []
         dx = self.total_range / self.n_samples
 

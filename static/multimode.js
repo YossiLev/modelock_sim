@@ -619,7 +619,8 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowCha
     ctx.lineTo(start + l * pixelWidth, 100);
     ctx.stroke();
 
-    fac = vectors.filter(v, iv => selectVal == 0 || iv < selectVal).reduce((p, c) => Math.max(p, c.f), 0.001);
+    let selectVal = parseInt(document.getElementById(`${id}-selectVal`).innerHTML);
+    fac = vectors.filter((v, iv) => (selectVal == 0 || iv < selectVal)).reduce((p, c) => Math.max(p, c.f), 0.001);
     if (prevCompare) {
         let facPrev = Math.max(Math.abs(Math.max(...drawVectorComparePrevious)), Math.abs(Math.min(...drawVectorComparePrevious)));
         if (fac < facPrev) {
@@ -635,7 +636,6 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowCha
         fac = 90 / fac
     }
     let zoomVal = parseFloat(document.getElementById(`${id}-zoomVal`).innerHTML);
-    let selectVal = parseInt(document.getElementById(`${id}-selectVal`).innerHTML);
     fac *= zoomVal;
     vectors.forEach((vo, iVec) => {
         if (selectVal == 0 || iVec < selectVal) {

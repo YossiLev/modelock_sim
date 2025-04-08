@@ -142,7 +142,7 @@ def graphCanvas(id="graphCanvas", width=1000, height = 200, options=True):
                 style="position: absolute; float: left; z-index: 10;"
             ),
             Div(Span("", id=f"{id}-message", style=""),
-                style=f"position: absolute; z-index: 5; width: {width}px; text-align: right;"
+                style=f"position: absolute; z-index: 5; width: {width}px; text-align: right; font-size:10px"
             ),
             Canvas(
                 id=id, width=width, height = height, 
@@ -199,6 +199,7 @@ def generate_multi_on_server(data_obj):
             Button("Full", hx_ext="ws", ws_connect="/mmRun", ws_send=True, hx_include="#nRounds, #multiTimeOptionsForm", hx_vals='js:{localId: getLocalId()}'),
             Select(Option("0"), Option("1"), Option("2"), Option("3"), Option("4"), id="nRounds", **{'onchange':"nRoundsChanged();"}),
             Button("Update", hx_put=f"/mmUpdate", hx_include="#multiTimeOptionsForm *", hx_vals='js:{localId: getLocalId()}'),
+            Button("Stop", hx_put=f"/mmStop", hx_include="#multiTimeOptionsForm *", hx_vals='js:{localId: getLocalId()}', hx_swap="none"),
         ),
         Div(
             Div(
@@ -218,20 +219,22 @@ def generate_multi_on_server(data_obj):
                             hx_vals='js:{localId: getLocalId()}', style="width:50px;", value=f'0.1',),
                 Input(type="number", id=f'isFactor', title="Intensity saturation factor", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
                             hx_vals='js:{localId: getLocalId()}', style="width:120px;", value=f'10000',),
+                Input(type="number", id=f'crystalShift', title="Crystal position shift (mm)", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *",
+                            hx_vals='js:{localId: getLocalId()}', style="width:80px;", value=f'0.0',),
                 Select(Option("256"), Option("512"), Option("1024"), Option("2048"), Option("4096"), id="nSamples",),
                 Input(type="text", id=f'stepsCounter', title="Number of roundtrips made", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
                     style="width:60px; text-align: right", value=f'0', **{'readonly':"readonly"},),
                 id="multiTimeOptionsForm"
             ),
-            Button(">", onclick="shiftFronts(- 5);"),
-            Button("<", onclick="shiftFronts(5);"),
-            Button(">>", onclick="shiftFronts(- 50);"),
-            Button("<<", onclick="shiftFronts(50);"),
+            # Button(">", onclick="shiftFronts(- 5);"),
+            # Button("<", onclick="shiftFronts(5);"),
+            # Button(">>", onclick="shiftFronts(- 50);"),
+            # Button("<<", onclick="shiftFronts(50);"),
         ),
-        Div(
-            *[Element(el, i, 5) for i, el in enumerate(elements[2])],
-            Button(NotStr("&#43;"), escapse=False, hx_post="/addElement/2", hx_target="#fun", hx_vals='js:{localId: getLocalId()}'), 
-        ),
+        # Div(
+        #     *[Element(el, i, 5) for i, el in enumerate(elements[2])],
+        #     Button(NotStr("&#43;"), escapse=False, hx_post="/addElement/2", hx_target="#fun", hx_vals='js:{localId: getLocalId()}'), 
+        # ),
         ViewButtons(data_obj, 0),
         Div(
             funCanvas("Sample1", width=1024, height=256, useZoom=False, style="position: absolute; top: 0; left: 0;"),

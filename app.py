@@ -427,6 +427,7 @@ async def mmInit(request: Request, localId: str):
         "lensing_factor": float(form_data.get("lensingFactor")),
         "modulation_gain_factor": float(form_data.get("modulationGainFactor")),
         "is_factor": float(form_data.get("isFactor")),
+        "crystal_shift": float(form_data.get("crystalShift")),
         "initial_range": float(form_data.get("initialRange")),
         "steps_sounter": int(form_data.get("stepsCounter")),
     })
@@ -453,6 +454,7 @@ async def mmUpdate(request: Request, localId: str):
         "lensing_factor": float(form_data.get("lensingFactor")),
         "modulation_gain_factor": float(form_data.get("modulationGainFactor")),
         "is_factor": float(form_data.get("isFactor")),
+        "crystal_shift": float(form_data.get("crystalShift")),
         "initial_range": float(form_data.get("initialRange")),
         "steps_sounter": int(form_data.get("stepsCounter")),
     })
@@ -477,9 +479,15 @@ async def mmView(part: int, action: str, localId: str):
 
     return collectData(dataObj)
 
+@app.put("/mmStop")
+async def mmView(localId: str):
+    dataObj = get_Data_obj(localId)
+    if dataObj is not None:
+        dataObj['run_state'] = False
+
 @app.ws('/mmRun')
 async def mmRun(send, nRounds: str, gainFactor: str, aperture: str, epsilon: str, dispersionFactor: str,
-                 lensingFactor: str, modulationGainFactor: str, isFactor: str, initialRange: str, localId: str):
+                 lensingFactor: str, modulationGainFactor: str, isFactor: str, crystalShift: str, initialRange: str, localId: str):
     dataObj = get_Data_obj(localId)
     if dataObj is None:
         print("Error: mmRun dataObj is None")
@@ -498,9 +506,12 @@ async def mmRun(send, nRounds: str, gainFactor: str, aperture: str, epsilon: str
          "lensing_factor": float(lensingFactor),
          "modulation_gain_factor": float(modulationGainFactor),
          "is_factor": float(isFactor),
+         "crystal_shift": float(crystalShift),
+
          "initial_range": float(initialRange),
     #     "steps_counter": int(form_data.get("stepsCounter")),
     })
+    dataObj['mmData'].update_helpData()
 
     start_time = time.time()
     count = 10 ** int(nRounds)
@@ -509,7 +520,7 @@ async def mmRun(send, nRounds: str, gainFactor: str, aperture: str, epsilon: str
         if i % 10 == 0:
             print(f"round {i}")
         if not dataObj['run_state']:
-            return       
+            break       
         dataObj['mmData'].multi_time_round_trip()
         if i % 50 == 0:
             try:

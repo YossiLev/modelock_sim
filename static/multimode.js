@@ -619,7 +619,7 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowCha
     ctx.lineTo(start + l * pixelWidth, 100);
     ctx.stroke();
 
-    fac = vectors.reduce((p, c) => Math.max(p, c.f), 0.001);
+    fac = vectors.filter(v, iv => selectVal == 0 || iv < selectVal).reduce((p, c) => Math.max(p, c.f), 0.001);
     if (prevCompare) {
         let facPrev = Math.max(Math.abs(Math.max(...drawVectorComparePrevious)), Math.abs(Math.min(...drawVectorComparePrevious)));
         if (fac < facPrev) {

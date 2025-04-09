@@ -652,7 +652,8 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowCha
             drawTextBG(ctx, `${vo.n}`, 20, 120 + (iVec + 1) * 16, vo.c);
         }
     });
-    document.getElementById(`${id}-message`).innerHTML = vectors.map((c) => c.m).filter((c) => c.length > 0).join("</br>");
+    document.getElementById(`${id}-message`).innerHTML = 
+            vectors.map((c) => `<span style="color:${c.c}">${c.m}</span>`).filter((c) => c.length > 0).join("</br>");
     if (prevCompare) {
         ctx.strokeStyle = 'green';
         ctx.beginPath();

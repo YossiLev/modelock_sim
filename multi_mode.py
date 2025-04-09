@@ -1,3 +1,15 @@
+# import platform
+
+# if platform.system() == "Linux":
+#     try:
+#         import cupy as np
+#         print("Using CuPy for Linux")
+#     except ImportError:
+#         import numpy as np
+#         print("CuPy not available, falling back to NumPy")
+# else:
+#     import numpy as np
+#     print("Using NumPy for non-Linux OS")
 import numpy as np
 from numpy.fft import fftshift
 from controls import random_lcg_set_seed, random_lcg
@@ -46,7 +58,7 @@ def calc_original_sim_matrices(crystal_shift=0.0):
     return mat_side
 
 def serialize_fronts(fs):
-    return [[f"{np.real(val):.2f},{np.imag(val):.2f}" if np.abs(val) > 0.001 else "" for val in row] for row in fs]
+    return [[f"{val:.2f}" if np.abs(val) > 0.001 else "" for val in row] for row in fs]
 
 class MultiModeSimulation:
     def __init__(self):
@@ -70,7 +82,6 @@ class MultiModeSimulation:
         self.ikl_times_i = 1j * self.ikl * 160 * 0.000000006
         self.range_w = []
         self.spectral_gain = []
-        self.modulation_gain_factor = 0.1
         self.modulator_gain = []
         self.dispersion = []
         self.sum_power_ix = []
@@ -78,15 +89,18 @@ class MultiModeSimulation:
         self.gain_reduction_with_origin = []
         self.gain_reduction_after_aperture = []
         self.gain_reduction_after_diffraction = []
-        self.gain_factor = 0.50
-        self.epsilon = 0.2
-        self.dispersion_factor = 1.0
-        self.lensing_factor = 1.0
-        self.is_factor = 200 * 352000
-        self.crystal_shift = 0.0
+
+        self.modulation_gain_factor = np.asarray(0.1)
+        self.gain_factor = np.asarray(0.50)
+        self.epsilon = np.asarray(0.2)
+        self.dispersion_factor = np.asarray(1.0)
+        self.lensing_factor = np.asarray(1.0)
+        self.is_factor = np.asarray(200 * 352000)
+        self.crystal_shift = np.asarray(0.0)
+        self.aperture = np.asarray(0.000056)
+
         self.pump_gain0 = []
         self.multi_time_aperture = []
-        self.aperture = 0.000056
         self.multi_time_diffraction = []
         self.multi_time_diffraction_val = 0.000030
         self.frequency_total_mult_factor = []
@@ -157,6 +171,7 @@ class MultiModeSimulation:
             x = (ix - self.n_samples / 2) * self.dx0
             xw = x / pump_width
             self.pump_gain0.append(g0 * np.exp(-xw * xw))
+        #self.pump_gain0 = np.asarray(self.pump_gain0)
 
     def prepare_aperture(self):
         self.multi_time_aperture = []
@@ -165,6 +180,7 @@ class MultiModeSimulation:
             x = (ix - self.n_samples / 2) * self.dx0
             xw = x / aperture_width
             self.multi_time_aperture.append(np.exp(-xw * xw))
+        #self.multi_time_aperture = np.asarray(self.multi_time_aperture)
 
         self.multi_time_diffraction = []
         diffraction_width = self.multi_time_diffraction_val
@@ -172,6 +188,7 @@ class MultiModeSimulation:
             x = (ix - self.n_samples / 2) * self.dx0
             xw = x / diffraction_width
             self.multi_time_diffraction.append(np.exp(-xw * xw))
+        #self.multi_time_diffraction = np.asarray(self.multi_time_diffraction)
 
     def prepare_linear_fresnel_help_data(self):
         self.mat_side = calc_original_sim_matrices(self.crystal_shift)
@@ -202,7 +219,7 @@ class MultiModeSimulation:
             self.intensity_total_by_ix.append(np.sum(np.multiply(self.multi_time_fronts[ix], np.conj(self.multi_time_fronts[ix]))))
 
     def init_gain_by_frequency(self):
-        spec_gain = 200
+        spec_gain = np.asarray(400)
         disp_par = self.dispersion_factor * 0.5e-3 * 2 * np.pi / spec_gain
         self.range_w = np.array([complex(v) for v in np.arange(-self.n_time_samples / 2, self.n_time_samples / 2)])
         ones = np.ones_like(self.range_w, dtype=complex)
@@ -232,7 +249,7 @@ class MultiModeSimulation:
             f_val = np.exp(complex(-xw * xw, -theta * x * x)) * (1.0 + 0.3 * random_lcg())
             vf.append(f_val)
 
-        return vf
+        return vf #np.asarray(vf)
 
     def update_helpData(self):
         self.prepare_linear_fresnel_help_data()
@@ -245,7 +262,7 @@ class MultiModeSimulation:
         self.multi_frequency_fronts = [[] for _ in range(self.n_samples)]
         self.multi_time_fronts_saves = [[], [], [], [], [], []]
 
-        random_lcg_set_seed(1323)
+        random_lcg_set_seed(13237) #1323
         for i_time in range(self.n_time_samples):
             #rnd = np.random.uniform(-1, 1) + 1j * np.random.uniform(-1, 1)
             rnd = (random_lcg() * 2 - 1) + 1j * (random_lcg() * 2 - 1)
@@ -254,6 +271,8 @@ class MultiModeSimulation:
                 self.multi_time_fronts[i].append(fr[i])
                 self.multi_frequency_fronts[i].append(0 + 0j)
 
+        #self.multi_time_fronts = np.asarray(self.multi_time_fronts)
+        #self.multi_frequency_fronts = np.asarray(self.multi_frequency_fronts)
         self.multi_time_fronts_saves[0] = np.copy(self.multi_time_fronts)
 
         self.update_helpData()
@@ -439,7 +458,6 @@ class MultiModeSimulation:
             ]
 
     def serialize_mm_data(self, more):
-        sample = self.view_on_sample
         s = json.dumps({
             "more": more,
             "rounds": self.n_rounds,
@@ -460,10 +478,8 @@ class MultiModeSimulation:
          })
         return s
     def serialize_mm_graphs(self):
-        sample = self.view_on_sample
-
         s = json.dumps({
-            "pointer": [sample, self.view_on_x, self.view_on_y],
+            "pointer": [self.view_on_sample, self.view_on_x, self.view_on_y],
             "graphs": self.serialize_mm_graphs_data(),
             })
         return s

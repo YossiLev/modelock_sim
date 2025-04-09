@@ -545,7 +545,7 @@ function drawTimeFronts(fs, view, canvas) {
     let maxV, maxS, meanV, meanS, meanMean, totalSumPower, meanH, maxH;
 
     if (view == 0) {
-        fs = math.abs(fs);
+        //fs = math.abs(fs);
         fs = math.dotMultiply(fs, fs);
         totalSumPower = math.sum(fs);
         maxV = math.max(fs, 0);
@@ -889,10 +889,9 @@ function openVec(fs) {
 
     return fs.map(l => l.map((v) => {
         if (v.length == 0) {
-            return math.complex(0);
+            return 0;
         }
-        let t = v.split(',');
-        return math.complex(t[0], t[1]);
+        return parseFloat(v);
     }));    
 }
 function modifyPointer(pointer) {

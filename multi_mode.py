@@ -15,6 +15,9 @@ from numpy.fft import fftshift
 from controls import random_lcg_set_seed, random_lcg
 import json
 
+def cget(x):
+    return x.get() if hasattr(x, "get") else x
+
 def m_dist(d):
     return [[1, d], [0, 1]]
 
@@ -58,37 +61,10 @@ def calc_original_sim_matrices(crystal_shift=0.0):
     return mat_side
 
 def serialize_fronts(fs):
-    return [[f"{val:.2f}" if np.abs(val) > 0.001 else "" for val in row] for row in fs]
+    return [[f"{val:.2f}" if np.abs(val) > 0.001 else "" for val in row] for row in cget(fs)]
 
 class MultiModeSimulation:
     def __init__(self):
-        self.lambda_ = 0.000000780
-        self.initial_range = 0.01047
-        self.multi_ranges = [[], []]
-        self.n_samples = 256
-        self.n_max_matrices = 1000
-        self.n_rounds = 0
-
-        self.steps_counter = 0
-        self.n_time_samples = 1024
-        self.multi_time_fronts = []
-        self.multi_frequency_fronts = []
-        self.multi_time_fronts_saves = [[], [], [], [], [], []]
-
-        self.intensity_saturation_level = 400000000000000.0
-        self.intensity_total_by_ix = []
-        self.factor_gain_by_ix = []
-        self.ikl = 0.02
-        self.ikl_times_i = 1j * self.ikl * 160 * 0.000000006
-        self.range_w = []
-        self.spectral_gain = []
-        self.modulator_gain = []
-        self.dispersion = []
-        self.sum_power_ix = []
-        self.gain_reduction = []
-        self.gain_reduction_with_origin = []
-        self.gain_reduction_after_aperture = []
-        self.gain_reduction_after_diffraction = []
 
         self.modulation_gain_factor = np.asarray(0.1)
         self.gain_factor = np.asarray(0.50)
@@ -99,19 +75,46 @@ class MultiModeSimulation:
         self.crystal_shift = np.asarray(0.0)
         self.aperture = np.asarray(0.000056)
 
+        self.lambda_ = 0.000000780
+        self.initial_range = 0.00024475293
+        self.multi_ranges = [[], []]
+        self.n_samples = 256
+        self.n_max_matrices = 1000
+        self.n_rounds = 0
+
+        self.steps_counter = 0
+        self.n_time_samples = 1024
+        self.multi_time_fronts = []
+        self.multi_time_fronts_saves = [[], [], [], [], [], []]
+
+        self.intensity_saturation_level = 400000000000000.0
+        self.intensity_total_by_ix = []
+        self.factor_gain_by_ix = []
+        self.ikl = 0.02
+        self.ikl_times_i = np.asarray(1j * self.ikl * 160 * 0.000000006)
+        self.range_w = []
+        self.spectral_gain = []
+        self.modulator_gain = []
+        self.dispersion = []
+        self.sum_power_ix = []
+        self.gain_reduction = []
+        self.gain_reduction_with_origin = []
+        self.gain_reduction_after_aperture = []
+        self.gain_reduction_after_diffraction = []
+
         self.pump_gain0 = []
         self.multi_time_aperture = []
         self.multi_time_diffraction = []
-        self.multi_time_diffraction_val = 0.000030
+        self.multi_time_diffraction_val = np.asarray(0.000030)
         self.frequency_total_mult_factor = []
-        self.mirror_loss = 0.95
+        self.mirror_loss = np.asarray(0.95)
         self.fresnel_data = []
         self.total_range = 0.001000
         self.dx0 = self.total_range / self.n_samples
         self.scalar_one = 1 + 0j
-        self.n_time_samples_ones = [self.scalar_one] * self.n_time_samples
-        self.n_samples_ones = [self.scalar_one] * self.n_samples
-        self.n_samples_ones_r = [1.0] * self.n_samples
+        self.n_time_samples_ones = np.asarray([self.scalar_one] * self.n_time_samples)
+        self.n_samples_ones = np.asarray([self.scalar_one] * self.n_samples)
+        self.n_samples_ones_r = np.asarray([1.0] * self.n_samples)
         self.ps = [[], []]
         self.view_on_stage = ["1", "1"]
         self.view_on_amp_freq = ["Amp", "Amp"]
@@ -127,17 +130,17 @@ class MultiModeSimulation:
 
     def printSamples(self):
         print("----------------------------------")
-        print(f"{self.multi_time_fronts[128][63]}")
+        print(f"{cget(self.multi_time_fronts)[128][63]}")
 
     def set(self, params):
         for key, value in params.items():
             if hasattr(self, key):
-                setattr(self, key, value)
+                setattr(self, key, np.asarray(value))
 
     def get(self, params):
         for key in params.keys():
             if hasattr(self, key):
-                params[key] = getattr(self, key)
+                params[key] = getattr(self, cget(key)[0])
         return params
 
     def vectors_for_fresnel(self, M, N, dx0, gain, is_back):
@@ -151,44 +154,34 @@ class MultiModeSimulation:
         co0 = -np.pi * dx0 * dx0 * A / (B * self.lambda_)
         cof = -np.pi * dxf * dxf * D / (B * self.lambda_)
 
-        vec0 = [np.exp(1j * co0 * (i - N / 2) ** 2) for i in range(N)]
-        vecF = [factor * np.exp(1j * cof * (i - N / 2) ** 2) for i in range(N)]
+        vec0 = np.asarray([np.exp(1j * co0 * (i - N / 2) ** 2) for i in range(N)])
+        vecF = np.asarray([factor * np.exp(1j * cof * (i - N / 2) ** 2) for i in range(N)])
 
-        return {'dx': dx0, 'vecs': [vec0, vecF]}
+        return {'dx': np.asarray(dx0), 'vecs': [vec0, vecF]}
 
     def spectral_gain_dispersion(self):
-        self.multi_frequency_fronts = fftshift(np.fft.fft(np.fft.ifftshift(self.multi_time_fronts, axes=1), axis=1), axes=1) * self.frequency_total_mult_factor
-        self.multi_time_fronts = fftshift(np.fft.ifft(np.fft.ifftshift(self.multi_frequency_fronts, axes=1), axis=1), axes=1)
+        multi_frequency_fronts = fftshift(np.fft.fft(np.fft.ifftshift(self.multi_time_fronts, axes=1), axis=1), axes=1) * self.frequency_total_mult_factor
+        self.multi_time_fronts = fftshift(np.fft.ifft(np.fft.ifftshift(multi_frequency_fronts, axes=1), axis=1), axes=1)
 
     def modulator_gain_multiply(self):
         self.multi_time_fronts = self.multi_time_fronts * self.modulator_gain
 
     def prepare_gain_pump(self):
-        pump_width = 0.000030 * 0.5
-        g0 = 1 / self.mirror_loss + self.epsilon
-        self.pump_gain0 = []
-        for ix in range(self.n_samples):
-            x = (ix - self.n_samples / 2) * self.dx0
-            xw = x / pump_width
-            self.pump_gain0.append(g0 * np.exp(-xw * xw))
-        #self.pump_gain0 = np.asarray(self.pump_gain0)
+        pump_width = np.asarray(0.000030 * 0.5)
+        g0 = np.asarray(1 / self.mirror_loss + self.epsilon)
+        x = (np.arange(self.n_samples) - np.asarray(self.n_samples / 2)) * np.asarray(self.dx0)
+        xw = x / pump_width
+        self.pump_gain0 = g0 * np.exp(-xw * xw)
 
     def prepare_aperture(self):
-        self.multi_time_aperture = []
-        aperture_width = self.aperture * 0.5
-        for ix in range(self.n_samples):
-            x = (ix - self.n_samples / 2) * self.dx0
-            xw = x / aperture_width
-            self.multi_time_aperture.append(np.exp(-xw * xw))
-        #self.multi_time_aperture = np.asarray(self.multi_time_aperture)
+        aperture_width = np.asarray(self.aperture * 0.5)
+        x = (np.arange(self.n_samples) - np.asarray(self.n_samples / 2)) * np.asarray(self.dx0)
+        xw = x / aperture_width
+        self.multi_time_aperture = np.exp(-xw * xw)
 
-        self.multi_time_diffraction = []
         diffraction_width = self.multi_time_diffraction_val
-        for ix in range(self.n_samples):
-            x = (ix - self.n_samples / 2) * self.dx0
-            xw = x / diffraction_width
-            self.multi_time_diffraction.append(np.exp(-xw * xw))
-        #self.multi_time_diffraction = np.asarray(self.multi_time_diffraction)
+        xw = x / diffraction_width
+        self.multi_time_diffraction = np.exp(-xw * xw)
 
     def prepare_linear_fresnel_help_data(self):
         self.mat_side = calc_original_sim_matrices(self.crystal_shift)
@@ -213,14 +206,16 @@ class MultiModeSimulation:
 
             self.fresnel_data.append(fresnel_side_data)
 
-    def total_ix_power(self):
-        self.intensity_total_by_ix = []
-        for ix in range(self.n_samples):
-            self.intensity_total_by_ix.append(np.sum(np.multiply(self.multi_time_fronts[ix], np.conj(self.multi_time_fronts[ix]))))
+    # def total_ix_power(self):
+    #     self.intensity_total_by_ix = []
+    #     for ix in range(self.n_samples):
+    #         self.intensity_total_by_ix.append(np.sum(np.multiply(self.multi_time_fronts[ix], np.conj(self.multi_time_fronts[ix]))))
 
     def init_gain_by_frequency(self):
+
         spec_gain = np.asarray(400)
         disp_par = self.dispersion_factor * 0.5e-3 * 2 * np.pi / spec_gain
+
         self.range_w = np.array([complex(v) for v in np.arange(-self.n_time_samples / 2, self.n_time_samples / 2)])
         ones = np.ones_like(self.range_w, dtype=complex)
         mid = self.range_w / spec_gain
@@ -229,27 +224,25 @@ class MultiModeSimulation:
         exp_w = np.exp(-1j * 2 * np.pi * self.range_w)
         self.frequency_total_mult_factor = 0.5 * (1.0 + exp_w * self.spectral_gain * self.dispersion)
         self.modulator_gain = [1.0 + self.modulation_gain_factor * np.cos(2 * np.pi * w / self.n_time_samples) for w in self.range_w]
-        print(f"modulator_gain = {self.modulator_gain[80]} {self.modulator_gain[180]} ")
+        # print(f"modulator_gain = {self.modulator_gain[80]} {self.modulator_gain[180]} ")
 
     def get_init_front(self, p_par=-1):
-        vf = []
         self.initial_range = 0.00024475293  # Example value, replace with actual value
         waist0 = p_par if p_par > 0.0 else 0.00003  # Example value, replace with actual value
         beam_dist = 0.0  # Example value, replace with actual value
         RayleighRange = np.pi * waist0 * waist0 / self.lambda_
-        theta = 0 if abs(beam_dist) < 0.000001 else np.pi / (self.lambda_ * beam_dist)
-        waist = waist0 * np.sqrt(1 + beam_dist / RayleighRange)
-        dx = self.initial_range / self.n_samples
-        x0 = (self.n_samples - 1) / 2 * dx
+        theta = np.asarray(0 if abs(beam_dist) < 0.000001 else np.pi / (self.lambda_ * beam_dist))
+        waist = np.asarray(waist0 * np.sqrt(1 + beam_dist / RayleighRange))
+        dx = np.asarray(self.initial_range / self.n_samples)
+        x0 = np.asarray((self.n_samples - 1) / 2 * dx)
 
-        for i in range(self.n_samples):
-            px = i * dx
-            x = px - x0
-            xw = x / waist
-            f_val = np.exp(complex(-xw * xw, -theta * x * x)) * (1.0 + 0.3 * random_lcg())
-            vf.append(f_val)
+        x = np.arange(self.n_samples) * dx - x0
+        xw = x / waist
+        random_values = np.asarray(1.0) + np.asarray(0.3) * np.random.rand(self.n_samples)
+        val_complex = -xw * xw - 1j * theta * x * x
+        vf = np.exp(val_complex) * random_values
 
-        return vf #np.asarray(vf)
+        return vf
 
     def update_helpData(self):
         self.prepare_linear_fresnel_help_data()
@@ -258,60 +251,41 @@ class MultiModeSimulation:
         self.init_gain_by_frequency()
     
     def init_multi_time(self):
-        self.multi_time_fronts = [[] for _ in range(self.n_samples)]
-        self.multi_frequency_fronts = [[] for _ in range(self.n_samples)]
         self.multi_time_fronts_saves = [[], [], [], [], [], []]
 
         random_lcg_set_seed(13237) #1323
+        multi_time_fronts_tr = np.empty((self.n_time_samples, self.n_samples), dtype=complex)
         for i_time in range(self.n_time_samples):
             #rnd = np.random.uniform(-1, 1) + 1j * np.random.uniform(-1, 1)
-            rnd = (random_lcg() * 2 - 1) + 1j * (random_lcg() * 2 - 1)
+            rnd = np.asarray((random_lcg() * 2 - 1) + 1j * (random_lcg() * 2 - 1))
             fr = np.multiply(rnd, self.get_init_front())
-            for i in range(self.n_samples):
-                self.multi_time_fronts[i].append(fr[i])
-                self.multi_frequency_fronts[i].append(0 + 0j)
+            multi_time_fronts_tr[i_time] = fr
 
-        #self.multi_time_fronts = np.asarray(self.multi_time_fronts)
-        #self.multi_frequency_fronts = np.asarray(self.multi_frequency_fronts)
+
+        self.multi_time_fronts = multi_time_fronts_tr.T
         self.multi_time_fronts_saves[0] = np.copy(self.multi_time_fronts)
 
         self.update_helpData()
 
     def phase_change_during_kerr(self):
-        self.sum_power_ix = []
         total_kerr_lensing = np.multiply(self.lensing_factor, self.ikl_times_i)
 
-        bin2 = np.abs(self.multi_time_fronts) ** 2
-        self.sum_power_ix = np.sum(bin2, axis=1).tolist()
+        bin2 = np.square(np.abs(self.multi_time_fronts))
+        self.sum_power_ix = np.sum(bin2, axis=1)
         phase_shift1 = total_kerr_lensing * bin2
         self.multi_time_fronts *= np.exp(phase_shift1)
-        self.ps[self.side] = phase_shift1[:, self.view_on_x].imag.tolist()
-        # for ix in range(self.n_samples):
-        #     bin = self.multi_time_fronts[ix]
-        #     bin2 = np.abs(np.multiply(bin, np.conj(bin)))
-        #     self.sum_power_ix.append(np.sum(bin2))
-        #     phase_shift1 = np.multiply(total_kerr_lensing, bin2)
-        #     self.multi_time_fronts[ix] = np.multiply(bin, np.exp(phase_shift1))
-        #     self.ps1.append(phase_shift1[0].imag)
+        self.ps[self.side] = phase_shift1[:, self.view_on_x].imag
 
         self.multi_time_fronts_saves[self.side * 3 + 0] = np.copy(self.multi_time_fronts)
 
         multi_time_fronts_trans = self.multi_time_fronts.T
-        p_fr_before = np.sum(np.abs(multi_time_fronts_trans)**2, axis=1, keepdims=True)
+        p_fr_before = np.sum(np.square(np.abs(multi_time_fronts_trans)), axis=1, keepdims=True)
         fr_after = multi_time_fronts_trans * self.multi_time_aperture
         p_fr_after = np.sum(np.abs(fr_after)**2, axis=1, keepdims=True)
         multi_time_fronts_trans = fr_after * np.sqrt(p_fr_before / p_fr_after)
         self.multi_time_fronts = multi_time_fronts_trans.T
 
-        # for i_time in range(self.n_time_samples):
-        #     fr = multi_time_fronts_trans[i_time]
-        #     p_fr_before = np.sum(np.multiply(fr, np.conj(fr)))
-        #     fr_after = np.multiply(fr, self.multi_time_aperture)
-        #     p_fr_after = np.sum(np.multiply(fr_after, np.conj(fr_after)))
-        #     fr = np.multiply(fr_after, np.sqrt(p_fr_before / p_fr_after))
-        #     multi_time_fronts_trans[i_time] = fr
-        # self.multi_time_fronts = np.transpose(multi_time_fronts_trans)
-    
+
     def linear_cavity_one_side(self):
         self.multi_time_fronts_saves[self.side * 3 + 1] = np.copy(self.multi_time_fronts)
 
@@ -327,22 +301,8 @@ class MultiModeSimulation:
             vec0 = fresnel_side_data['vecs'][0]
             vecF = fresnel_side_data['vecs'][1]
             dx = fresnel_side_data['dx']
-            
-            multi_time_fronts_trans = vec0 * multi_time_fronts_trans
-            multi_time_fronts_trans = fftshift(np.fft.fft(fftshift(multi_time_fronts_trans, axes=1), axis=1), axes=1) * dx
-            multi_time_fronts_trans = vecF * multi_time_fronts_trans
+            multi_time_fronts_trans = vecF * fftshift(np.fft.fft(fftshift(vec0 * multi_time_fronts_trans, axes=1), axis=1), axes=1) * dx
         self.multi_time_fronts = multi_time_fronts_trans.T
-
-        # multi_time_fronts_trans = np.transpose(self.multi_time_fronts)
-        # for i_time in range(self.n_time_samples):
-        #     fr = multi_time_fronts_trans[i_time]
-        #     fr = np.multiply(fr, self.gain_reduction_after_diffraction)
-        #     for fresnel_side_data in self.fresnel_data[self.side]:
-        #         fr = np.multiply(fr, fresnel_side_data['vecs'][0])
-        #         fr = fftshift(np.fft.fft(fftshift(fr))) * fresnel_side_data['dx']
-        #         fr = np.multiply(fr, fresnel_side_data['vecs'][1])
-        #     multi_time_fronts_trans[i_time] = fr
-        # self.multi_time_fronts = np.transpose(multi_time_fronts_trans)
 
         self.multi_time_fronts_saves[self.side * 3 + 2] = np.copy(self.multi_time_fronts)
 
@@ -365,32 +325,16 @@ class MultiModeSimulation:
             self.linear_cavity_one_side()
 
     def get_x_values(self, sample):
-        target = int(self.view_on_stage[sample]) - 1
-        stage_data = np.copy(self.multi_time_fronts_saves[target])
-        if (self.view_on_amp_freq[sample] == "Frq"):
-            stage_data = fftshift(np.fft.fft(np.fft.ifftshift(stage_data, axes=1), axis=1), axes=1)
-        if (self.view_on_abs_phase[sample] == "Abs"):
-            stage_data = np.abs(stage_data).T
-        else:
-            stage_data = np.angle(stage_data).T
-
+        stage_data = self.select_source(sample).T
         if isinstance(stage_data, np.ndarray) and len(stage_data) > self.view_on_x:
-            fr = stage_data[self.view_on_x].tolist()
+            fr = cget(stage_data)[self.view_on_x].tolist()
             return {"color": ["red", "blue"][sample], "values": fr, "text": f"M{max(fr):.2f}({fr.index(max(fr))})"}
         return {}
     
     def get_y_values(self, sample):
-
-        target = int(self.view_on_stage[sample]) - 1
-        stage_data = np.copy(self.multi_time_fronts_saves[target])
-        if (self.view_on_amp_freq[sample] == "Frq"):
-            stage_data = fftshift(np.fft.fft(np.fft.ifftshift(stage_data, axes=1), axis=1), axes=1)
-        if (self.view_on_abs_phase[sample] == "Abs"):
-            stage_data = np.abs(stage_data)
-        else:
-            stage_data = np.angle(stage_data)
+        stage_data = self.select_source(sample)
         if isinstance(stage_data, np.ndarray) and len(stage_data) > self.view_on_y:
-            fr = stage_data[self.view_on_y].tolist()
+            fr = cget(stage_data)[self.view_on_y].tolist()
             return {"color": ["red", "blue"][sample], "values": fr, "text": f"M{max(fr):.2f}({fr.index(max(fr))})"}
         return {}
     
@@ -426,33 +370,35 @@ class MultiModeSimulation:
 
         fr_after = []
         for fr in [fr_original1, fr_with_kerr1]:
+            fr_next = np.copy(fr)
             for fresnel_side_data in self.fresnel_data[direction]:
                 vec0 = fresnel_side_data['vecs'][0]
                 vecF = fresnel_side_data['vecs'][1]
                 dx = fresnel_side_data['dx']
-                
-                fr_next = vec0 * fr
-                fr_next = fftshift(np.fft.fft(fftshift(fr_next))) * dx
-                fr_next = vecF * fr_next
-            fr_after.append(np.abs(fr_next).tolist())
+                fr_next = vecF * fftshift(np.fft.fft(fftshift(vec0 * fr_next))) * dx
+
+            fr_after.append(cget(np.abs(fr_next)).tolist())
         
-        return [{"color": "black", "values": np.abs(fr_original).tolist(), "text": f"Start"},
-                {"color": "purple", "values": np.abs(fr_original1).tolist(), "text": f"squeeze({max(np.abs(fr_original1)):.2f})"},
+        return [{"color": "black", "values": cget(np.abs(fr_original)).tolist(), "text": f"Start"},
+                {"color": "purple", "values": cget(np.abs(fr_original1)).tolist(), "text": f"squeeze({max(np.abs(fr_original1)):.2f})"},
                 {"color": "green", "values": fr_after[1], "text": f"with Kerr({max(fr_after[1]):.2f})"},
                 {"color": "red", "values": fr_after[0], "text": f"without Kerr({max(fr_after[0]):.2f})"}]
         
 
     def serialize_mm_graphs_data(self):
         sample = self.view_on_sample
+        ps = cget(self.ps).tolist()
+        psr = ps[sample]
+        psb = ps[1 - sample]
 
         return [
                 {"name": "gr1", "lines": self.get_kerr_influence(0, 0)},
                 {"name": "gr2", "lines": self.get_kerr_influence(3, 1)},
                 {"name": "gr3", "lines": [self.get_x_values(sample),
                                           self.get_x_values(1 - sample)]},
-                {"name": "gr4", "lines": [{"color": ["red", "blue"][sample], "values": self.ps[sample], "text": f"M{max(self.ps[sample]):.4f}({self.ps[sample].index(max(self.ps[sample]))})"},
-                                          {"color": ["red", "blue"][1 - sample], "values": self.ps[1 - sample], "text": f"M{max(self.ps[1 - sample]):.4f}({self.ps[1 - sample].index(max(self.ps[1 - sample]))})"} ] 
-                                          if len(self.ps[0]) > 10 and len(self.ps[1]) > 10 else []},    
+                {"name": "gr4", "lines": [{"color": ["red", "blue"][sample], "values": psr, "text": f"M{max(psr):.4f}({psr.index(max(psr))})"},
+                                          {"color": ["red", "blue"][1 - sample], "values": psb, "text": f"M{max(psb):.4f}({psb.index(max(psb))})"} ] 
+                                          if len(ps[0]) > 10 and len(ps[1]) > 10 else []},    
                 {"name": "gr5", "lines": [self.get_y_values(sample),
                                           self.get_y_values(1 - sample)]},
             ]

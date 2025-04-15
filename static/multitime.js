@@ -906,6 +906,42 @@ function modifyPointer(pointer) {
     ctx[1].arc(pointer[1], pointer[2], 10, 0, 2 * Math.PI);
     ctx[1].fill();
 }
+var currentPlot3dValues = [];
+var plots3dObject = [];
+
+function drawPlot3d(data) {
+    Plotly.newPlot('plotData1', plots3dObject, {
+        margin: { l: 0, r: 0, t: 0, b: 0 },
+        scene: {xaxis: {title: 'X'}, yaxis: {title: 'Y'}, zaxis: {title: 'Z'}}
+    });
+}
+
+function ClearPlot3D() {
+    plots3dObject = [];
+    drawPlot3d();
+}
+
+function AddPlot3D() { 
+    let y = currentPlot3dValues;
+    if (y != null && y.length > 0) {
+        let x = y.map((l, i) => i);
+        let z = y.map((l) => plots3dObject.length);
+        plots3dObject.push({
+            "type": "scatter3d",
+                "mode": "lines",
+                "x": x,
+                "y": y,
+                "z": z,
+                "line": {
+                    "color": "blue",
+                    "width": 4
+                },
+                "name": `Plot ${plots3dObject.length + 1}`,
+        });
+        drawPlot3d();
+    }
+}
+
 function spreadUpdatedData(data) {
     if (data.rounds) {
         document.getElementById("stepsCounter").value = `${data.rounds}`;
@@ -932,7 +968,13 @@ function spreadUpdatedData(data) {
                 drawVector(line.values, clear, line.color, 1, true, graph.name, "",  0, line.text, 1);
                 clear = false;
             }
+            if (graph.name == "gr4") {
+                if (graph.lines.length > 0) {
+                    currentPlot3dValues = graph.lines[0].values;
+                }
+            }
         }
+
     }
     if (data.view_buttons) {
         for (let part in [0, 1]) {

@@ -30,6 +30,7 @@ app = FastHTML(htmx=False, ws_hdr=False, hdrs=(
         Script(src="static/htmx.min.js"),
         Script(src="static/ws.js"),
         Script(src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/3.3.0/math.min.js"),
+        Script(src="https://cdn.plot.ly/plotly-latest.min.js"),
         Script(src="static/localid.js"),
         Script(src="static/fieldValue.js"),
         Script(src="static/utils.js"),
@@ -432,6 +433,7 @@ async def mmInit(request: Request, localId: str):
         "steps_sounter": int(form_data.get("stepsCounter")),
     })
     dataObj['mmData'].init_multi_time()
+    print(f"after init_multi_time")
     
     return collectData(dataObj)
 
@@ -514,15 +516,15 @@ async def mmRun(send, nRounds: str, gainFactor: str, aperture: str, epsilon: str
     dataObj['mmData'].update_helpData()
 
     start_time = time.time()
-    count = 10 ** int(nRounds)
+    count = int(nRounds)
     dataObj['run_state'] = True
     for i in range(count):
-        if i % 10 == 0:
-            print(f"round {i}")
+        # if i % 100 == 0:
+        #     print(f"round {i}")
         if not dataObj['run_state']:
             break       
         dataObj['mmData'].multi_time_round_trip()
-        if i % 50 == 0:
+        if (i + 1) % 200 == 0:
             try:
                 await send(Div(collectData(dataObj, more=True), id="numData"))
                 await asyncio.sleep(0.001)

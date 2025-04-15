@@ -1,16 +1,17 @@
-# import platform
+import platform
 
-# if platform.system() == "Linux":
-#     try:
-#         import cupy as np
-#         print("Using CuPy for Linux")
-#     except ImportError:
-#         import numpy as np
-#         print("CuPy not available, falling back to NumPy")
-# else:
-#     import numpy as np
-#     print("Using NumPy for non-Linux OS")
-import numpy as np
+if platform.system() == "Linux":
+    try:
+        import cupy as np
+        import numpy as nump
+        print("Using CuPy for Linux")
+    except ImportError:
+        import numpy as np
+        print("CuPy not available, falling back to NumPy")
+else:
+    import numpy as np
+    print("Using NumPy for non-Linux OS")
+# import numpy as np
 from numpy.fft import fftshift
 from controls import random_lcg_set_seed, random_lcg
 import json
@@ -61,7 +62,9 @@ def calc_original_sim_matrices(crystal_shift=0.0):
     return mat_side
 
 def serialize_fronts(fs):
-    return [[f"{val:.2f}" if np.abs(val) > 0.001 else "" for val in row] for row in cget(fs)]
+    getfs = cget(fs)
+    s = [[f"{val:.2f}" if abs(val) > 0.001 else "" for val in row] for row in getfs]
+    return s
 
 class MultiModeSimulation:
     def __init__(self):
@@ -223,7 +226,7 @@ class MultiModeSimulation:
         self.dispersion = np.exp(-1j * disp_par * self.range_w ** 2)
         exp_w = np.exp(-1j * 2 * np.pi * self.range_w)
         self.frequency_total_mult_factor = 0.5 * (1.0 + exp_w * self.spectral_gain * self.dispersion)
-        self.modulator_gain = [1.0 + self.modulation_gain_factor * np.cos(2 * np.pi * w / self.n_time_samples) for w in self.range_w]
+        self.modulator_gain = np.asarray([1.0 + self.modulation_gain_factor * np.cos(2 * np.pi * w / self.n_time_samples) for w in self.range_w])
         # print(f"modulator_gain = {self.modulator_gain[80]} {self.modulator_gain[180]} ")
 
     def get_init_front(self, p_par=-1):
@@ -387,11 +390,20 @@ class MultiModeSimulation:
 
     def serialize_mm_graphs_data(self):
         sample = self.view_on_sample
-        ps = cget(self.ps).tolist()
+        ps = [cget(self.ps[0]), cget(self.ps[1])]
         psr = ps[sample]
         psb = ps[1 - sample]
-
-        return [
+        # if isinstance(psr, list):
+        #     print(f"psr type {type(psr)} {len(psr)}")
+        #     print(f"psb type {type(psb)} {len(psb)}")
+        if isinstance(psr, nump.ndarray):
+            # print(f"psr type {type(psr)} {psr.shape}")
+            # print(f"psb type {type(psb)} {psb.shape}")
+            psr = cget(psr).tolist()
+            psb = cget(psb).tolist()
+        # print(f"psr type {type(psr)} {len(psr)}")
+        # print(f"psb type {type(psb)} {len(psb)}")
+        s = [
                 {"name": "gr1", "lines": self.get_kerr_influence(0, 0)},
                 {"name": "gr2", "lines": self.get_kerr_influence(3, 1)},
                 {"name": "gr3", "lines": [self.get_x_values(sample),
@@ -402,6 +414,7 @@ class MultiModeSimulation:
                 {"name": "gr5", "lines": [self.get_y_values(sample),
                                           self.get_y_values(1 - sample)]},
             ]
+        return s
 
     def serialize_mm_data(self, more):
         s = json.dumps({

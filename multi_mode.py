@@ -255,8 +255,10 @@ class MultiModeSimulation:
     
     def init_multi_time(self):
         self.multi_time_fronts_saves = [[], [], [], [], [], []]
+        self.n_rounds = 0
+        self.steps_counter = 0
 
-        random_lcg_set_seed(13237) #1323
+        random_lcg_set_seed(888) #1323
         multi_time_fronts_tr = np.empty((self.n_time_samples, self.n_samples), dtype=complex)
         for i_time in range(self.n_time_samples):
             #rnd = np.random.uniform(-1, 1) + 1j * np.random.uniform(-1, 1)
@@ -389,6 +391,8 @@ class MultiModeSimulation:
         
 
     def serialize_mm_graphs_data(self):
+        if self.n_rounds < 10:
+            return []
         sample = self.view_on_sample
         ps = [cget(self.ps[0]), cget(self.ps[1])]
         psr = ps[sample]

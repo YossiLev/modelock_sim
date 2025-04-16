@@ -909,7 +909,7 @@ function modifyPointer(pointer) {
 var currentPlot3dValues = [];
 var plots3dObject = [];
 
-function drawPlot3d(data) {
+function drawPlot3d() {
     Plotly.newPlot('plotData1', plots3dObject, {
         margin: { l: 0, r: 0, t: 0, b: 0 },
         scene: {xaxis: {title: 'X'}, yaxis: {title: 'Y'}, zaxis: {title: 'Z'}}
@@ -922,21 +922,24 @@ function ClearPlot3D() {
 }
 
 function AddPlot3D() { 
-    let y = currentPlot3dValues;
-    if (y != null && y.length > 0) {
-        let x = y.map((l, i) => i);
-        let z = y.map((l) => plots3dObject.length);
+    let values = currentPlot3dValues;
+    let count = parseInt(document.getElementById("stepsCounter").value)
+    if (values != null && values.length > 0) {
+        let x = values.map((l, i) => i);
+        let c = values.map((l) => count);
         plots3dObject.push({
-            "type": "scatter3d",
+                "type": "scatter3d",
                 "mode": "lines",
-                "x": x,
-                "y": y,
-                "z": z,
+                "x": c,
+                "y": x,
+                "z": values,
+                "xaxis": {title: 'Round'},
+                "yaxis": {title: 'X'},
+                "zaxis": {title: 'Power'},
                 "line": {
-                    "color": "blue",
                     "width": 4
                 },
-                "name": `Plot ${plots3dObject.length + 1}`,
+                "name": `Round ${count}`,
         });
         drawPlot3d();
     }
@@ -968,9 +971,10 @@ function spreadUpdatedData(data) {
                 drawVector(line.values, clear, line.color, 1, true, graph.name, "",  0, line.text, 1);
                 clear = false;
             }
-            if (graph.name == "gr4") {
+            if (graph.name == "gr5") {
                 if (graph.lines.length > 0) {
                     currentPlot3dValues = graph.lines[0].values;
+                    console.log(`currentPlot3dValues ${currentPlot3dValues}`);
                 }
             }
         }

@@ -430,7 +430,7 @@ async def mmInit(request: Request, localId: str):
         "is_factor": float(form_data.get("isFactor")),
         "crystal_shift": float(form_data.get("crystalShift")),
         "initial_range": float(form_data.get("initialRange")),
-        "steps_sounter": int(form_data.get("stepsCounter")),
+        "steps_sounter": 0,
     })
     dataObj['mmData'].init_multi_time()
     print(f"after init_multi_time")

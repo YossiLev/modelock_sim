@@ -572,7 +572,8 @@ function vecWaistFromQ(v) {
 
 var drawVectorComparePrevious = [];
 
-function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowChange = false, id = "graphCanvas", name = "", start = drawSx, message = "", zoomX = 1) {
+function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowChange = false, 
+    id = "graphCanvas", name = "", start = drawSx, message = "", zoomX = 1, backColor = "white") {
     if (!drawOption) {
         return
     }
@@ -605,7 +606,7 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowCha
         pixelWidth = (canvas.width - start) / l;
     }
 
-    ctx.fillStyle = `white`;
+    ctx.fillStyle = backColor;
     ctx.fillRect(0, 0, canvas.width, canvas.height);     
     if (isMouseDownOnGraph) {
         const canvas = document.getElementById(id);

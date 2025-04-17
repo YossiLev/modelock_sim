@@ -61,6 +61,13 @@ def calc_original_sim_matrices(crystal_shift=0.0):
 
     return mat_side
 
+def list_mean_and_std(weights):
+    indices = np.arange(len(weights))
+    mean_index = np.average(indices, weights=weights)
+    variance = np.average((indices - mean_index)**2, weights=weights)
+    std_index = np.sqrt(variance)
+    return mean_index, std_index
+
 def serialize_fronts(fs):
     getfs = cget(fs)
     s = [[f"{val:.2f}" if abs(val) > 0.001 else "" for val in row] for row in getfs]
@@ -340,7 +347,8 @@ class MultiModeSimulation:
         stage_data = self.select_source(sample)
         if isinstance(stage_data, np.ndarray) and len(stage_data) > self.view_on_y:
             fr = cget(stage_data)[self.view_on_y].tolist()
-            return {"color": ["red", "blue"][sample], "values": fr, "text": f"M{max(fr):.2f}({fr.index(max(fr))})"}
+            fr_mean_and_std = list_mean_and_std(fr)
+            return {"color": ["red", "blue"][sample], "values": fr, "text": f"M{max(fr):.2f}({fr.index(max(fr))})({fr_mean_and_std[0]:.4f}±{fr_mean_and_std[1]:.4f})"}
         return {}
     
     def select_source(self, target):
@@ -400,11 +408,13 @@ class MultiModeSimulation:
         # if isinstance(psr, list):
         #     print(f"psr type {type(psr)} {len(psr)}")
         #     print(f"psb type {type(psb)} {len(psb)}")
-        if isinstance(psr, nump.ndarray):
+        if isinstance(psr, nump.ndarray if platform.system() == "Linux" else np.ndarray):
             # print(f"psr type {type(psr)} {psr.shape}")
             # print(f"psb type {type(psb)} {psb.shape}")
             psr = cget(psr).tolist()
             psb = cget(psb).tolist()
+        psr_mean_and_std = list_mean_and_std(psr)
+        psb_mean_and_std = list_mean_and_std(psb)
         # print(f"psr type {type(psr)} {len(psr)}")
         # print(f"psb type {type(psb)} {len(psb)}")
         s = [
@@ -412,8 +422,10 @@ class MultiModeSimulation:
                 {"name": "gr2", "lines": self.get_kerr_influence(3, 1)},
                 {"name": "gr3", "lines": [self.get_x_values(sample),
                                           self.get_x_values(1 - sample)]},
-                {"name": "gr4", "lines": [{"color": ["red", "blue"][sample], "values": psr, "text": f"M{max(psr):.4f}({psr.index(max(psr))})"},
-                                          {"color": ["red", "blue"][1 - sample], "values": psb, "text": f"M{max(psb):.4f}({psb.index(max(psb))})"} ] 
+                {"name": "gr4", "lines": [{"color": ["red", "blue"][sample], "values": psr, 
+                                           "text": f"M{max(psr):.4f}({psr.index(max(psr))})"},
+                                          {"color": ["red", "blue"][1 - sample], "values": psb, 
+                                           "text": f"M{max(psb):.4f}({psb.index(max(psb))})"} ] 
                                           if len(ps[0]) > 10 and len(ps[1]) > 10 else []},    
                 {"name": "gr5", "lines": [self.get_y_values(sample),
                                           self.get_y_values(1 - sample)]},

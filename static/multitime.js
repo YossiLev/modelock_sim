@@ -965,10 +965,11 @@ function spreadUpdatedData(data) {
         modifyPointer(data.pointer)
     }
     if (data.graphs) {
+        let backColor = data.more ? "#ffeedd": "white";
         for (graph of data.graphs) {
             let clear = true;
             for (line of graph.lines) {
-                drawVector(line.values, clear, line.color, 1, true, graph.name, "",  0, line.text, 1);
+                drawVector(line.values, clear, line.color, 1, true, graph.name, "",  0, line.text, 1, backColor);
                 clear = false;
             }
             if (graph.name == "gr5") {

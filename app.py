@@ -421,6 +421,7 @@ async def mmInit(request: Request, localId: str):
     
     form_data = await request.form()  # Get all form fields as a dict-like object
     dataObj['mmData'].set({
+        "seed": - 1 if len(form_data.get("seed").strip()) == 0 else int(form_data.get("seed")),
         "gain_factor": float(form_data.get("gainFactor")),
         "aperture": float(form_data.get("aperture")),
         "epsilon": float(form_data.get("epsilon")),
@@ -556,6 +557,19 @@ async def mmGraph(request: Request, sample: int, x: int, y: int):
 
     return mmData.serialize_mm_graphs()
         
+@app.post("/mmCenter")
+async def mmCenter(localId: str):
+    dataObj = get_Data_obj(localId)
+    if dataObj is None:
+        dataObj = {'id': localId, 'count': 0, 
+                'run_state': False, 
+                'mmData': MultiModeSimulation()}
+        insert_data_obj(localId, dataObj)   
+    
+    dataObj['mmData'].center_multi_time()
+    
+    return collectData(dataObj)
+
 @app.post("/removeComp/{comp_id}")
 def removeComp(session, comp_id: str, localId: str):
     sim = get_sim_obj(localId)

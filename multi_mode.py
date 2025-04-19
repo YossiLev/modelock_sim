@@ -1,19 +1,14 @@
-import platform
-
-if platform.system() == "Linux":
-    try:
-        import cupy as np
-        import numpy as nump
-        print("Using CuPy for Linux")
-    except ImportError:
+try:
+    import cupy
+    if cupy.cuda.is_available():
+        np = cupy
+    else:
         import numpy as np
-        print("CuPy not available, falling back to NumPy")
-else:
+except ImportError:
     import numpy as np
-    print("Using NumPy for non-Linux OS")
-# import numpy as np
-from numpy.fft import fftshift
+
 from controls import random_lcg_set_seed, random_lcg
+import random
 import json
 
 def cget(x):
@@ -91,6 +86,8 @@ class MultiModeSimulation:
         self.n_samples = 256
         self.n_max_matrices = 1000
         self.n_rounds = 0
+        self.seed = -1
+        self.used_seed = 0
 
         self.steps_counter = 0
         self.n_time_samples = 1024
@@ -170,8 +167,8 @@ class MultiModeSimulation:
         return {'dx': np.asarray(dx0), 'vecs': [vec0, vecF]}
 
     def spectral_gain_dispersion(self):
-        multi_frequency_fronts = fftshift(np.fft.fft(np.fft.ifftshift(self.multi_time_fronts, axes=1), axis=1), axes=1) * self.frequency_total_mult_factor
-        self.multi_time_fronts = fftshift(np.fft.ifft(np.fft.ifftshift(multi_frequency_fronts, axes=1), axis=1), axes=1)
+        multi_frequency_fronts = np.fft.fftshift(np.fft.fft(np.fft.ifftshift(self.multi_time_fronts, axes=1), axis=1), axes=1) * self.frequency_total_mult_factor
+        self.multi_time_fronts = np.fft.fftshift(np.fft.ifft(np.fft.ifftshift(multi_frequency_fronts, axes=1), axis=1), axes=1)
 
     def modulator_gain_multiply(self):
         self.multi_time_fronts = self.multi_time_fronts * self.modulator_gain
@@ -265,7 +262,12 @@ class MultiModeSimulation:
         self.n_rounds = 0
         self.steps_counter = 0
 
-        random_lcg_set_seed(888) #1323
+        if self.seed != -1:
+            self.used_seed = self.seed
+        else:
+            self.used_seed = random.randint(1, 1000000)
+        print(f"used seed = {self.used_seed}")
+        random_lcg_set_seed(self.used_seed)
         multi_time_fronts_tr = np.empty((self.n_time_samples, self.n_samples), dtype=complex)
         for i_time in range(self.n_time_samples):
             #rnd = np.random.uniform(-1, 1) + 1j * np.random.uniform(-1, 1)
@@ -313,17 +315,12 @@ class MultiModeSimulation:
             vec0 = fresnel_side_data['vecs'][0]
             vecF = fresnel_side_data['vecs'][1]
             dx = fresnel_side_data['dx']
-            multi_time_fronts_trans = vecF * fftshift(np.fft.fft(fftshift(vec0 * multi_time_fronts_trans, axes=1), axis=1), axes=1) * dx
+            multi_time_fronts_trans = vecF * np.fft.fftshift(np.fft.fft(np.fft.fftshift(vec0 * multi_time_fronts_trans, axes=1), axis=1), axes=1) * dx
         self.multi_time_fronts = multi_time_fronts_trans.T
 
         self.multi_time_fronts_saves[self.side * 3 + 2] = np.copy(self.multi_time_fronts)
 
     def multi_time_round_trip(self):
-        #if self.i_count % 10 == 0:
-        # fs = np.abs(self.multi_time_fronts)
-        # fs = np.multiply(fs, fs)
-        # mean_v = np.mean(fs, axis=0)
-        # mean_mean = np.mean(mean_v)
         self.n_rounds += 1
 
         for self.side in [0, 1]:
@@ -335,6 +332,17 @@ class MultiModeSimulation:
                 self.modulator_gain_multiply()
 
             self.linear_cavity_one_side()
+
+
+    def center_multi_time(self):
+        a = np.sum(np.square(np.abs(self.multi_time_fronts)), 0)
+        print(f"length of a = {len(a)}")
+        index = np.argmax(a)
+        print(f"index = {index}")
+        roll = -index + self.n_time_samples // 2
+        self.multi_time_fronts = np.roll(self.multi_time_fronts, roll, axis=1)
+        for i in range(len(self.multi_time_fronts_saves)):
+            self.multi_time_fronts_saves[i] = np.roll(self.multi_time_fronts_saves[i], roll, axis=1)
 
     def get_x_values(self, sample):
         stage_data = self.select_source(sample).T
@@ -354,7 +362,7 @@ class MultiModeSimulation:
     def select_source(self, target):
         stage_data = self.multi_time_fronts_saves[int(self.view_on_stage[target]) - 1]
         if (self.view_on_amp_freq[target] == "Frq"):
-            stage_data = fftshift(np.fft.fft(np.fft.ifftshift(stage_data, axes=1), axis=1), axes=1)
+            stage_data = np.fft.fftshift(np.fft.fft(np.fft.ifftshift(stage_data, axes=1), axis=1), axes=1)
         if (self.view_on_abs_phase[target] == "Abs"):
             stage_data = np.abs(stage_data)
         else:
@@ -388,7 +396,7 @@ class MultiModeSimulation:
                 vec0 = fresnel_side_data['vecs'][0]
                 vecF = fresnel_side_data['vecs'][1]
                 dx = fresnel_side_data['dx']
-                fr_next = vecF * fftshift(np.fft.fft(fftshift(vec0 * fr_next))) * dx
+                fr_next = vecF * np.fft.fftshift(np.fft.fft(np.fft.fftshift(vec0 * fr_next))) * dx
 
             fr_after.append(cget(np.abs(fr_next)).tolist())
         
@@ -405,18 +413,8 @@ class MultiModeSimulation:
         ps = [cget(self.ps[0]), cget(self.ps[1])]
         psr = ps[sample]
         psb = ps[1 - sample]
-        # if isinstance(psr, list):
-        #     print(f"psr type {type(psr)} {len(psr)}")
-        #     print(f"psb type {type(psb)} {len(psb)}")
-        if isinstance(psr, nump.ndarray if platform.system() == "Linux" else np.ndarray):
-            # print(f"psr type {type(psr)} {psr.shape}")
-            # print(f"psb type {type(psb)} {psb.shape}")
-            psr = cget(psr).tolist()
-            psb = cget(psb).tolist()
-        psr_mean_and_std = list_mean_and_std(psr)
-        psb_mean_and_std = list_mean_and_std(psb)
-        # print(f"psr type {type(psr)} {len(psr)}")
-        # print(f"psb type {type(psb)} {len(psb)}")
+        psr = cget(psr).tolist()
+        psb = cget(psb).tolist()
         s = [
                 {"name": "gr1", "lines": self.get_kerr_influence(0, 0)},
                 {"name": "gr2", "lines": self.get_kerr_influence(3, 1)},

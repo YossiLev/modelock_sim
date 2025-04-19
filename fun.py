@@ -202,10 +202,14 @@ def generate_multi_on_server(data_obj):
             Button("Stop", hx_put=f"/mmStop", hx_include="#multiTimeOptionsForm *", hx_vals='js:{localId: getLocalId()}', hx_swap="none"),
             Button("Clear 3D", onclick="ClearPlot3D();"),
             Button("Add 3D", onclick="AddPlot3D();"),
+            Button("Center", hx_post=f"/mmCenter", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML", hx_target="#numData"),
+
         ),
         Div(
             Div(
                 Input(type="number", id=f'initialRange', title="The range of the wave front (meters)", value=f'0.00024475293', 
+                        hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", hx_vals='js:{localId: getLocalId()}', style="width:100px;"),
+                Input(type="number", id=f'seed', title="Random seed", value=f'', 
                         hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", hx_vals='js:{localId: getLocalId()}', style="width:100px;"),
                 Input(type="number", id=f'aperture', title="Width of a Gaussian aperture (meters)", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
                             hx_vals='js:{localId: getLocalId()}', style="width:80px;", value=f'0.000056',),

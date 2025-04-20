@@ -975,7 +975,6 @@ function spreadUpdatedData(data) {
             if (graph.name == "gr5") {
                 if (graph.lines.length > 0) {
                     currentPlot3dValues = graph.lines[0].values;
-                    console.log(`currentPlot3dValues ${currentPlot3dValues}`);
                 }
             }
         }

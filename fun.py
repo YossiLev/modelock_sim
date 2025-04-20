@@ -191,11 +191,43 @@ def ViewButtons(data_obj, part):
         style="display:inline-block;"
     )
 
+def multimode_charts(data_obj):
+    if (data_obj is None or data_obj["mmData"] is None):
+        print("No data")
+        return Div()
+    mmData = data_obj["mmData"]
+    return Div(
+        ViewButtons(data_obj, 0),
+        Div(
+            funCanvas("Sample1", width=1024, height=mmData.n_samples, useZoom=False, style="position: absolute; top: 0; left: 0;"),
+            funCanvas("Sample1top", width=1024, height=mmData.n_samples, useZoom=False, style="z-index:10; position: absolute; top: 0; left: 0;"),
+            style="position: relative; width: 1024px; height: 256px;"
+        ),
+        ViewButtons(data_obj, 1),
+        Div(
+            funCanvas("Sample2", width=1024, height=mmData.n_samples, useZoom=False, style="position: absolute; top: 0; left: 0;"),
+            funCanvas("Sample2top", width=1024, height=mmData.n_samples, useZoom=False, style="z-index:10; position: absolute; top: 0; left: 0;"),
+            style="position: relative; width: 1024px; height: 256px;"
+        ),
+        FlexN([graphCanvas(id="gr1", width=mmData.n_samples, height = 200, options=False), 
+                graphCanvas(id="gr2", width=mmData.n_samples, height = 200, options=False),
+                graphCanvas(id="gr3", width=mmData.n_samples, height = 200, options=False),
+                graphCanvas(id="gr4", width=mmData.n_samples, height = 200, options=False),
+        ]),
+        graphCanvas(id="gr5", width=1024, height = 200, options=False),
+        Div(id="plotData1", style="height:500px; width:1000px"),
+        # Button("Progress left", onclick="progressMultiTime(1)"),
+        # Button("Progress right", onclick="progressMultiTime(2)"),
+        # funCanvas("Test", width=1400, height=mmData.n_samples, useZoom=True),
+        # graphCanvas(width=1400),
+        Div(collectData(data_obj), id="numData"),
+    )
+
 def generate_multi_on_server(data_obj):
 
     return Div(
         Div(initBeamType(beamParamInit = 0.00003, beamDistInit = 0.0), 
-            Button("Init", hx_post=f"/mmInit", hx_include="#nRounds, #multiTimeOptionsForm *", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML", hx_target="#numData"),
+            Button("Init", hx_post=f"/mmInit", hx_include="#nRounds, #multiTimeOptionsForm *", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML", hx_target="#multiModeServer"),
             Button("Full", hx_ext="ws", ws_connect="/mmRun", ws_send=True, hx_include="#nRounds, #multiTimeOptionsForm", hx_vals='js:{localId: getLocalId()}'),
             Select(Option("1"), Option("10"), Option("100"), Option("300"), Option("1000"), Option("3000"), Option("10000"), id="nRounds", **{'onchange':"nRoundsChanged();"}),
             Button("Update", hx_put=f"/mmUpdate", hx_include="#multiTimeOptionsForm *", hx_vals='js:{localId: getLocalId()}'),
@@ -227,7 +259,7 @@ def generate_multi_on_server(data_obj):
                             hx_vals='js:{localId: getLocalId()}', style="width:120px;", value=f'20000',),
                 Input(type="number", id=f'crystalShift', title="Crystal position shift (mm)", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *",
                             hx_vals='js:{localId: getLocalId()}', style="width:80px;", value=f'0.0001', step="0.00001",),
-                Select(Option("256"), Option("512"), Option("1024"), Option("2048"), Option("4096"), id="nSamples",),
+                #Select(Option("256"), Option("512"), Option("1024"), Option("2048"), Option("4096"), id="nSamples",),
                 Input(type="text", id=f'stepsCounter', title="Number of roundtrips made", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
                     style="width:60px; text-align: right", value=f'0', **{'readonly':"readonly"},),
                 id="multiTimeOptionsForm"
@@ -241,30 +273,8 @@ def generate_multi_on_server(data_obj):
         #     *[Element(el, i, 5) for i, el in enumerate(elements[2])],
         #     Button(NotStr("&#43;"), escapse=False, hx_post="/addElement/2", hx_target="#fun", hx_vals='js:{localId: getLocalId()}'), 
         # ),
-        ViewButtons(data_obj, 0),
-        Div(
-            funCanvas("Sample1", width=1024, height=256, useZoom=False, style="position: absolute; top: 0; left: 0;"),
-            funCanvas("Sample1top", width=1024, height=256, useZoom=False, style="z-index:10; position: absolute; top: 0; left: 0;"),
-            style="position: relative; width: 1024px; height: 256px;"
-        ),
-        ViewButtons(data_obj, 1),
-        Div(
-            funCanvas("Sample2", width=1024, height=256, useZoom=False, style="position: absolute; top: 0; left: 0;"),
-            funCanvas("Sample2top", width=1024, height=256, useZoom=False, style="z-index:10; position: absolute; top: 0; left: 0;"),
-            style="position: relative; width: 1024px; height: 256px;"
-        ),
-        FlexN([graphCanvas(id="gr1", width=256, height = 200, options=False), 
-                graphCanvas(id="gr2", width=256, height = 200, options=False),
-                graphCanvas(id="gr3", width=256, height = 200, options=False),
-                graphCanvas(id="gr4", width=256, height = 200, options=False),
-        ]),
-        graphCanvas(id="gr5", width=1024, height = 200, options=False),
-        Div(id="plotData1", style="height:500px; width:1000px"),
-        # Button("Progress left", onclick="progressMultiTime(1)"),
-        # Button("Progress right", onclick="progressMultiTime(2)"),
-        # funCanvas("Test", width=1400, height=256, useZoom=True),
-        # graphCanvas(width=1400),
-        Div(collectData(data_obj), id="numData"),
+        multimode_charts(data_obj),
+        
         id="multiModeServer",
     )
 

@@ -83,6 +83,7 @@ class MultiModeSimulation:
         self.lambda_ = 0.000000780
         self.initial_range = 0.00024475293
         self.multi_ranges = [[], []]
+        # rrrr need fix
         self.n_samples = 256
         self.n_max_matrices = 1000
         self.n_rounds = 0
@@ -130,14 +131,14 @@ class MultiModeSimulation:
         self.view_on_y = self.n_samples // 2
         self.view_on_sample = 0
 
-        self.mat_side = [[[-1.2947E+00, 4.8630E-03], [1.5111E+02, -1.3400E+00]],  # right
-                         [[1.1589E+00, 8.2207E-04], [2.9333E+02, 1.0709E+00]]]    # left
+        #self.mat_side = [[[-1.2947E+00, 4.8630E-03], [1.5111E+02, -1.3400E+00]],  # right
+        #                 [[1.1589E+00, 8.2207E-04], [2.9333E+02, 1.0709E+00]]]    # left
 
         self.mat_side = calc_original_sim_matrices()
 
     def printSamples(self):
         print("----------------------------------")
-        print(f"{cget(self.multi_time_fronts)[128][63]}")
+        print(f"{cget(self.multi_time_fronts)[self.n_samples / 2][63]}")
 
     def set(self, params):
         for key, value in params.items():
@@ -150,6 +151,7 @@ class MultiModeSimulation:
                 params[key] = getattr(self, cget(key)[0])
         return params
 
+    # rrrr need fix
     def vectors_for_fresnel(self, M, N, dx0, gain, is_back):
         A, B = M[0]
         C, D = M[1]
@@ -173,6 +175,7 @@ class MultiModeSimulation:
     def modulator_gain_multiply(self):
         self.multi_time_fronts = self.multi_time_fronts * self.modulator_gain
 
+    # rrrr need fix
     def prepare_gain_pump(self):
         pump_width = np.asarray(0.000030 * 0.5)
         g0 = np.asarray(1 / self.mirror_loss + self.epsilon)
@@ -180,6 +183,7 @@ class MultiModeSimulation:
         xw = x / pump_width
         self.pump_gain0 = g0 * np.exp(-xw * xw)
 
+    # rrrr need fix
     def prepare_aperture(self):
         aperture_width = np.asarray(self.aperture * 0.5)
         x = (np.arange(self.n_samples) - np.asarray(self.n_samples / 2)) * np.asarray(self.dx0)
@@ -190,6 +194,7 @@ class MultiModeSimulation:
         xw = x / diffraction_width
         self.multi_time_diffraction = np.exp(-xw * xw)
 
+    # rrrr need fix
     def prepare_linear_fresnel_help_data(self):
         self.mat_side = calc_original_sim_matrices(self.crystal_shift)
 
@@ -231,8 +236,8 @@ class MultiModeSimulation:
         exp_w = np.exp(-1j * 2 * np.pi * self.range_w)
         self.frequency_total_mult_factor = 0.5 * (1.0 + exp_w * self.spectral_gain * self.dispersion)
         self.modulator_gain = np.asarray([1.0 + self.modulation_gain_factor * np.cos(2 * np.pi * w / self.n_time_samples) for w in self.range_w])
-        # print(f"modulator_gain = {self.modulator_gain[80]} {self.modulator_gain[180]} ")
 
+    # rrrr need fix
     def get_init_front(self, p_par=-1):
         self.initial_range = 0.00024475293  # Example value, replace with actual value
         waist0 = p_par if p_par > 0.0 else 0.00003  # Example value, replace with actual value
@@ -266,7 +271,6 @@ class MultiModeSimulation:
             self.used_seed = self.seed
         else:
             self.used_seed = random.randint(1, 1000000)
-        print(f"used seed = {self.used_seed}")
         random_lcg_set_seed(self.used_seed)
         multi_time_fronts_tr = np.empty((self.n_time_samples, self.n_samples), dtype=complex)
         for i_time in range(self.n_time_samples):
@@ -299,7 +303,7 @@ class MultiModeSimulation:
         multi_time_fronts_trans = fr_after * np.sqrt(p_fr_before / p_fr_after)
         self.multi_time_fronts = multi_time_fronts_trans.T
 
-
+    # rrrr need fix
     def linear_cavity_one_side(self):
         self.multi_time_fronts_saves[self.side * 3 + 1] = np.copy(self.multi_time_fronts)
 
@@ -360,7 +364,10 @@ class MultiModeSimulation:
         return {}
     
     def select_source(self, target):
-        stage_data = self.multi_time_fronts_saves[int(self.view_on_stage[target]) - 1]
+        fronts_index = int(self.view_on_stage[target]) - 1
+        stage_data = self.multi_time_fronts_saves[fronts_index]
+        if (len(stage_data) == 0):
+            return []
         if (self.view_on_amp_freq[target] == "Frq"):
             stage_data = np.fft.fftshift(np.fft.fft(np.fft.ifftshift(stage_data, axes=1), axis=1), axes=1)
         if (self.view_on_abs_phase[target] == "Abs"):

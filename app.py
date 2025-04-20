@@ -436,7 +436,8 @@ async def mmInit(request: Request, localId: str):
     dataObj['mmData'].init_multi_time()
     print(f"after init_multi_time")
     
-    return collectData(dataObj)
+    return generate_multi_on_server(dataObj)
+    #return collectData(dataObj)
 
 @app.post("/mmUpdate")
 async def mmUpdate(request: Request, localId: str):
@@ -515,6 +516,7 @@ async def mmRun(send, nRounds: str, gainFactor: str, aperture: str, epsilon: str
     #     "steps_counter": int(form_data.get("stepsCounter")),
     })
     dataObj['mmData'].update_helpData()
+    last_sent = 0
 
     start_time = time.time()
     count = int(nRounds)
@@ -527,15 +529,19 @@ async def mmRun(send, nRounds: str, gainFactor: str, aperture: str, epsilon: str
         dataObj['mmData'].multi_time_round_trip()
         if (i + 1) % 200 == 0:
             try:
-                await send(Div(collectData(dataObj, more=True), id="numData"))
+                last_sent = i + 1
+                if last_sent >= count:
+                    dataObj['run_state'] = False
+                await send(Div(collectData(dataObj, more=last_sent < count), id="numData"))
                 await asyncio.sleep(0.001)
             except Exception as e:
                 print(f"Error sending data: {e}")
                 dataObj['run_state'] = False
                 return
     
-    dataObj['run_state'] = False
-    await send(Div(collectData(dataObj), id="numData"))
+    if last_sent < count:
+        dataObj['run_state'] = False
+        await send(Div(collectData(dataObj), id="numData"))
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Elapsed time: {elapsed_time:.2f} seconds")

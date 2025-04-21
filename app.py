@@ -433,6 +433,7 @@ async def mmInit(request: Request, localId: str):
         "initial_range": float(form_data.get("initialRange")),
         "steps_sounter": 0,
     })
+    print(f"initial_range in init {dataObj['mmData'].initial_range}")
     dataObj['mmData'].init_multi_time()
     print(f"after init_multi_time")
     
@@ -511,7 +512,6 @@ async def mmRun(send, nRounds: str, gainFactor: str, aperture: str, epsilon: str
          "modulation_gain_factor": float(modulationGainFactor),
          "is_factor": float(isFactor),
          "crystal_shift": float(crystalShift),
-
          "initial_range": float(initialRange),
     #     "steps_counter": int(form_data.get("stepsCounter")),
     })

@@ -224,7 +224,36 @@ def multimode_charts(data_obj):
     )
 
 def generate_multi_on_server(data_obj):
-
+    if (data_obj is None or data_obj["mmData"] is None):
+        print("params from No data")
+        params = {
+            "initialRange": 0.00024475293,
+            "seed": 0,
+            "aperture": 0.000056,
+            "epsilon": 1.8,
+            "gainFactor": 0.5,
+            "dispersionFactor": 0.45,
+            "lensingFactor": 1.0,
+            "modulationGainFactor": 0.0,
+            "isFactor": 20000,
+            "crystalShift": 0.0001
+        }
+    else:
+        print("params from data_obj")
+        mmData = data_obj["mmData"]
+        print(f"initial_range: {mmData.initial_range}")
+        params = {
+            "initialRange": mmData.initial_range,
+            "seed": mmData.seed,
+            "aperture": mmData.aperture,
+            "epsilon": mmData.epsilon,
+            "gainFactor": mmData.gain_factor,
+            "dispersionFactor": mmData.dispersion_factor,
+            "lensingFactor": mmData.lensing_factor,
+            "modulationGainFactor": mmData.modulation_gain_factor,
+            "isFactor": mmData.is_factor,
+            "crystalShift": mmData.crystal_shift
+        }
     return Div(
         Div(initBeamType(beamParamInit = 0.00003, beamDistInit = 0.0), 
             Button("Init", hx_post=f"/mmInit", hx_include="#nRounds, #multiTimeOptionsForm *", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML", hx_target="#multiModeServer"),
@@ -239,26 +268,26 @@ def generate_multi_on_server(data_obj):
         ),
         Div(
             Div(
-                Input(type="number", id=f'initialRange', title="The range of the wave front (meters)", value=f'0.00024475293', 
+                Input(type="number", id=f'initialRange', title="The range of the wave front (meters)", value=f'{params["initialRange"]}', step="0.0001", 
                         hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", hx_vals='js:{localId: getLocalId()}', style="width:100px;"),
-                Input(type="number", id=f'seed', title="Random seed", value=f'', 
+                Input(type="number", id=f'seed', title="Random seed", value=f'{params["seed"]}', 
                         hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", hx_vals='js:{localId: getLocalId()}', style="width:100px;"),
                 Input(type="number", id=f'aperture', title="Width of a Gaussian aperture (meters)", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
-                            hx_vals='js:{localId: getLocalId()}', style="width:80px;", value=f'0.000056',),
+                            hx_vals='js:{localId: getLocalId()}', style="width:80px;", value=f'{params["aperture"]}',),
                 Input(type="number", id=f'epsilon', title="Gain Epsilon", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
-                            hx_vals='js:{localId: getLocalId()}', style="width:50px;", value=f'1.8',),
+                            hx_vals='js:{localId: getLocalId()}', style="width:50px;", value=f'{params["epsilon"]}',),
                 Input(type="number", id=f'gainFactor', title="Gain factor", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
-                            hx_vals='js:{localId: getLocalId()}', style="width:50px;", value=f'0.5',),
+                            hx_vals='js:{localId: getLocalId()}', style="width:50px;", value=f'{params["gainFactor"]}',),
                 Input(type="number", id=f'dispersionFactor', title="Dispersion factor", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
-                            hx_vals='js:{localId: getLocalId()}', style="width:50px;", value=f'0.45',),
+                            hx_vals='js:{localId: getLocalId()}', style="width:50px;", value=f'{params["dispersionFactor"]}',),
                 Input(type="number", id=f'lensingFactor', title="Kerr lensing factor", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
-                            hx_vals='js:{localId: getLocalId()}', style="width:50px;", value=f'1.0',),
+                            hx_vals='js:{localId: getLocalId()}', style="width:50px;", value=f'{params["lensingFactor"]}',),
                 Input(type="number", id=f'modulationGainFactor', title="Modulation gain factor", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
-                            hx_vals='js:{localId: getLocalId()}', style="width:50px;", value=f'0.0',),
+                            hx_vals='js:{localId: getLocalId()}', style="width:50px;", value=f'{params["modulationGainFactor"]}',),
                 Input(type="number", id=f'isFactor', title="Intensity saturation factor", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
-                            hx_vals='js:{localId: getLocalId()}', style="width:120px;", value=f'20000',),
+                            hx_vals='js:{localId: getLocalId()}', style="width:120px;", value=f'{params["isFactor"]}',),
                 Input(type="number", id=f'crystalShift', title="Crystal position shift (mm)", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *",
-                            hx_vals='js:{localId: getLocalId()}', style="width:80px;", value=f'0.0001', step="0.00001",),
+                            hx_vals='js:{localId: getLocalId()}', style="width:80px;", value=f'{params["crystalShift"]}', step="0.00001",),
                 #Select(Option("256"), Option("512"), Option("1024"), Option("2048"), Option("4096"), id="nSamples",),
                 Input(type="text", id=f'stepsCounter', title="Number of roundtrips made", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
                     style="width:60px; text-align: right", value=f'0', **{'readonly':"readonly"},),

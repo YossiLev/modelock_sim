@@ -613,7 +613,7 @@ function drawTimeFronts(fs, view, canvas) {
     }
 }
 function drawTimeNumData(fs, view, canvas) {
-    if (fs == null || canvas == null) {
+    if (fs == null || fs.length == 0 || canvas == null) {
         return;
     }
 

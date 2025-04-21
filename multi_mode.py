@@ -81,7 +81,7 @@ class MultiModeSimulation:
         self.aperture = np.asarray(0.000056)
 
         self.lambda_ = 0.000000780
-        self.initial_range = 0.00024475293
+        self.initial_range = 0.00024475293 # 0.00024475293
         self.multi_ranges = [[], []]
         # rrrr need fix
         self.n_samples = 256
@@ -117,8 +117,8 @@ class MultiModeSimulation:
         self.frequency_total_mult_factor = []
         self.mirror_loss = np.asarray(0.95)
         self.fresnel_data = []
-        self.total_range = 0.001000
-        self.dx0 = self.total_range / self.n_samples
+        #self.total_range = 0.001000
+        self.dx0 = self.initial_range / self.n_samples
         self.scalar_one = 1 + 0j
         self.n_time_samples_ones = np.asarray([self.scalar_one] * self.n_time_samples)
         self.n_samples_ones = np.asarray([self.scalar_one] * self.n_samples)
@@ -141,8 +141,11 @@ class MultiModeSimulation:
         print(f"{cget(self.multi_time_fronts)[self.n_samples / 2][63]}")
 
     def set(self, params):
+        print("set params")
+        print(params)
         for key, value in params.items():
             if hasattr(self, key):
+                print(f"set {key} = {value}")
                 setattr(self, key, np.asarray(value))
 
     def get(self, params):
@@ -199,7 +202,7 @@ class MultiModeSimulation:
         self.mat_side = calc_original_sim_matrices(self.crystal_shift)
 
         self.fresnel_data = []
-        dx = self.total_range / self.n_samples
+        dx = self.initial_range / self.n_samples
 
         for index_side, side_m in enumerate(self.mat_side):
             A, B, C, D = side_m[0][0], side_m[0][1], side_m[1][0], side_m[1][1]
@@ -239,7 +242,8 @@ class MultiModeSimulation:
 
     # rrrr need fix
     def get_init_front(self, p_par=-1):
-        self.initial_range = 0.00024475293  # Example value, replace with actual value
+
+        #self.initial_range = 0.00024475293  # Example value, replace with actual value
         waist0 = p_par if p_par > 0.0 else 0.00003  # Example value, replace with actual value
         beam_dist = 0.0  # Example value, replace with actual value
         RayleighRange = np.pi * waist0 * waist0 / self.lambda_
@@ -263,6 +267,8 @@ class MultiModeSimulation:
         self.init_gain_by_frequency()
     
     def init_multi_time(self):
+        self.dx0 = self.initial_range / self.n_samples
+
         self.multi_time_fronts_saves = [[], [], [], [], [], []]
         self.n_rounds = 0
         self.steps_counter = 0

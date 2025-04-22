@@ -100,6 +100,7 @@ class MultiModeSimulation:
         self.factor_gain_by_ix = []
         self.ikl = 0.02
         self.ikl_times_i = np.asarray(1j * self.ikl * 160 * 0.000000006)
+        self.x = []
         self.range_w = []
         self.spectral_gain = []
         self.modulator_gain = []
@@ -141,11 +142,9 @@ class MultiModeSimulation:
         print(f"{cget(self.multi_time_fronts)[self.n_samples / 2][63]}")
 
     def set(self, params):
-        print("set params")
         print(params)
         for key, value in params.items():
             if hasattr(self, key):
-                print(f"set {key} = {value}")
                 setattr(self, key, np.asarray(value))
 
     def get(self, params):
@@ -178,23 +177,30 @@ class MultiModeSimulation:
     def modulator_gain_multiply(self):
         self.multi_time_fronts = self.multi_time_fronts * self.modulator_gain
 
-    # rrrr need fix
+    def prepare_x(self):
+        self.x = (np.arange(self.n_samples) - np.asarray(self.n_samples / 2)) * np.asarray(self.dx0)
+
+        # dx = np.asarray(self.initial_range / self.n_samples)
+        # x0 = np.asarray(((self.n_samples) / 2 - 0.5) * dx)
+        # x = (np.arange(self.n_samples) - np.asarray(((self.n_samples) / 2 - 0.5)) * dx
+
+    # rrrr need fix (ok)
     def prepare_gain_pump(self):
         pump_width = np.asarray(0.000030 * 0.5)
         g0 = np.asarray(1 / self.mirror_loss + self.epsilon)
-        x = (np.arange(self.n_samples) - np.asarray(self.n_samples / 2)) * np.asarray(self.dx0)
-        xw = x / pump_width
+        #x = (np.arange(self.n_samples) - np.asarray(self.n_samples / 2)) * np.asarray(self.dx0)
+        xw = self.x / pump_width
         self.pump_gain0 = g0 * np.exp(-xw * xw)
 
-    # rrrr need fix
+    # rrrr need fix (ok)
     def prepare_aperture(self):
         aperture_width = np.asarray(self.aperture * 0.5)
-        x = (np.arange(self.n_samples) - np.asarray(self.n_samples / 2)) * np.asarray(self.dx0)
-        xw = x / aperture_width
+        #x = (np.arange(self.n_samples) - np.asarray(self.n_samples / 2)) * np.asarray(self.dx0)
+        xw = self.x / aperture_width
         self.multi_time_aperture = np.exp(-xw * xw)
 
         diffraction_width = self.multi_time_diffraction_val
-        xw = x / diffraction_width
+        xw = self.x / diffraction_width
         self.multi_time_diffraction = np.exp(-xw * xw)
 
     # rrrr need fix
@@ -261,6 +267,7 @@ class MultiModeSimulation:
         return vf
 
     def update_helpData(self):
+        self.prepare_x()
         self.prepare_linear_fresnel_help_data()
         self.prepare_gain_pump()
         self.prepare_aperture()

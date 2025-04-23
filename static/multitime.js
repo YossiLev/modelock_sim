@@ -634,13 +634,13 @@ function drawTimeNumData(fs, view, canvas) {
         maxV = math.max(fs, 0);
         maxS = math.max(maxV);
         meanV = math.mean(fs, 0);
-        meanS = math.max(meanV) * nSamples;
+        meanS = math.max(meanV) * fs.length;
         meanMean = math.mean(meanV);
-        //maxH = math.max(meanH) * nSamples;
+        //maxH = math.max(meanH) * fs.length;
     }
 
     let sum0;
-    for (let i = 0; i < nSamples; i++) {
+    for (let i = 0; i < fs.length; i++) {
         if (view == 0) {
             if (i == 0) {
                 sum0 = math.clone(fs[i]);
@@ -648,9 +648,9 @@ function drawTimeNumData(fs, view, canvas) {
                 sum0 = math.add(sum0, fs[i]);
             }
         }
-        let off = i * nTimeSamples * 4;
+        let off = i * fs[0].length * 4;
         let line = (view == 0) ? math.dotDivide(fs[i], maxS): fs[i];
-        for (let iTime = 0; iTime < nTimeSamples; iTime++) {
+        for (let iTime = 0; iTime < fs[0].length; iTime++) {
             if (view == 0) {
                 c = Math.floor(line[iTime] * 255.0);
             } else {

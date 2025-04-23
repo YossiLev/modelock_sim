@@ -1,4 +1,10 @@
 document.addEventListener("DOMContentLoaded", function () {
+    initializeDragAndDrop();
+
+    document.body.addEventListener('htmx:afterSwap', function(evt) {
+        initializeDragAndDrop();
+    });
+    
     const fullPageDiv = document.getElementById('fullPage');
 
     function mutationCallback(mutationsList, observer) {
@@ -73,4 +79,57 @@ function randomLCG() {
 }
 function randomLCGSetSeed(seed) {
     randomSeed = seed;
+}
+
+
+function initializeDragAndDrop() {
+    let dragging = null;
+
+    const handles = document.querySelectorAll('.handle');
+    const containers = document.querySelectorAll('.container');
+    handles.forEach(handle => {
+        handle.addEventListener('dragstart', e => {
+            dragging = handle.parentElement;
+            setTimeout(() => dragging.style.display = 'none', 0);
+        });
+
+        handle.addEventListener('dragend', e => {
+            dragging.style.display = '';
+            dragging = null;
+        });
+    });
+
+    containers.forEach(container => {
+        container.addEventListener('dragover', e => {
+            e.preventDefault();
+        });
+
+        container.addEventListener('dragenter', e => {
+            if (container !== dragging) {
+            container.classList.add('drag-over');
+            }
+        });
+
+        container.addEventListener('dragleave', () => {
+            container.classList.remove('drag-over');
+        });
+
+        container.addEventListener('drop', e => {
+            e.preventDefault();
+            container.classList.remove('drag-over');
+
+            if (container !== dragging) {
+                const list = document.getElementById('containerList');
+                const items = Array.from(list.children);
+                const draggedIndex = items.indexOf(dragging);
+                const targetIndex = items.indexOf(container);
+
+                if (draggedIndex < targetIndex) {
+                    list.insertBefore(dragging, container.nextSibling);
+                } else {
+                    list.insertBefore(dragging, container);
+                }
+            }
+        });
+    });
 }

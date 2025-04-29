@@ -241,7 +241,7 @@ def multimode_charts(data_obj):
         Div(collectData(data_obj), id="numData"),
     )
 
-def InputS(id, title, value, step=0.01, width = 80):
+def InputS(id, title, value, step=0.01, width = 50):
     return Input(type="number", id=id, title=title, 
                  value=value, step=f"{step}", 
                  hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
@@ -260,7 +260,9 @@ def generate_multi_on_server(data_obj):
             "lensingFactor": 1.0,
             "modulationGainFactor": 0.0,
             "isFactor": 15000,
-            "crystalShift": 0.0001
+            "crystalShift": 0.0001,
+            "nRounds": 1
+
         }
     else:
         print("params from data_obj")
@@ -276,13 +278,19 @@ def generate_multi_on_server(data_obj):
             "lensingFactor": mmData.lensing_factor,
             "modulationGainFactor": mmData.modulation_gain_factor,
             "isFactor": mmData.is_factor,
-            "crystalShift": mmData.crystal_shift
+            "crystalShift": mmData.crystal_shift,
+            "nRounds": mmData.n_rounds_per_full,
         }
+    n_rounds_options = [1, 10, 100, 300, 1000, 3000, 10000]
+    selected_rounds_option = params["nRounds"]
+    print("selected_rounds_option", selected_rounds_option)
+
     return Div(
-        Div(initBeamType(beamParamInit = 0.00003, beamDistInit = 0.0), 
+        Div(
+            initBeamType(beamParamInit = 0.00003, beamDistInit = 0.0), 
             Button("Init", hx_post=f"/mmInit", hx_include="#nRounds, #multiTimeOptionsForm *", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML", hx_target="#multiModeServer"),
             Button("Full", hx_ext="ws", ws_connect="/mmRun", ws_send=True, hx_include="#nRounds, #multiTimeOptionsForm", hx_vals='js:{localId: getLocalId()}'),
-            Select(Option("1"), Option("10"), Option("100"), Option("300"), Option("1000"), Option("3000"), Option("10000"), id="nRounds", **{'onchange':"nRoundsChanged();"}),
+            Select(*[Option(x, selected=(x == selected_rounds_option)) for x in n_rounds_options], id="nRounds", **{'onchange':"nMaxMatricesChanged();"},),
             Button("Update", hx_put=f"/mmUpdate", hx_include="#multiTimeOptionsForm *", hx_vals='js:{localId: getLocalId()}'),
             Button("Stop", hx_put=f"/mmStop", hx_include="#multiTimeOptionsForm *", hx_vals='js:{localId: getLocalId()}', hx_swap="none"),
             Button("Clear 3D", onclick="ClearPlot3D();"),
@@ -292,36 +300,17 @@ def generate_multi_on_server(data_obj):
         ),
         Div(
             Div(
+                Select(Option("Radial"), Option("1-Dimensional"), id="beamType",),
                 InputS('initialRange', "The range of the wave front (meters)", f'{params["initialRange"]}', step=0.0001, width = 100),
                 InputS('seed', "Random seed", f'{params["seed"]}', step="", width = 100),
-                # Input(type="number", id=f'initialRange', title="The range of the wave front (meters)", value=f'{params["initialRange"]}', step="0.0001", 
-                #         hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", hx_vals='js:{localId: getLocalId()}', style="width:100px;"),
-                # Input(type="number", id=f'seed', title="Random seed", value=f'{params["seed"]}', 
-                #         hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", hx_vals='js:{localId: getLocalId()}', style="width:100px;"),
                 InputS('aperture', "Width of a Gaussian aperture (meters)", f'{params["aperture"]}', step=0.00001, width = 80),
-                # Input(type="number", id=f'aperture', title="Width of a Gaussian aperture (meters)", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
-                #             hx_vals='js:{localId: getLocalId()}', style="width:80px;", value=f'{params["aperture"]}',),
-                InputS('epsilon', "Gain Epsilon", f'{params["epsilon"]}', step=0.01, width = 50),
-                # Input(type="number", id=f'epsilon', title="Gain Epsilon", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
-                #             hx_vals='js:{localId: getLocalId()}', style="width:50px;", value=f'{params["epsilon"]}',),
-                InputS("gainFactor", "Gain factor", f'{params["gainFactor"]}', step=0.01, width = 50),
-                # Input(type="number", id=f'gainFactor', title="Gain factor", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
-                #             hx_vals='js:{localId: getLocalId()}', style="width:50px;", value=f'{params["gainFactor"]}',),
-                InputS("dispersionFactor", "Dispersion factor", f'{params["dispersionFactor"]}', step=0.01, width = 50),
-                # Input(type="number", id=f'dispersionFactor', title="Dispersion factor", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
-                #             hx_vals='js:{localId: getLocalId()}', style="width:50px;", value=f'{params["dispersionFactor"]}',),
-                InputS("lensingFactor", "Kerr lensing factor", f'{params["lensingFactor"]}', step=0.01, width = 50),
-                # Input(type="number", id=f'lensingFactor', title="Kerr lensing factor", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
-                #             hx_vals='js:{localId: getLocalId()}', style="width:50px;", value=f'{params["lensingFactor"]}',),
-                InputS("modulationGainFactor", "Modulation gain factor", f'{params["modulationGainFactor"]}', step=0.01, width = 50),   
-                # Input(type="number", id=f'modulationGainFactor', title="Modulation gain factor", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
-                #             hx_vals='js:{localId: getLocalId()}', style="width:50px;", value=f'{params["modulationGainFactor"]}',),
-                InputS("isFactor", "Intensity saturation factor", f'{params["isFactor"]}', step=0.01, width = 120),
-                # Input(type="number", id=f'isFactor', title="Intensity saturation factor", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
-                #             hx_vals='js:{localId: getLocalId()}', style="width:120px;", value=f'{params["isFactor"]}',),
+                InputS('epsilon', "Gain Epsilon", f'{params["epsilon"]}', step=0.01,),
+                InputS("gainFactor", "Gain factor", f'{params["gainFactor"]}', step=0.01),
+                InputS("dispersionFactor", "Dispersion factor", f'{params["dispersionFactor"]}', step=0.01),
+                InputS("lensingFactor", "Kerr lensing factor", f'{params["lensingFactor"]}', step=0.01),
+                InputS("modulationGainFactor", "Modulation gain factor", f'{params["modulationGainFactor"]}', step=0.01),   
+                InputS("isFactor", "Intensity saturation factor", f'{params["isFactor"]}', step=0.01, width = 60),
                 InputS("crystalShift", "Crystal position shift (mm)", f'{params["crystalShift"]}', step=0.00001, width = 80),
-                # Input(type="number", id=f'crystalShift', title="Crystal position shift (mm)", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *",
-                #             hx_vals='js:{localId: getLocalId()}', style="width:80px;", value=f'{params["crystalShift"]}', step="0.00001",),
                 #Select(Option("256"), Option("512"), Option("1024"), Option("2048"), Option("4096"), id="nSamples",),
                 Input(type="text", id=f'stepsCounter', title="Number of roundtrips made", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
                     style="width:60px; text-align: right", value=f'0', **{'readonly':"readonly"},),

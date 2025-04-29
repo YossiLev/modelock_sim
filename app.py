@@ -421,6 +421,7 @@ async def mmInit(request: Request, localId: str):
     
     form_data = await request.form()  # Get all form fields as a dict-like object
     dataObj['mmData'].set({
+        "beam_type": 0 if form_data.get("beamType") == "1-Dimensional" else 1,
         "seed": - 1 if len(form_data.get("seed").strip()) == 0 else int(form_data.get("seed")),
         "gain_factor": float(form_data.get("gainFactor")),
         "aperture": float(form_data.get("aperture")),
@@ -431,6 +432,7 @@ async def mmInit(request: Request, localId: str):
         "is_factor": float(form_data.get("isFactor")),
         "crystal_shift": float(form_data.get("crystalShift")),
         "initial_range": float(form_data.get("initialRange")),
+        "n_rounds_per_full": int(form_data.get("nRounds")),
         "steps_sounter": 0,
     })
     print(f"initial_range in init {dataObj['mmData'].initial_range}")
@@ -513,6 +515,7 @@ async def mmRun(send, nRounds: str, gainFactor: str, aperture: str, epsilon: str
          "is_factor": float(isFactor),
          "crystal_shift": float(crystalShift),
          "initial_range": float(initialRange),
+         "n_rounds_per_full": int(nRounds),
     #     "steps_counter": int(form_data.get("stepsCounter")),
     })
     dataObj['mmData'].update_helpData()

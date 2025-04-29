@@ -33,18 +33,24 @@ def cylindrical_fresnel_prepare(r, wavelength, M):
     phase_output = np.exp(1j * k * D * r / (2 * B) * r)        # shape (N_r,)
     factor_output = 2 * np.pi * dr * phase_output / (1j * wavelength * B)           # shape (N_r,)
 
-    return np.asarray(kernel), np.asarray(factor_input), np.asarray(factor_output)
+    new_kernel = np.diag(factor_output) @ kernel @ np.diag(factor_input)  # shape (N_r, N_r)
 
-def cylindrical_fresnel_propogate(fronts, params):
-    kernel, factor_input, factor_output = params
+    #return np.asarray(kernel), np.asarray(factor_input), np.asarray(factor_output)
+    return np.asarray(new_kernel)
 
-    U1_weighted = fronts * factor_input                 # shape (N_profiles, N_r)
+def cylindrical_fresnel_propogate(fronts, kernel):
+    #kernel, factor_input, factor_output = params
+    
+    # U1_weighted = fronts * factor_input                 # shape (N_profiles, N_r)
 
-    # Matrix multiplication: (N_profiles, N_r) @ (N_r, N_r)
-    U2_batch = U1_weighted @ kernel                     # shape (N_profiles, N_r)
+    # # Matrix multiplication: (N_profiles, N_r) @ (N_r, N_r)
+    # U2_batch = U1_weighted @ kernel                     # shape (N_profiles, N_r)
 
-    # Multiply each row of result by factor_output
-    return U2_batch * factor_output
+    # # Multiply each row of result by factor_output
+    # return U2_batch * factor_output
+
+
+    return kernel @ fronts
 
 def cget(x):
     return x.get() if hasattr(x, "get") else x
@@ -106,7 +112,7 @@ def serialize_fronts(fs):
 class MultiModeSimulation:
     def __init__(self):
 
-        self.beam_type = 0 # 0 - 1D line, 1 - radial
+        self.beam_type = 1 # 0 - 1D line, 1 - radial
         self.modulation_gain_factor = np.asarray(0.1)
         self.gain_factor = np.asarray(0.50)
         self.epsilon = np.asarray(0.2)
@@ -116,6 +122,7 @@ class MultiModeSimulation:
         self.crystal_shift = np.asarray(0.0)
         self.aperture = np.asarray(0.000056)
 
+        self.n_rounds_per_full = 1
         self.lambda_ = 0.000000780
         self.initial_range = 0.00024475293 # 0.00024475293
         self.multi_ranges = [[], []]
@@ -202,7 +209,6 @@ class MultiModeSimulation:
         self.multi_time_fronts = np.fft.fftshift(np.fft.ifft(np.fft.ifftshift(multi_frequency_fronts, axes=1), axis=1), axes=1)
         self.multi_time_fronts_saves[self.side * 7 + 3] = np.copy(self.multi_time_fronts)
 
-
     def modulator_gain_multiply(self):
         if self.side == 1:
             self.multi_time_fronts = self.multi_time_fronts * self.modulator_gain
@@ -235,7 +241,6 @@ class MultiModeSimulation:
 
         diffraction_width = self.multi_time_diffraction_val
         self.multi_time_diffraction = np.exp(- np.square(self.x / diffraction_width))
-
 
     # rrrr need fix (skip)
     def vectors_for_linear_fresnel(self, M, N, dx0, gain, is_back):
@@ -346,7 +351,6 @@ class MultiModeSimulation:
             fr = np.multiply(rnd, self.get_init_front())
             multi_time_fronts_tr[i_time] = fr
 
-
         self.multi_time_fronts = multi_time_fronts_tr.T
         self.multi_time_fronts_saves[0] = np.copy(self.multi_time_fronts)
 
@@ -382,14 +386,11 @@ class MultiModeSimulation:
     # rrrr need fix (ok)
     def fresnel_progress(self, multi_time_fronts_trans):
 
-        if self.beam_type == 0:
-            for fresnel_side_data in self.fresnel_data[self.side]:
-                vec0 = fresnel_side_data['vecs'][0]
-                vecF = fresnel_side_data['vecs'][1]
-                dx = fresnel_side_data['dx']
-                multi_time_fronts_trans = vecF * np.fft.fftshift(np.fft.fft(np.fft.fftshift(vec0 * multi_time_fronts_trans, axes=1), axis=1), axes=1) * dx
-        else:
-            multi_time_fronts_trans = cylindrical_fresnel_propogate(multi_time_fronts_trans, self.fresnel_data[self.side])
+        for fresnel_side_data in self.fresnel_data[self.side]:
+            vec0 = fresnel_side_data['vecs'][0]
+            vecF = fresnel_side_data['vecs'][1]
+            dx = fresnel_side_data['dx']
+            multi_time_fronts_trans = vecF * np.fft.fftshift(np.fft.fft(np.fft.fftshift(vec0 * multi_time_fronts_trans, axes=1), axis=1), axes=1) * dx
         
         return multi_time_fronts_trans
 
@@ -406,7 +407,13 @@ class MultiModeSimulation:
         multi_time_fronts_trans = gain_factors * multi_time_fronts_trans
         self.multi_time_fronts_saves[self.side * 7 + 5] = np.copy(multi_time_fronts_trans.T)
 
-        self.multi_time_fronts = self.fresnel_progress(multi_time_fronts_trans).T
+        #self.printSamples(name = "before fresnel", sample = multi_time_fronts_trans.T)
+
+        if self.beam_type == 0:
+            self.multi_time_fronts = self.fresnel_progress(multi_time_fronts_trans).T
+        else:
+        #self.printSamples(name = "after fresnel")
+            self.multi_time_fronts = cylindrical_fresnel_propogate(multi_time_fronts_trans.T, self.fresnel_data[self.side])
 
         self.multi_time_fronts_saves[self.side * 7 + 6] = np.copy(self.multi_time_fronts)
 
@@ -433,14 +440,20 @@ class MultiModeSimulation:
             self.multi_time_fronts_saves[i] = np.roll(self.multi_time_fronts_saves[i], roll, axis=1)
 
     def get_x_values(self, sample):
-        stage_data = self.select_source(sample).T
+        source = self.select_source(sample)
+        if source is None:
+            return {}
+        stage_data = source.T
         if isinstance(stage_data, np.ndarray) and len(stage_data) > self.view_on_x:
             fr = cget(stage_data)[self.view_on_x].tolist()
             return {"color": ["red", "blue"][sample], "values": fr, "text": f"M{max(fr):.2f}({fr.index(max(fr))})"}
         return {}
     
     def get_y_values(self, sample):
-        stage_data = self.select_source(sample)
+        source = self.select_source(sample)
+        if source is None:
+            return {}
+        stage_data = source
         if isinstance(stage_data, np.ndarray) and len(stage_data) > self.view_on_y:
             fr = cget(stage_data)[self.view_on_y].tolist()
             fr_mean_and_std = list_mean_and_std(fr)
@@ -453,7 +466,7 @@ class MultiModeSimulation:
             return None
         stage_data = self.multi_time_fronts_saves[fronts_index]
         if (len(stage_data) == 0):
-            return []
+            return None
         if (self.view_on_amp_freq[target] == "Frq"):
             stage_data = np.fft.fftshift(np.fft.fft(np.fft.ifftshift(stage_data, axes=1), axis=1), axes=1)
         if (self.view_on_abs_phase[target] == "Abs"):
@@ -527,7 +540,7 @@ class MultiModeSimulation:
         return s
 
     def serialize_mm_data(self, more):
-        s = json.dumps({
+        data = {
             "more": more,
             "rounds": self.n_rounds,
             "pointer": [self.view_on_sample, self.view_on_x, self.view_on_y],
@@ -544,7 +557,12 @@ class MultiModeSimulation:
                     "view_on_abs_phase": self.view_on_abs_phase,
                 }    
             
-         })
+        }
+        try:
+            s = json.dumps(data)
+        except TypeError as e:
+            print("error: json exeption", data)
+            s = ""
         return s
     def serialize_mm_graphs(self):
         s = json.dumps({

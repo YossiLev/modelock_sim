@@ -106,7 +106,7 @@ def serialize_fronts(fs):
 class MultiModeSimulation:
     def __init__(self):
 
-        self.beam_type = 1 # 0 - 1D line, 1 - radial
+        self.beam_type = 0 # 0 - 1D line, 1 - radial
         self.modulation_gain_factor = np.asarray(0.1)
         self.gain_factor = np.asarray(0.50)
         self.epsilon = np.asarray(0.2)
@@ -211,8 +211,7 @@ class MultiModeSimulation:
     # rrrr need fix (ok)
     def prepare_x(self):
         self.dx0 = self.initial_range / self.n_samples
-        vec = np.arange(self.n_samples) - np.asarray(self.n_samples / 2) if self.beam_type == 0 else (np.arange(self.n_samples) + 0.5)
-        vec = np.arange(self.n_samples) - np.asarray(self.n_samples / 2) if self.beam_type == 0 else (np.arange(self.n_samples) + 0.5)
+        vec = (np.arange(self.n_samples) - np.asarray(self.n_samples / 2)) if self.beam_type == 0 else (np.arange(self.n_samples) + 0.5)
 
         self.x = vec * np.asarray(self.dx0)
 
@@ -256,7 +255,6 @@ class MultiModeSimulation:
         return {'dx': np.asarray(dx0), 'vecs': [vec0, vecF]}
     
     # rrrr need fix (skip)
-    # rrrr need fix (skip)
     def prepare_linear_fresnel_help_data(self):
         self.mat_side = calc_original_sim_matrices(self.crystal_shift)
 
@@ -275,7 +273,6 @@ class MultiModeSimulation:
             fresnel_side_data = []
             for index, M in enumerate([M1, M2]):
                 loss = self.mirror_loss if index == 0 and index_side == 1 else 1
-                fresnel_side_data.append(self.vectors_for_linear_fresnel(M, self.n_samples, dx, loss, M[0][0] < 0))
                 fresnel_side_data.append(self.vectors_for_linear_fresnel(M, self.n_samples, dx, loss, M[0][0] < 0))
                 dx = M[0][1] * self.lambda_ / (self.n_samples * dx)
 
@@ -361,13 +358,6 @@ class MultiModeSimulation:
             bin_intencity = np.multiply(bin_intencity, self.x)
         return np.sum(bin_intencity, axis=1, keepdims=True)
     
-
-    def front_power(self, bin_field):
-        bin_intencity = np.square(np.abs(bin_field))
-        if (self.beam_type == 1):
-            bin_intencity = np.multiply(bin_intencity, self.x)
-        return np.sum(bin_intencity, axis=1, keepdims=True)
-    
     def phase_change_during_kerr(self):
         self.multi_time_fronts_saves[self.side * 7 + 0] = np.copy(self.multi_time_fronts)
 
@@ -383,15 +373,12 @@ class MultiModeSimulation:
 
         multi_time_fronts_trans = self.multi_time_fronts.T
         p_fr_before = self.front_power(multi_time_fronts_trans)
-        p_fr_before = self.front_power(multi_time_fronts_trans)
         fr_after = multi_time_fronts_trans * self.multi_time_aperture
-        p_fr_after = self.front_power(fr_after)
         p_fr_after = self.front_power(fr_after)
         multi_time_fronts_trans = fr_after * np.sqrt(p_fr_before / p_fr_after)
         self.multi_time_fronts = multi_time_fronts_trans.T
         self.multi_time_fronts_saves[self.side * 7 + 2] = np.copy(self.multi_time_fronts)
 
-    # rrrr need fix (ok)
     # rrrr need fix (ok)
     def fresnel_progress(self, multi_time_fronts_trans):
 
@@ -402,8 +389,7 @@ class MultiModeSimulation:
                 dx = fresnel_side_data['dx']
                 multi_time_fronts_trans = vecF * np.fft.fftshift(np.fft.fft(np.fft.fftshift(vec0 * multi_time_fronts_trans, axes=1), axis=1), axes=1) * dx
         else:
-            multi_time_fronts_trans = cylindrical_fresnel_propogate(multi_time_fronts_trans, self.fresnel_data[self.side]) * 2 * np.pi
-            multi_time_fronts_trans = cylindrical_fresnel_propogate(multi_time_fronts_trans, self.fresnel_data[self.side]) * 2 * np.pi
+            multi_time_fronts_trans = cylindrical_fresnel_propogate(multi_time_fronts_trans, self.fresnel_data[self.side])
         
         return multi_time_fronts_trans
 
@@ -420,9 +406,7 @@ class MultiModeSimulation:
         multi_time_fronts_trans = gain_factors * multi_time_fronts_trans
         self.multi_time_fronts_saves[self.side * 7 + 5] = np.copy(multi_time_fronts_trans.T)
 
-
         self.multi_time_fronts = self.fresnel_progress(multi_time_fronts_trans).T
-
 
         self.multi_time_fronts_saves[self.side * 7 + 6] = np.copy(self.multi_time_fronts)
 
@@ -465,6 +449,8 @@ class MultiModeSimulation:
     
     def select_source(self, target):
         fronts_index = int(self.view_on_stage[target]) - 1
+        if (fronts_index >= len(self.multi_time_fronts_saves)):
+            return None
         stage_data = self.multi_time_fronts_saves[fronts_index]
         if (len(stage_data) == 0):
             return []
@@ -549,7 +535,7 @@ class MultiModeSimulation:
                 [
                     {"name": "funCanvasSample1", "samples": serialize_fronts(self.select_source(0))},
                     {"name": "funCanvasSample2", "samples": serialize_fronts(self.select_source(1))}
-                ],
+                ] if (self.select_source(0) is not None and self.select_source(1) is not None) else [],
             "graphs": self.serialize_mm_graphs_data(),
             "view_buttons": 
                 {

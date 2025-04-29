@@ -167,7 +167,7 @@ def initBeamType(beamParamInit = 0.0005, beamDistInit = 0.0):
     )
 
 def collectData(data_obj, more=False):
-    if (data_obj is None):
+    if data_obj is None:
         return Div()
     mmData = data_obj["mmData"]
     mmDataSer = mmData.serialize_mm_data(more)

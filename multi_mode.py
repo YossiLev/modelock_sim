@@ -184,15 +184,6 @@ class MultiModeSimulation:
         print(f"{sample[0][63]}     --- np.abs = {np.abs(sample[0][63])} --- power = {power[63]}") 
         print(f"{sample[0][163]}    --- np.abs = {np.abs(sample[0][163])} --- power = {power[163]}")
         print(f"{sample[0][263]}    --- np.abs = {np.abs(sample[0][263])} --- power = {power[263]}")
-    def printSamples(self, name = "", sample = None):
-        if sample is None:
-            sample = self.multi_time_fronts
-        print("----------------------------------", name, "----------------------------------")
-        power = self.front_power(sample.T)
-        sample = cget(sample)
-        print(f"{sample[0][63]}     --- np.abs = {np.abs(sample[0][63])} --- power = {power[63]}") 
-        print(f"{sample[0][163]}    --- np.abs = {np.abs(sample[0][163])} --- power = {power[163]}")
-        print(f"{sample[0][263]}    --- np.abs = {np.abs(sample[0][263])} --- power = {power[263]}")
 
     def set(self, params):
         print(params)
@@ -247,8 +238,6 @@ class MultiModeSimulation:
         self.multi_time_diffraction = np.exp(- np.square(self.x / diffraction_width))
 
 
-    # rrrr need fix (skip)
-    def vectors_for_linear_fresnel(self, M, N, dx0, gain, is_back):
     # rrrr need fix (skip)
     def vectors_for_linear_fresnel(self, M, N, dx0, gain, is_back):
         A, B = M[0]
@@ -390,7 +379,6 @@ class MultiModeSimulation:
         self.multi_time_fronts *= np.exp(phase_shift1)
         self.ps[self.side] = phase_shift1[:, self.view_on_x].imag
 
-        self.printSamples("after kerr only")
         self.multi_time_fronts_saves[self.side * 7 + 1] = np.copy(self.multi_time_fronts)
 
         multi_time_fronts_trans = self.multi_time_fronts.T
@@ -432,40 +420,23 @@ class MultiModeSimulation:
         multi_time_fronts_trans = gain_factors * multi_time_fronts_trans
         self.multi_time_fronts_saves[self.side * 7 + 5] = np.copy(multi_time_fronts_trans.T)
 
-        self.printSamples("after gain", multi_time_fronts_trans.T)
-        self.printSamples("after gain", multi_time_fronts_trans.T)
+
         self.multi_time_fronts = self.fresnel_progress(multi_time_fronts_trans).T
-        self.printSamples("after fresnel", self.multi_time_fronts)
-        self.printSamples("after fresnel", self.multi_time_fronts)
+
 
         self.multi_time_fronts_saves[self.side * 7 + 6] = np.copy(self.multi_time_fronts)
 
     def multi_time_round_trip(self):
         self.n_rounds += 1
 
-        self.printSamples("Start")
-
-        self.printSamples("Start")
-
         for self.side in [0, 1]:
             self.phase_change_during_kerr()
-            self.printSamples("after kerr")
-            self.printSamples("after kerr")
 
             self.spectral_gain_dispersion()
-            self.printSamples("after dispersion")
-            self.printSamples("after dispersion")
-
 
             self.modulator_gain_multiply()
 
-
             self.linear_cavity_one_side()
-            self.printSamples(f"after side {self.side}")
-
-            self.printSamples(f"after side {self.side}")
-
-
 
     def center_multi_time(self):
         a = np.sum(np.square(np.abs(self.multi_time_fronts)), 0)
@@ -595,4 +566,3 @@ class MultiModeSimulation:
             "graphs": self.serialize_mm_graphs_data(),
             })
         return s
-

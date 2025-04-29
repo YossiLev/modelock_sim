@@ -31,7 +31,7 @@ def cylindrical_fresnel_prepare(r, wavelength, M):
     phase_input = np.exp(1j * k * A * r / (2 * B) * r)        # shape (N_r,)
     factor_input = phase_input * r
     phase_output = np.exp(1j * k * D * r / (2 * B) * r)        # shape (N_r,)
-    factor_output = dr * phase_output / (1j * wavelength * B)           # shape (N_r,)
+    factor_output = 2 * np.pi * dr * phase_output / (1j * wavelength * B)           # shape (N_r,)
 
     return np.asarray(kernel), np.asarray(factor_input), np.asarray(factor_output)
 
@@ -120,7 +120,8 @@ class MultiModeSimulation:
         self.initial_range = 0.00024475293 # 0.00024475293
         self.multi_ranges = [[], []]
         # rrrr need fix (ok)
-        self.n_samples = 256 if self.beam_type == 0 else 128
+        #self.n_samples = 256 if self.beam_type == 0 else 128
+        self.n_samples = 256
         self.n_max_matrices = 1000
         self.n_rounds = 0
         self.seed = -1
@@ -129,7 +130,7 @@ class MultiModeSimulation:
         self.steps_counter = 0
         self.n_time_samples = 1024
         self.multi_time_fronts = []
-        self.multi_time_fronts_saves = [[], [], [], [], [], []]
+        self.multi_time_fronts_saves = []
 
         self.intensity_saturation_level = 400000000000000.0
         self.intensity_total_by_ix = []
@@ -172,6 +173,7 @@ class MultiModeSimulation:
         #                 [[1.1589E+00, 8.2207E-04], [2.9333E+02, 1.0709E+00]]]    # left
 
         self.mat_side = calc_original_sim_matrices()
+        self.prepare_x()
 
     def printSamples(self, name = "", sample = None):
         if sample is None:
@@ -198,9 +200,13 @@ class MultiModeSimulation:
     def spectral_gain_dispersion(self):
         multi_frequency_fronts = np.fft.fftshift(np.fft.fft(np.fft.ifftshift(self.multi_time_fronts, axes=1), axis=1), axes=1) * self.frequency_total_mult_factor
         self.multi_time_fronts = np.fft.fftshift(np.fft.ifft(np.fft.ifftshift(multi_frequency_fronts, axes=1), axis=1), axes=1)
+        self.multi_time_fronts_saves[self.side * 7 + 3] = np.copy(self.multi_time_fronts)
+
 
     def modulator_gain_multiply(self):
-        self.multi_time_fronts = self.multi_time_fronts * self.modulator_gain
+        if self.side == 1:
+            self.multi_time_fronts = self.multi_time_fronts * self.modulator_gain
+        self.multi_time_fronts_saves[self.side * 7 + 4] = np.copy(self.multi_time_fronts)
 
     # rrrr need fix (ok)
     def prepare_x(self):
@@ -324,7 +330,7 @@ class MultiModeSimulation:
     def init_multi_time(self):
         self.prepare_x()
 
-        self.multi_time_fronts_saves = [[], [], [], [], [], []]
+        self.multi_time_fronts_saves = [[]] * 14
         self.n_rounds = 0
         self.steps_counter = 0
 
@@ -353,6 +359,8 @@ class MultiModeSimulation:
         return np.sum(bin_intencity, axis=1, keepdims=True)
     
     def phase_change_during_kerr(self):
+        self.multi_time_fronts_saves[self.side * 7 + 0] = np.copy(self.multi_time_fronts)
+
         total_kerr_lensing = np.multiply(self.lensing_factor, self.ikl_times_i)
 
         bin2 = np.square(np.abs(self.multi_time_fronts))
@@ -361,9 +369,7 @@ class MultiModeSimulation:
         self.multi_time_fronts *= np.exp(phase_shift1)
         self.ps[self.side] = phase_shift1[:, self.view_on_x].imag
 
-        self.printSamples("after kerr only")
-
-        self.multi_time_fronts_saves[self.side * 3 + 0] = np.copy(self.multi_time_fronts)
+        self.multi_time_fronts_saves[self.side * 7 + 1] = np.copy(self.multi_time_fronts)
 
         multi_time_fronts_trans = self.multi_time_fronts.T
         p_fr_before = self.front_power(multi_time_fronts_trans)
@@ -371,6 +377,7 @@ class MultiModeSimulation:
         p_fr_after = self.front_power(fr_after)
         multi_time_fronts_trans = fr_after * np.sqrt(p_fr_before / p_fr_after)
         self.multi_time_fronts = multi_time_fronts_trans.T
+        self.multi_time_fronts_saves[self.side * 7 + 2] = np.copy(self.multi_time_fronts)
 
     # rrrr need fix (ok)
     def fresnel_progress(self, multi_time_fronts_trans):
@@ -388,7 +395,6 @@ class MultiModeSimulation:
 
     # rrrr need fix (ok)
     def linear_cavity_one_side(self):
-        self.multi_time_fronts_saves[self.side * 3 + 1] = np.copy(self.multi_time_fronts)
 
         Is = self.is_factor
         self.gain_reduction = np.real(np.multiply(self.pump_gain0, np.divide(self.n_samples_ones, 1 + np.divide(self.sum_power_ix, Is * self.n_time_samples))))
@@ -398,12 +404,13 @@ class MultiModeSimulation:
         multi_time_fronts_trans = self.multi_time_fronts.T
         gain_factors = self.gain_reduction_after_diffraction
         multi_time_fronts_trans = gain_factors * multi_time_fronts_trans
+        self.multi_time_fronts_saves[self.side * 7 + 5] = np.copy(multi_time_fronts_trans.T)
 
         self.printSamples("after gain", multi_time_fronts_trans.T)
         self.multi_time_fronts = self.fresnel_progress(multi_time_fronts_trans).T
         self.printSamples("after fresnel", self.multi_time_fronts)
 
-        self.multi_time_fronts_saves[self.side * 3 + 2] = np.copy(self.multi_time_fronts)
+        self.multi_time_fronts_saves[self.side * 7 + 6] = np.copy(self.multi_time_fronts)
 
     def multi_time_round_trip(self):
         self.n_rounds += 1
@@ -417,10 +424,7 @@ class MultiModeSimulation:
             self.spectral_gain_dispersion()
             self.printSamples("after dispersion")
 
-            if self.side == 1:
-                self.modulator_gain_multiply()
-                self.printSamples("after modulator")
-
+            self.modulator_gain_multiply()
 
             self.linear_cavity_one_side()
             self.printSamples(f"after side {self.side}")
@@ -505,7 +509,8 @@ class MultiModeSimulation:
         
 
     def serialize_mm_graphs_data(self):
-        if self.n_rounds < 3:
+        if self.n_rounds < 1:
+            print("No data to serialize")
             return []
         sample = self.view_on_sample
         ps = [cget(self.ps[0]), cget(self.ps[1])]

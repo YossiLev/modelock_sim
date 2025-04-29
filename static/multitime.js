@@ -982,7 +982,7 @@ function spreadUpdatedData(data) {
     }
     if (data.view_buttons) {
         for (let part in [0, 1]) {
-            for (let i = 0; i < 6; i++) {
+            for (let i = 0; i < 14; i++) {
                 but = document.getElementById(`view_button-${part}-${i + 1}`);  
                 if (data.view_buttons.view_on_stage[part] == `${i + 1}`) {
                     but.classList.add("buttonH");

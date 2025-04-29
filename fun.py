@@ -181,7 +181,7 @@ def ViewButtons(data_obj, part):
     if (data_obj is not None):
         mmData = data_obj["mmData"]
     return Div(
-        *[ViewButton(f"{x}", part, data_obj and mmData.view_on_stage[part] == f"{x}") for x in range(1, 7)],
+        *[ViewButton(f"{x}", part, data_obj and mmData.view_on_stage[part] == f"{x}") for x in range(1, 15)],
         Div("", style="width:20px; display:inline-block;"),
         ViewButton("Frq", part, data_obj and mmData.view_on_amp_freq[part] == "Frq"),
         ViewButton("Amp", part, data_obj and mmData.view_on_amp_freq[part] == "Amp"),

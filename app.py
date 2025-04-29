@@ -479,7 +479,7 @@ async def mmView(part: int, action: str, localId: str):
             mmData.view_on_amp_freq[part] = action
         case "Abs" | "Phs":
             mmData.view_on_abs_phase[part] = action
-        case "1" | "2" | "3" | "4" | "5" | "6":
+        case "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "10" | "11" | "12" | "13" | "14":
             mmData.view_on_stage[part] = action
 
     return collectData(dataObj)

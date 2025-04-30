@@ -440,7 +440,6 @@ async def mmInit(request: Request, localId: str):
     print(f"after init_multi_time")
     
     return generate_multi_on_server(dataObj)
-    #return collectData(dataObj)
 
 @app.post("/mmUpdate")
 async def mmUpdate(request: Request, localId: str):
@@ -535,7 +534,7 @@ async def mmRun(send, nRounds: str, gainFactor: str, aperture: str, epsilon: str
                 last_sent = i + 1
                 if last_sent >= count:
                     dataObj['run_state'] = False
-                await send(Div(collectData(dataObj, more=last_sent < count), id="numData"))
+                await send(Div(collectData(dataObj, 0, more=last_sent < count), id="numData"))
                 await asyncio.sleep(0.001)
             except Exception as e:
                 print(f"Error sending data: {e}")

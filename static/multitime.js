@@ -958,7 +958,8 @@ function spreadUpdatedData(data) {
     }
     if (data.samples) {
         for (sample of data.samples) {
-            drawTimeNumData(openVec(sample.samples), 0, document.getElementById(sample.name));
+            canvas = document.getElementById(sample.name);
+            drawTimeNumData(openVec(sample.samples), 0, canvas);
         }
     }
     if (data.pointer) {
@@ -1015,7 +1016,12 @@ function numDataMutated() {
     if (s.length > 0) {
         data = JSON.parse(s);
         numData.innerText = "";
-        spreadUpdatedData(data)
-
+        if (data.delay > 0) {
+            setTimeout(() => {
+                spreadUpdatedData(data);
+            }, data.delay);
+        } else {
+            spreadUpdatedData(data);
+        }
     }
 }

@@ -516,7 +516,7 @@ class MultiModeSimulation:
 
     def serialize_mm_graphs_data(self):
         if self.n_rounds < 1:
-            print("No data to serialize")
+            print("No graph data to serialize")
             return []
         sample = self.view_on_sample
         ps = [cget(self.ps[0]), cget(self.ps[1])]
@@ -539,16 +539,22 @@ class MultiModeSimulation:
             ]
         return s
 
-    def serialize_mm_data(self, more):
+    def serialize_mm_fronts_data(self):
+        samples = []
+        for i in range(2):
+            source = self.select_source(i)
+            if source is not None:
+                sample = serialize_fronts(source)
+                samples.append({"name": f"funCanvasSample{i + 1}", "samples": sample})
+        return samples
+
+    def serialize_mm_data(self, delay, more):
         data = {
+            "delay": delay,
             "more": more,
             "rounds": self.n_rounds,
             "pointer": [self.view_on_sample, self.view_on_x, self.view_on_y],
-            "samples": 
-                [
-                    {"name": "funCanvasSample1", "samples": serialize_fronts(self.select_source(0))},
-                    {"name": "funCanvasSample2", "samples": serialize_fronts(self.select_source(1))}
-                ] if (self.select_source(0) is not None and self.select_source(1) is not None) else [],
+            "samples": self.serialize_mm_fronts_data(),
             "graphs": self.serialize_mm_graphs_data(),
             "view_buttons": 
                 {

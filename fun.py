@@ -20,12 +20,6 @@ def ver_func(l):
 
     return vf
 
-# def InputN(type, id, placeholder="", step="0.01", style="width:50px;", value="", name="", dir):
-#     Span(
-#         Input(type=type, id=id, placeholder=placeholder, step=step, style=style, value=value, dir), 
-#         Span(name)
-#     )
-
 def draw_single_front(draw: ImageDraw, px, py, w, h, n, vec):
     for i in range(n):
         c = math.floor(vec[i] * 255)
@@ -166,28 +160,48 @@ def initBeamType(beamParamInit = 0.0005, beamDistInit = 0.0):
         style="display:inline-block;"
     )
 
-def collectData(data_obj, more=False):
+def collectData(data_obj, delay=0, more=False):
     if data_obj is None:
         return Div()
     mmData = data_obj["mmData"]
-    mmDataSer = mmData.serialize_mm_data(more)
+    mmDataSer = mmData.serialize_mm_data(delay, more)
     return Div(mmDataSer, style="height:1px; overflow:hidden;")
 
-def ViewButton(label, part, highlight):
-    return Button(label, id=f"view_button-{part}-{label}", hx_post=f"/mmView/{part}/{label}", hx_vals='js:{localId: getLocalId()}', 
+def ViewButton(label, title, part, highlight):
+    titles = ["Before entering the crystal", 
+              "After Kerr non-linear phase shift (lensing)", 
+              "After power preserving soft aperture", 
+              "After frequency gain and dispaersion", 
+              "After active gain modulation",
+              "After gain saturaion and diffreaction",
+              "After linear propoagation in cavity arm"]
+    titles_side =[" propogating to right", " propogating to left"]
+    return Button(label, id=f"view_button-{part}-{label}", title=title, 
+                  hx_post=f"/mmView/{part}/{label}", hx_vals='js:{localId: getLocalId()}', 
                   hx_swap="innerHTML", hx_target="#numData", cls=("buttonH" if highlight else ""))
+
+def num_but_title(label):
+    titles = ["Before entering the crystal", 
+              "After Kerr non-linear phase shift (lensing)", 
+              "After power preserving soft aperture", 
+              "After frequency gain and dispersion", 
+              "After active gain modulation",
+              "After gain saturaion and diffreaction",
+              "After linear propoagation in cavity arm"]
+    titles_side =[" (propogating to right)", " (propogating to left)"]
+    return titles[(label - 1) % 7] + titles_side[(label - 1) // 7]
 
 def ViewButtons(data_obj, part):
     if (data_obj is not None):
         mmData = data_obj["mmData"]
     return Div(
-        *[ViewButton(f"{x}", part, data_obj and mmData.view_on_stage[part] == f"{x}") for x in range(1, 15)],
+        *[ViewButton(f"{x}", num_but_title(x), part, data_obj and mmData.view_on_stage[part] == f"{x}") for x in range(1, 15)],
         Div("", style="width:20px; display:inline-block;"),
-        ViewButton("Frq", part, data_obj and mmData.view_on_amp_freq[part] == "Frq"),
-        ViewButton("Amp", part, data_obj and mmData.view_on_amp_freq[part] == "Amp"),
+        ViewButton("Frq", "Frequency analysis of the pixel along time", part, data_obj and mmData.view_on_amp_freq[part] == "Frq"),
+        ViewButton("Amp", "electric field at this pixel", part, data_obj and mmData.view_on_amp_freq[part] == "Amp"),
         Div("", style="width:20px; display:inline-block;"),
-        ViewButton("Phs", part, data_obj and mmData.view_on_abs_phase[part] == "Phs"),
-        ViewButton("Abs", part, data_obj and mmData.view_on_abs_phase[part] == "Abs"),
+        ViewButton("Phs", "Phase of the complex data", part, data_obj and mmData.view_on_abs_phase[part] == "Phs"),
+        ViewButton("Abs", "Absolute value of the complex data", part, data_obj and mmData.view_on_abs_phase[part] == "Abs"),
         style="display:inline-block;"
     )
 
@@ -238,7 +252,7 @@ def multimode_charts(data_obj):
         # Button("Progress right", onclick="progressMultiTime(2)"),
         # funCanvas("Test", width=1400, height=mmData.n_samples, useZoom=True),
         # graphCanvas(width=1400),
-        Div(collectData(data_obj), id="numData"),
+        Div(collectData(data_obj, 500), id="numData"),
     )
 
 def InputS(id, title, value, step=0.01, width = 50):
@@ -251,6 +265,7 @@ def generate_multi_on_server(data_obj):
     if (data_obj is None or data_obj["mmData"] is None):
         print("params from No data")
         params = {
+            "beamType": 0,
             "initialRange": 0.001, #0.00024475293,
             "seed": 0,
             "aperture": 0.000056,
@@ -269,6 +284,7 @@ def generate_multi_on_server(data_obj):
         mmData = data_obj["mmData"]
         print(f"initial_range: {mmData.initial_range}")
         params = {
+            "beamType": mmData.beam_type,
             "initialRange": mmData.initial_range,
             "seed": mmData.seed,
             "aperture": mmData.aperture,
@@ -290,7 +306,7 @@ def generate_multi_on_server(data_obj):
             initBeamType(beamParamInit = 0.00003, beamDistInit = 0.0), 
             Button("Init", hx_post=f"/mmInit", hx_include="#nRounds, #multiTimeOptionsForm *", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML", hx_target="#multiModeServer"),
             Button("Full", hx_ext="ws", ws_connect="/mmRun", ws_send=True, hx_include="#nRounds, #multiTimeOptionsForm", hx_vals='js:{localId: getLocalId()}'),
-            Select(*[Option(x, selected=(x == selected_rounds_option)) for x in n_rounds_options], id="nRounds", **{'onchange':"nMaxMatricesChanged();"},),
+            Select(*[Option(x, selected="1") if (x == selected_rounds_option) else Option(x) for x in n_rounds_options], id="nRounds", **{'onchange':"nMaxMatricesChanged();"},),
             Button("Update", hx_put=f"/mmUpdate", hx_include="#multiTimeOptionsForm *", hx_vals='js:{localId: getLocalId()}'),
             Button("Stop", hx_put=f"/mmStop", hx_include="#multiTimeOptionsForm *", hx_vals='js:{localId: getLocalId()}', hx_swap="none"),
             Button("Clear 3D", onclick="ClearPlot3D();"),
@@ -300,7 +316,8 @@ def generate_multi_on_server(data_obj):
         ),
         Div(
             Div(
-                Select(Option("Radial"), Option("1-Dimensional"), id="beamType",),
+                Select(Option("Radial", selected="1") if params["beamType"] == 1 else Option("Radial"),
+                        Option("1-Dimensional", selected="1") if params["beamType"] == 0 else Option("1-Dimensional"), id="beamType",),
                 InputS('initialRange', "The range of the wave front (meters)", f'{params["initialRange"]}', step=0.0001, width = 100),
                 InputS('seed', "Random seed", f'{params["seed"]}', step="", width = 100),
                 InputS('aperture', "Width of a Gaussian aperture (meters)", f'{params["aperture"]}', step=0.00001, width = 80),

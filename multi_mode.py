@@ -17,7 +17,6 @@ def cylindrical_fresnel_prepare(r, wavelength, M):
     A, B = M[0]
     C, D = M[1]
     k = 2 * np.pi / wavelength
-    #N_profiles, N_r = U1_batch.shape
 
     # Assume linear spacing of r
     dr = r[1] - r[0]
@@ -475,6 +474,17 @@ class MultiModeSimulation:
             stage_data = np.angle(stage_data)
         return stage_data
     
+    def focus_front(self, fr):
+        if (self.beam_type == 0):
+            q = len(fr) // 4
+            x_original = np.linspace(0, 1, len(fr) // 2)
+            x_new = np.linspace(0, 1, len(fr))
+            return np.interp(x_new, x_original, fr[q:3*q]).tolist()
+        else:
+            q = len(fr) // 2
+            a = fr[:q]
+            return a[::-1] + a
+        
     def get_kerr_influence(self, batch, direction):
         if (self.beam_type != 0):
             return []
@@ -513,6 +523,13 @@ class MultiModeSimulation:
                 {"color": "green", "values": fr_after[1], "text": f"with Kerr({max(fr_after[1]):.2f})"},
                 {"color": "red", "values": fr_after[0], "text": f"without Kerr({max(fr_after[0]):.2f})"}]
         
+    def get_saturation_graph_data(self):
+        return [{"color": "red", "values": self.focus_front(cget(self.pump_gain0).tolist()), "text": f"pump_gain0"},
+                {"color": "blue", "values": self.focus_front(cget(self.gain_reduction).tolist()), "text": f"gain_reduction"},
+                # {"color": "green", "values": cget(self.gain_reduction_with_origin), "text": f"gain_reduction_with_origin"},
+                # {"color": "purple", "values": cget(self.gain_reduction_after_aperture), "text": f"gain_reduction_after_aperture"},
+                # {"color": "black", "values": cget(self.gain_reduction_after_diffraction), "text": f"gain_reduction_after_diffraction"}
+        ]
 
     def serialize_mm_graphs_data(self):
         if self.n_rounds < 1:
@@ -525,8 +542,9 @@ class MultiModeSimulation:
         psr = cget(psr).tolist()
         psb = cget(psb).tolist()
         s = [
-                {"name": "gr1", "lines": self.get_kerr_influence(0, 0)},
-                {"name": "gr2", "lines": self.get_kerr_influence(3, 1)},
+                {"name": "gr1", "lines": self.get_saturation_graph_data()},
+                # {"name": "gr1", "lines": self.get_kerr_influence(0, 0)},
+                # {"name": "gr2", "lines": self.get_kerr_influence(3, 1)},
                 {"name": "gr3", "lines": [self.get_x_values(sample),
                                           self.get_x_values(1 - sample)]},
                 {"name": "gr4", "lines": [{"color": ["red", "blue"][sample], "values": psr, 

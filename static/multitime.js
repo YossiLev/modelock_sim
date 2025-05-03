@@ -910,9 +910,21 @@ var currentPlot3dValues = [];
 var plots3dObject = [];
 
 function drawPlot3d() {
+    scene = {xaxis: {title: 'Round'}, yaxis: {title: 'Cavity Z'}, zaxis: {title: 'Abs(E'}}
+
+    if (plots3dObject.length > 1) {
+        let graphDiv = document.getElementById('plotData1');
+        try {
+            camera = graphDiv.layout.scene.camera;
+            scene.camera = camera;
+        } catch (e) {
+            console.log("No camera");
+        }
+    }
+    
     Plotly.newPlot('plotData1', plots3dObject, {
         margin: { l: 0, r: 0, t: 0, b: 0 },
-        scene: {xaxis: {title: 'X'}, yaxis: {title: 'Y'}, zaxis: {title: 'Z'}}
+        scene: scene
     });
 }
 
@@ -970,12 +982,16 @@ function spreadUpdatedData(data) {
         for (graph of data.graphs) {
             let clear = true;
             for (line of graph.lines) {
-                drawVector(line.values, clear, line.color, 1, true, graph.name, "",  0, line.text, 1, backColor);
+                drawVector(line.values, clear, line.color, 1, true, graph.name, "",  0, line.text, 
+                    Object.hasOwn(line, 'zoomx') ? line.zoomx : 1, backColor);
                 clear = false;
             }
             if (graph.name == "gr5") {
                 if (graph.lines.length > 0) {
                     currentPlot3dValues = graph.lines[0].values;
+                    if (document.getElementById("cbxAutoRecord").checked) {
+                        AddPlot3D();
+                    }
                 }
             }
         }

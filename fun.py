@@ -311,6 +311,7 @@ def generate_multi_on_server(data_obj):
             Button("Stop", hx_put=f"/mmStop", hx_include="#multiTimeOptionsForm *", hx_vals='js:{localId: getLocalId()}', hx_swap="none"),
             Button("Clear 3D", onclick="ClearPlot3D();"),
             Button("Add 3D", onclick="AddPlot3D();"),
+            Label(Input(id="cbxAutoRecord", type='checkbox', checked=False), "Auto 3D"),
             Button("Center", hx_post=f"/mmCenter", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML", hx_target="#numData"),
 
         ),

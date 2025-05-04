@@ -263,7 +263,6 @@ def InputS(id, title, value, step=0.01, width = 50):
 
 def generate_multi_on_server(data_obj):
     if (data_obj is None or data_obj["mmData"] is None):
-        print("params from No data")
         params = {
             "beamType": 0,
             "initialRange": 0.001, #0.00024475293,
@@ -280,9 +279,7 @@ def generate_multi_on_server(data_obj):
 
         }
     else:
-        print("params from data_obj")
         mmData = data_obj["mmData"]
-        print(f"initial_range: {mmData.initial_range}")
         params = {
             "beamType": mmData.beam_type,
             "initialRange": mmData.initial_range,
@@ -299,7 +296,6 @@ def generate_multi_on_server(data_obj):
         }
     n_rounds_options = [1, 10, 100, 300, 1000, 3000, 10000]
     selected_rounds_option = params["nRounds"]
-    print("selected_rounds_option", selected_rounds_option)
 
     return Div(
         Div(

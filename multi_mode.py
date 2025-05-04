@@ -91,8 +91,8 @@ def calc_original_sim_matrices(crystal_shift=0.0):
                         m_dist(0.5), m_lens(0.075), m_dist(0.075), m_dist(0.001 - position_lens))
 
     mat_side = [m_short, m_long]
-    print(f"MShort = {m_short}")
-    print(f"MLong = {m_long}")
+    print(f"MShort = {m_short[0][0]:11.6f}, {m_short[0][1]:11.6f}, {m_short[1][0]:11.6f}, {m_short[1][1]:11.6f}")
+    print(f" MLong = {m_long[0][0]:11.6f}, {m_long[0][1]:11.6f}, {m_long[1][0]:11.6f}, {m_long[1][1]:11.6f}")
 
     return mat_side
 
@@ -163,6 +163,7 @@ class MultiModeSimulation:
         self.fresnel_data = []
         #self.total_range = 0.001000
         self.dx0 = self.initial_range / self.n_samples
+        print(f"++++ A dx0 = {self.dx0}")
         self.scalar_one = 1 + 0j
         self.n_time_samples_ones = np.asarray([self.scalar_one] * self.n_time_samples)
         self.n_samples_ones = np.asarray([self.scalar_one] * self.n_samples)
@@ -216,6 +217,8 @@ class MultiModeSimulation:
     # rrrr need fix (ok)
     def prepare_x(self):
         self.dx0 = self.initial_range / self.n_samples
+        print(f"++++ B dx0 = {self.dx0}")
+
         vec = (np.arange(self.n_samples) - np.asarray(self.n_samples / 2)) if self.beam_type == 0 else (np.arange(self.n_samples) + 0.5)
 
         self.x = vec * np.asarray(self.dx0)
@@ -274,11 +277,14 @@ class MultiModeSimulation:
                 M2 = [[-A, -B / (-A + 1)], [-C, -D - C * B / (-A + 1)]]
                 M1 = [[-1, B / (-A + 1)], [0, -1]]
 
+            print(f"M1 = {M1[0][0]:11.6f}, {M1[0][1]:11.6f}, {M1[1][0]:11.6f}, {M1[1][1]:11.6f} dx = {M1[0][1] * self.lambda_ / (self.n_samples * dx)} dx0 = {dx}")
+            print(f"M2 = {M2[0][0]:11.6f}, {M2[0][1]:11.6f}, {M2[1][0]:11.6f}, {M2[1][1]:11.6f}")
             fresnel_side_data = []
             for index, M in enumerate([M1, M2]):
                 loss = self.mirror_loss if index == 0 and index_side == 1 else 1
                 fresnel_side_data.append(self.vectors_for_linear_fresnel(M, self.n_samples, dx, loss, M[0][0] < 0))
                 dx = M[0][1] * self.lambda_ / (self.n_samples * dx)
+                print(f"---- dx = {dx} dx0 = {self.dx0}")
 
             self.fresnel_data.append(fresnel_side_data)
 
@@ -397,7 +403,8 @@ class MultiModeSimulation:
     def linear_cavity_one_side(self):
 
         Is = self.is_factor
-        self.gain_reduction = np.real(np.multiply(self.pump_gain0, np.divide(self.n_samples_ones, 1 + np.divide(self.sum_power_ix, Is * self.n_time_samples))))
+        #self.gain_reduction = np.real(np.multiply(self.pump_gain0, np.divide(self.n_samples_ones, 1 + np.divide(self.sum_power_ix, Is * self.n_time_samples))))
+        self.gain_reduction = np.divide(self.pump_gain0, 1 + np.divide(self.sum_power_ix, Is * self.n_time_samples))
         self.gain_reduction_with_origin = np.multiply(self.gain_factor, 1 + self.gain_reduction)
         self.gain_reduction_after_diffraction = np.multiply(self.gain_reduction_with_origin, self.multi_time_diffraction)
 
@@ -479,11 +486,13 @@ class MultiModeSimulation:
             q = len(fr) // 4
             x_original = np.linspace(0, 1, len(fr) // 2)
             x_new = np.linspace(0, 1, len(fr))
-            return np.interp(x_new, x_original, fr[q:3*q]).tolist()
+            return np.interp(x_new, x_original, fr[q:3*q])
         else:
             q = len(fr) // 2
             a = fr[:q]
-            return a[::-1] + a
+            #b = a[::-1]
+            #print(f"shapes = {a.shape[0]}, {b.shape[0]}")
+            return np.concatenate((a[::-1], a))
         
     def get_kerr_influence(self, batch, direction):
         if (self.beam_type != 0):
@@ -524,8 +533,8 @@ class MultiModeSimulation:
                 {"color": "red", "values": fr_after[0], "text": f"without Kerr({max(fr_after[0]):.2f})"}]
         
     def get_saturation_graph_data(self):
-        return [{"color": "red", "values": self.focus_front(cget(self.pump_gain0).tolist()), "text": f"pump_gain0"},
-                {"color": "blue", "values": self.focus_front(cget(self.gain_reduction).tolist()), "text": f"gain_reduction"},
+        return [{"color": "red", "values": cget(self.focus_front(self.pump_gain0)).tolist(), "text": f"pump_gain0"},
+                {"color": "blue", "values": cget(self.focus_front(self.gain_reduction)).tolist(), "text": f"gain_reduction"},
                 # {"color": "green", "values": cget(self.gain_reduction_with_origin), "text": f"gain_reduction_with_origin"},
                 # {"color": "purple", "values": cget(self.gain_reduction_after_aperture), "text": f"gain_reduction_after_aperture"},
                 # {"color": "black", "values": cget(self.gain_reduction_after_diffraction), "text": f"gain_reduction_after_diffraction"}

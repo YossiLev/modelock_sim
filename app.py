@@ -14,6 +14,7 @@ from design import generate_design
 from iterations import generate_iterations, Iteration
 from cavity import CavityDataPartsKerr, CavityData
 from multi_mode import MultiModeSimulation
+from calc import generate_calc, CalculatorData
 
 import app
 import jsonpickle
@@ -58,7 +59,7 @@ def menu_item(item_name, current_item):
     return Div(item_name, cls=f"menuItem{sel}", hx_post=F"/menu/{item_name}", hx_target="#fullPage", hx_vals='js:{localId: getLocalId()}')
 
 def content_table(current_page):
-    menu_list = ["Design", "Simulation", "Geometry", "Iterations", "MultiMode", "Settings"]
+    menu_list = ["Design", "Simulation", "Geometry", "Iterations", "MultiMode", "Calculator", "Settings"]
     return Div(*[menu_item(x, current_page) for x in menu_list],
                 Div(F"n = {len(get_data_keys())}"),  cls="sideMenu")
 
@@ -128,6 +129,10 @@ def make_page(data_obj):
             return my_frame("MultiMode", 
                 Div(
                     Div(generate_multimode(data_obj, 1), cls="box", style="background-color: rgb(208 245 254);", id="fun"), style="width:1100px"))
+        case "Calculator":
+            return my_frame("Calculator", 
+                Div(
+                    Div(generate_calc(data_obj, 1), cls="box", style="background-color: rgb(208 245 254);", id="calculator"), style="width:1100px"))
         
         case _:
             return my_frame(current_tab, Div("not yet"))
@@ -578,6 +583,32 @@ async def mmCenter(localId: str):
     
     return collectData(dataObj)
 
+
+def collect_mat_data(form_data, name):
+    M = [[float(form_data.get(f"{name}_A")), float(form_data.get(f"{name}_B"))], 
+         [float(form_data.get(f"{name}_C")), float(form_data.get(f"{name}_D"))]]
+    return M
+
+@app.post("/clUpdate")
+async def clUpdate(request: Request, localId: str):
+    dataObj = get_Data_obj(localId)
+    if dataObj is None:
+        dataObj = {'id': localId, 'count': 0, 
+                'run_state': False,
+                'calcData': CalculatorData(),}
+        insert_data_obj(localId, dataObj)   
+    
+    form_data = await request.form()  # Get all form fields as a dict-like object
+    print(form_data)
+    dataObj['calcData'].set({
+        "M1": collect_mat_data(form_data, "M1"),
+        "M2": collect_mat_data(form_data, "M2"),
+        "M3": collect_mat_data(form_data, "M3"),
+
+    })
+    
+    return collectData(dataObj)
+
 @app.post("/removeComp/{comp_id}")
 def removeComp(session, comp_id: str, localId: str):
     sim = get_sim_obj(localId)
@@ -680,12 +711,16 @@ def store(label: str, localId: str):
     return generate_iterations(dataObj)
 
 @app.post("/tabgeo/{tabid}")
-def load(tabid: str, localId: str):
-    return generate_geometry(get_Data_obj(localId), int(tabid))
+def load(tabid: int, localId: str):
+    return generate_geometry(get_Data_obj(localId), tabid)
 
 @app.post("/tabfun/{tabid}")
-def load(tabid: str, localId: str):
-    return generate_multimode(get_Data_obj(localId), int(tabid))
+def load(tabid: int, localId: str):
+    return generate_multimode(get_Data_obj(localId), tabid)
+
+app.post("/tabcalc/{tabid}")
+def load(tabid: int, localId: str):
+    return generate_calc(get_Data_obj(localId), tabid)
 
 @app.post("/moveonchart/{offset}/{tab}")
 def load(offset: int, tab: int, localId: str):

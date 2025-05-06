@@ -4,6 +4,7 @@ import io
 import base64
 from fasthtml.common import *
 from controls import *
+from multi_mode import MultiModeSimulation
 
 elements = [
     [{"t": "L", "par":[0.3, 0.075]}, {"t": "L", "par":[0.45, 0.075, 1.0], "del": 1.0}, {"t": "X", "par":[0.85]}, ],
@@ -163,6 +164,8 @@ def initBeamType(beamParamInit = 0.0005, beamDistInit = 0.0):
 def collectData(data_obj, delay=0, more=False):
     if data_obj is None:
         return Div()
+    if "mmData" not in data_obj or data_obj["mmData"] is None:
+        data_obj["mmData"] = MultiModeSimulation()
     mmData = data_obj["mmData"]
     mmDataSer = mmData.serialize_mm_data(delay, more)
     return Div(mmDataSer, style="height:1px; overflow:hidden;")

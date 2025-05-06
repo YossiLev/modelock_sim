@@ -33,6 +33,7 @@ app = FastHTML(htmx=False, ws_hdr=False, hdrs=(
         Script(src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/3.3.0/math.min.js"),
         Script(src="https://cdn.plot.ly/plotly-latest.min.js"),
         Script(src="static/localid.js"),
+        Script(src="static/memory.js"),
         Script(src="static/fieldValue.js"),
         Script(src="static/utils.js"),
         Script(src="static/stability.js"),
@@ -50,7 +51,13 @@ setup_toasts(app)
 @app.post("/menu/{new_tab}")
 def menu(new_tab: str, localId: str):
     global current_tab
+
     dataObj = get_Data_obj(localId)
+
+    if dataObj is None:
+        dataObj = {'id': localId} 
+        insert_data_obj(localId, dataObj)
+
     current_tab = new_tab
     return make_page(dataObj)
 
@@ -596,18 +603,48 @@ async def clUpdate(request: Request, localId: str):
         dataObj = {'id': localId, 'count': 0, 
                 'run_state': False,
                 'calcData': CalculatorData(),}
-        insert_data_obj(localId, dataObj)   
+        insert_data_obj(localId, dataObj)
     
     form_data = await request.form()  # Get all form fields as a dict-like object
-    print(form_data)
-    dataObj['calcData'].set({
-        "M1": collect_mat_data(form_data, "M1"),
-        "M2": collect_mat_data(form_data, "M2"),
-        "M3": collect_mat_data(form_data, "M3"),
+    print("form Data", form_data)
+    try:
+        M1 = collect_mat_data(form_data, "M1")
+        M2 = collect_mat_data(form_data, "M2")
+        M3 = collect_mat_data(form_data, "M3")
+        dataObj['calcData'].set({
+            "M1": collect_mat_data(form_data, "M1"),
+            "M2": collect_mat_data(form_data, "M2"),
+            "M3": collect_mat_data(form_data, "M3"),
+        })
+    except:
+        pass
+    try:
+        ct = form_data.get("cavityText")
+        if ct is not None:
+            dataObj['calcData'].set({
+                "cavity_text": ct,
+            })
+    except:
+        pass
+    try:
+        dataObj['calcData'].set({
+            "fresnel_mat": collect_mat_data(form_data, "MFresnel"),
+            "fresnel_N": int(form_data.get("FresnelN")),
+            "fresnel_dx_in": float(form_data.get("FresnelDX")),                         
+            "fresnel_dx_out": float(form_data.get("FresnelDXOut")),                         
+            "fresnel_waist": float(form_data.get("FresnelWaist")),                         
+        })
+    except:
+        pass
 
-    })
     
-    return collectData(dataObj)
+@app.post("/doCalc/{tab}/{cmd}/{params}")
+async def doCalc(tab: int, cmd: str, params: str, localId: str):
+    dataObj = get_Data_obj(localId)
+
+    dataObj["calcData"].doCalcCommand(cmd, params)
+
+    return generate_calc(dataObj, tab)
 
 @app.post("/removeComp/{comp_id}")
 def removeComp(session, comp_id: str, localId: str):
@@ -718,8 +755,8 @@ def load(tabid: int, localId: str):
 def load(tabid: int, localId: str):
     return generate_multimode(get_Data_obj(localId), tabid)
 
-app.post("/tabcalc/{tabid}")
-def load(tabid: int, localId: str):
+@app.post("/tabcalc/{tabid}")
+def tabcalc(tabid: int, localId: str):
     return generate_calc(get_Data_obj(localId), tabid)
 
 @app.post("/moveonchart/{offset}/{tab}")

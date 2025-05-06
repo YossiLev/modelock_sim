@@ -291,6 +291,14 @@ h1 {
   display: inline-block;
   padding: 10px;
   border-radius: 5px;
-  background-color: #525050;
+  background-color: #91f778;
   margin: 3px;
+  position: relative;
+}
+
+.floatRight {
+  position: absolute;
+  float: right;
+  right:3px;
+  top: 3px;
 }

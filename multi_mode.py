@@ -31,13 +31,13 @@ def cylindrical_fresnel_prepare(r, r_out, wavelength, M):
     factor_input = phase_input * r
     phase_output = np.exp(1j * k * D * r / (2 * B) * r)        # shape (N_r,)
     factor_output = 2 * np.pi * dr * phase_output / (1j * wavelength * B)           # shape (N_r,)
-    print(f"factor_input = {factor_input}")
-    print(f"factor_output = {factor_output}")
+    # print(f"factor_input = {factor_input}")
+    # print(f"factor_output = {factor_output}")
 
     new_kernel = np.diag(factor_output) @ kernel @ np.diag(factor_input)  # shape (N_r, N_r)
-    print(f"new_kernel = {new_kernel}")
+    # print(f"new_kernel = {new_kernel}")
     #return np.asarray(kernel), np.asarray(factor_input), np.asarray(factor_output)
-    return np.asarray(new_kernel)
+    return np.asarray(new_kernel), np.asarray(kernel)
 
 def cylindrical_fresnel_propogate(fronts, kernel):
     #kernel, factor_input, factor_output = params
@@ -293,7 +293,7 @@ class MultiModeSimulation:
     def prepare_cylindrical_fresnel_help_data(self):
         self.mat_side = calc_original_sim_matrices(self.crystal_shift)
 
-        self.fresnel_data = [cylindrical_fresnel_prepare(self.x, self.x, self.lambda_, mat) for mat in self.mat_side]
+        self.fresnel_data, _ = [cylindrical_fresnel_prepare(self.x, self.x, self.lambda_, mat) for mat in self.mat_side]
 
     # def total_ix_power(self):
     #     self.intensity_total_by_ix = []
@@ -468,19 +468,30 @@ class MultiModeSimulation:
             return {"color": ["red", "blue"][sample], "values": fr, "text": f"M{max(fr):.2f}({fr.index(max(fr))})({fr_mean_and_std[0]:.4f}±{fr_mean_and_std[1]:.4f})"}
         return {}
     
-    def select_source(self, target):
+    def get_x_values_full(self, sample):
+        source = self.select_source(sample, True)
+        if source is None:
+            return []
+        stage_data = source.T
+        if isinstance(stage_data, np.ndarray) and len(stage_data) > self.view_on_x:
+            fr = cget(stage_data)[self.view_on_x]
+            return fr
+        return []
+    
+    def select_source(self, target, original=False):
         fronts_index = int(self.view_on_stage[target]) - 1
         if (fronts_index >= len(self.multi_time_fronts_saves)):
             return None
         stage_data = self.multi_time_fronts_saves[fronts_index]
         if (len(stage_data) == 0):
             return None
-        if (self.view_on_amp_freq[target] == "Frq"):
-            stage_data = np.fft.fftshift(np.fft.fft(np.fft.ifftshift(stage_data, axes=1), axis=1), axes=1)
-        if (self.view_on_abs_phase[target] == "Abs"):
-            stage_data = np.abs(stage_data)
-        else:
-            stage_data = np.angle(stage_data)
+        if not original:
+            if (self.view_on_amp_freq[target] == "Frq"):
+                stage_data = np.fft.fftshift(np.fft.fft(np.fft.ifftshift(stage_data, axes=1), axis=1), axes=1)
+            if (self.view_on_abs_phase[target] == "Abs"):
+                stage_data = np.abs(stage_data)
+            else:
+                stage_data = np.angle(stage_data)
         return stage_data
     
     def focus_front(self, fr):

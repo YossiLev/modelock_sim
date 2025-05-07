@@ -9,10 +9,10 @@ def FlexN(v):
 def TabMaker(label, group, sel, target="#fun"):
     return Div(label,  hx_post=group, hx_target=target, cls=f"tab {'tabselected' if sel else ''}", hx_vals='js:{localId: getLocalId()}'),
 
-def generate_chart(x, y, l, t, w=11, h=2):
+def generate_chart(x, y, l, t, w=11, h=2, color="blue", marker=None):
     fig = plt.figure(figsize=(w, h))
     for i in range(len(x)):
-        plt.plot(x[i], y[i], label=l[i])
+        plt.plot(x[i], y[i], label=l[i], marker=marker, color=color)
     
     if (len(x) > 0):
         fig.axes[0].set_title(t)

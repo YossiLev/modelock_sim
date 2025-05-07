@@ -429,7 +429,9 @@ async def mmInit(request: Request, localId: str):
         dataObj = {'id': localId, 'count': 0, 
                 'run_state': False, 
                 'mmData': MultiModeSimulation()}
-        insert_data_obj(localId, dataObj)   
+        insert_data_obj(localId, dataObj)
+    if "mmData" not in dataObj:
+        dataObj['mmData'] = MultiModeSimulation()
     
     form_data = await request.form()  # Get all form fields as a dict-like object
     dataObj['mmData'].set({
@@ -566,7 +568,6 @@ async def mmGraph(request: Request, sample: int, x: int, y: int):
     jj = await request.json()
 
     localId = jj["localId"]
-    print(f"sample {sample} x {x} y {y} localId {localId}")
     dataObj = get_Data_obj(localId)
     if dataObj is None:
         return "{}"
@@ -596,8 +597,8 @@ def collect_mat_data(form_data, name):
          [float(form_data.get(f"{name}_C")), float(form_data.get(f"{name}_D"))]]
     return M
 
-@app.post("/clUpdate")
-async def clUpdate(request: Request, localId: str):
+@app.post("/clUpdate/{tab}")
+async def clUpdate(request: Request, tab: int, localId: str):
     dataObj = get_Data_obj(localId)
     if dataObj is None:
         dataObj = {'id': localId, 'count': 0, 
@@ -615,6 +616,7 @@ async def clUpdate(request: Request, localId: str):
             "M1": collect_mat_data(form_data, "M1"),
             "M2": collect_mat_data(form_data, "M2"),
             "M3": collect_mat_data(form_data, "M3"),
+            "t_fixer": float(form_data.get("MatFixer")),
         })
     except:
         pass
@@ -623,26 +625,31 @@ async def clUpdate(request: Request, localId: str):
         if ct is not None:
             dataObj['calcData'].set({
                 "cavity_text": ct,
+                "cavity_mat": collect_mat_data(form_data, "MCavity"),
             })
     except:
         pass
     try:
+        print(form_data)
         dataObj['calcData'].set({
             "fresnel_mat": collect_mat_data(form_data, "MFresnel"),
             "fresnel_N": int(form_data.get("FresnelN")),
-            "fresnel_dx_in": float(form_data.get("FresnelDX")),                         
+            "fresnel_factor": float(form_data.get("FresnelFactor")),
+            "fresnel_dx_in": float(form_data.get("FresnelDXIn")),                         
             "fresnel_dx_out": float(form_data.get("FresnelDXOut")),                         
-            "fresnel_waist": float(form_data.get("FresnelWaist")),                         
+            "fresnel_waist": float(form_data.get("FresnelWaist")),
+            "select_front": form_data.get("CalcSelectFront"),                
         })
     except:
         pass
+    return generate_calc(dataObj, tab)
 
     
 @app.post("/doCalc/{tab}/{cmd}/{params}")
 async def doCalc(tab: int, cmd: str, params: str, localId: str):
     dataObj = get_Data_obj(localId)
 
-    dataObj["calcData"].doCalcCommand(cmd, params)
+    dataObj["calcData"].doCalcCommand(cmd, params, dataObj)
 
     return generate_calc(dataObj, tab)
 

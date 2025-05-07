@@ -29,8 +29,13 @@ def MInv(M):
         raise ValueError("Matrix is singular and cannot be inverted.")
     return [[M[1][1] / det, -M[0][1] / det], [-M[1][0] / det, M[0][0] / det]]
 
+def FixMethod1(M, t):
+    print(f"FixMethod1 t={t} M={M}")
+    FM = [[(M[0][0] + 1) / t, t * M[0][1] / (M[0][0] + 1)], [M[1][1] * (M[0][0] + 1) / (t * M[0][1]), t * (M[1][1] - M[1][0] * M[0][1] / (M[0][0] + 1))]]
+    return FM
+ 
 def to_meters(s):
-    match = re.fullmatch(r'\s*([0-9]*\.?[0-9]+)\s*(mm|cm|m)\s*', s)
+    match = re.fullmatch(r'\s*(-?[0-9]*\.?[0-9]+)\s*(mm|cm|m)\s*', s)
     if not match:
         raise ValueError(f"Invalid input format: '{s}'")
 
@@ -52,8 +57,13 @@ class CalculatorData:
         self.M1 = [[1, 0], [0, 1]]
         self.M2 = [[1, 0], [0, 1]]
         self.M3 = [[1, 0], [0, 1]]
+        self.t_fixer = 1.0
 
-        self.cavity_text = "p 0.15mm\np 81.81818181mm\nl 75mm\np 0.9m\np 0.9m\nl 75mm\np 81.81818181mm\np 0.15mm"
+        self.fixed_cavitis = [
+            "Left arm;p 0.1mm\np -0.15mm\np 81.81818181mm\nl 75mm\np 0.9m\np 0.9m\nl 75mm\np 81.81818181mm\np -0.15mm\np 0.1mm",
+            "Right arm;p 1mm\np -0.1mm\np 0.15mm\np 75mm\nl 75mm\np 0.5m\np 0.5m\nl 75mm\np 75mm\np 0.15mm\np -0.1mm\np 1mm",
+        ]
+        self.cavity_text = "p 0.1mm\np -0.15mm\np 81.81818181mm\nl 75mm\np 0.9m\np 0.9m\nl 75mm\np 81.81818181mm\np -0.15mm\np 0.1mm"
         self.cavity_mat = [[1, 0], [0, 1]]
 
         self.M5 = [[1, 0], [0, 1]]
@@ -61,11 +71,13 @@ class CalculatorData:
         self.fresnel_dx_in = 0.000001
         self.fresnel_dx_out = 0.00001
         self.fresnel_N = 256
+        self.fresnel_factor = 1.0
         self.fresnel_waist = 0.000030
-        self.x = []
+        self.x_in = []
         self.x_out = []
         self.vf_in = []
         self.vf_out = []
+        self.select_front = "Gaussian"
     '''
         position_lens = -0.00015 + crystal_shift  # -0.00015 shift needed due to conclusions from single lens usage in original simulation
         m_long = m_mult_v(m_dist(position_lens), m_dist(0.081818181), m_lens(0.075), m_dist(0.9),
@@ -75,7 +87,7 @@ class CalculatorData:
 
     '''
     def set(self, params):
-        print(params)
+        print("SET-----", params)
         for key, value in params.items():
             if hasattr(self, key):
                 if type(value) is list:
@@ -89,7 +101,7 @@ class CalculatorData:
                 params[key] = getattr(self, cget(key)[0])
         return params
     
-    def doCalcCommand(self, cmd, params):
+    def doCalcCommand(self, cmd, params, dataObj):
         match (cmd):
             case "mult":
                 match params:
@@ -97,36 +109,74 @@ class CalculatorData:
                         self.M3 = MMult(self.M1, self.M2)
                     case "M3-M2i-M1":
                         self.M1 = MMult(self.M3, MInv(self.M2))
+                    case "M1i-M3-M2":
+                        self.M2 = MMult(MInv(self.M1), self.M3)
+                    case "fixM3-M1":
+                        self.M1 = FixMethod1(self.M3, self.t_fixer)
             case "cavity":
-                self.cavity_mat = [[1, 0], [0, 1]]
-                print(f"cavity_text={self.cavity_text}")
-                coms = self.cavity_text.split("\n")
-                print(f"coms={coms}")
-                for com in coms:
-                    self.exec_cavity_command(com.strip().lower())
+                match params:
+                    case "calc":
+                        self.cavity_mat = [[1, 0], [0, 1]]
+                        print(f"cavity_text={self.cavity_text}")
+                        coms = self.cavity_text.split("\n")
+                        print(f"coms={coms}")
+                        for com in coms:
+                            self.exec_cavity_command(com.strip().lower())
+                    case "0":
+                        self.cavity_text = self.fixed_cavitis[0].split(";")[1]
+                    case "1":
+                        self.cavity_text = self.fixed_cavitis[1].split(";")[1]
+                    case "2":
+                        self.cavity_text = self.fixed_cavitis[2].split(";")[1]
             case "fresnel":
-                #vec = (np.arange(self.fresnel_N) - np.asarray(self.fresnel_N / 2)) if self.beam_type == 0 else (np.arange(self.fresnel_N) + 0.5)
-                if (params == "calcrad"):
-                    vec = np.arange(self.fresnel_N) + 0.5
-                else:
-                    vec = np.arange(self.fresnel_N) - np.asarray(self.fresnel_N / 2) + 0.5
-                self.x = vec * np.asarray(self.fresnel_dx_in)
-                self.x_out = vec * np.asarray(self.fresnel_dx_out)
-                #print(f"x={self.x}")
-                print(f"fresnel_dx_in={self.fresnel_dx_in}")
-                print(f"fresnel_N={self.fresnel_N}")
-                print(f"fresnel_mat={self.fresnel_mat}")
-                kernel = cylindrical_fresnel_prepare(self.x, self.x_out, 0.000000780, self.fresnel_mat)
-                waist = self.fresnel_waist
-                front_exp = - np.square(self.x / waist)
-                self.vf_in = np.exp(front_exp)
-                self.vf_out = kernel @ self.vf_in
+                print(f"select_front={self.select_front}")
+                match self.select_front:
+                    case "Gaussian":
+                        N = int(self.fresnel_N * self.fresnel_factor)
+                        if (params == "calcrad"):
+                            vec = np.arange(N) + 0.5
+                        else:
+                            vec = np.arange(N) - np.asarray(N / 2) + 0.5
+                        self.x_in = vec * np.asarray(self.fresnel_dx_in / self.fresnel_factor)
+                        self.x_out = vec * np.asarray(self.fresnel_dx_out / self.fresnel_factor)    
+                        waist = self.fresnel_waist
+                        front_exp = - np.square(self.x_in / waist)
+                        self.vf_in = np.exp(front_exp)
+                    case "Live Front":
+                        print("Live Front")
+                        if 'mmData' not in dataObj or dataObj['mmData'] is None:
+                            print("No mmData")
+                            return
+                        mmData = dataObj['mmData']
+                        self.vf_in = np.asarray(mmData.get_x_values_full(0))
+                        print(f"vf_in={len(self.vf_in)} dx0={mmData.dx0}")
+                        if (params == "calcrad"):
+                            vec = np.arange(len(self.vf_in)) + 0.5
+                        else:
+                            vec = np.arange(len(self.vf_in)) - np.asarray(len(self.vf_in) / 2) + 0.5
+                        self.x_in = vec * np.asarray(mmData.dx0)
+                        self.x_out = vec * np.asarray(mmData.dx0)
+                    case "From Output":
+                        print("From Output")
+                        self.x_in = self.x_out
+                        self.vf_in = np.copy(self.vf_out)
+                        N = len(self.vf_in)
+                        if (params == "calcrad"):
+                            vec = np.arange(N) + 0.5
+                        else:
+                            vec = np.arange(N) - np.asarray(N / 2) + 0.5
+                        self.x_out = vec * np.asarray(self.fresnel_dx_out)    
+
+
+                self.kernel, self.j0 = cylindrical_fresnel_prepare(self.x_in, self.x_out, 0.000000780, self.fresnel_mat)
+                self.vf_out = self.kernel @ self.vf_in
                 # print(f"vf_in={self.vf_in}")
                 # print(f"vf_out={self.vf_out}")
                 # print(f"kernel shape={kernel.shape}")
                 
     def exec_cavity_command(self, com):
-        print(f"exec_cavity_command: {com}")
+        if len(com) == 0:
+            return
         if com.startswith("p"):
             d = to_meters(com[1:])
             M = [[1, d], [0, 1]]
@@ -137,42 +187,53 @@ class CalculatorData:
             print(f"Unknown command: {com}")
             return
         self.cavity_mat = MMult(self.cavity_mat, M)
-                
-def InputCalcS(id, title, value, step=0.01, width = 150):
-    return Input(type="number", id=id, title=title, 
-                 value=value, step=f"{step}", 
-                 hx_trigger="input changed delay:1s, ", hx_post="/clUpdate", hx_include="#calcForm *", 
-                 hx_vals='js:{localId: getLocalId()}', style=f"width:{width}px; margin:2px;")
-
-def ABCDMatControl(name, M):
-    return Div(
-        Div(
-            Div(
-                Img(src="/static/copy.png", title="Copy", width=20, height=20, onclick=f"AbcdMatCopy('{name}')"),
-                Img(src="/static/paste.png", title="Paste", width=20, height=20, onclick=f"AbcdMatPaste('{name}')"),
-                cls="floatRight"
-            ),
-            Span(name),
-        ),
-        Div(
-            InputCalcS(f'{name}_A', "A", f'{M[0][0]}', width = 180),
-            InputCalcS(f'{name}_B', "B", f'{M[0][1]}', width = 180),
-        ),
-        Div(
-            InputCalcS(f'{name}_C', "C", f'{M[1][0]}', width = 180),
-            InputCalcS(f'{name}_D', "D", f'{M[1][1]}', width = 180),
-        ),
-        cls="ABCDMatControl"
-    )
 
 def generate_calc(data_obj, tab, offset = 0):
-    print(f"tab={tab} offset={offset}")
+                        
+    def InputCalcS(id, title, value, step=0.01, width = 150):
+        return Div(
+                Div(title, cls="floatRight", style="font-size: 10px; top:-3px; right:10px;background: #e7edb8;"),
+                Input(type="number", id=id, title=title,
+                    value=value, step=f"{step}", 
+                    hx_trigger="input changed delay:1s, ", hx_post=f"/clUpdate/{tab}", hx_target=None, hx_include="#calcForm *", 
+                    hx_vals='js:{localId: getLocalId()}', style=f"width:{width}px; margin:2px;"),
+                style="display: inline-block; position: relative;"
+        )
+
+    def SelectCalcS(id, title, options, selected, width = 150):
+        return Select(*[Option(o) if o != selected else Option(o, selected="1") for o in options], id=id,
+                    hx_trigger="input changed, ", hx_post=f"/clUpdate/{tab}", hx_target="#gen_calc", hx_include="#calcForm *", 
+                    hx_vals='js:{localId: getLocalId()}', style=f"width:{width}px;")
+
+    def ABCDMatControl(name, M):
+        det = M[0][0] * M[1][1] - M[0][1] * M[1][0]
+        msg = f"&#9888; det={det}" if np.abs(det - 1.0) > 0.00001 else ""
+        return Div(
+            Div(
+                Div(
+                    Img(src="/static/copy.png", title="Copy", width=20, height=20, onclick=f"AbcdMatCopy('{name}')"),
+                    Img(src="/static/paste.png", title="Paste", width=20, height=20, onclick=f"AbcdMatPaste('{name}')"),
+                    cls="floatRight"
+                ),
+                Span(name), 
+                Span(NotStr(msg), style="color: yellow; background-color: red; padding: 3px; border-radius: 4px; margin-left: 30px; ") if len(msg) > 0 else "",
+            ),
+            Div(
+                InputCalcS(f'{name}_A', "A", f'{M[0][0]}', width = 180),
+                InputCalcS(f'{name}_B', "B", f'{M[0][1]}', width = 180),
+            ),
+            Div(
+                InputCalcS(f'{name}_C', "C", f'{M[1][0]}', width = 180),
+                InputCalcS(f'{name}_D', "D", f'{M[1][1]}', width = 180),
+            ),
+            cls="ABCDMatControl"
+        )
+
     if data_obj is None:
         return Div()
     
     if "calcData" not in data_obj or data_obj["calcData"] is None:
         data_obj["calcData"] = CalculatorData()
-        a = CalculatorData()
 
     calcData = data_obj["calcData"]
     added = Div()
@@ -184,6 +245,10 @@ def generate_calc(data_obj, tab, offset = 0):
                     #Input(type="number", id=f'el{s}length', placeholder="0", step="0.01", style="width:50px;", value=f'{par[1]}'),
                     Button("M3=M1xM2", escapse=False, hx_post=f'/doCalc/1/mult/M1-M2-M3', hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
                     Button("M1=M3xM2^-1", escapse=False, hx_post=f'/doCalc/1/mult/M3-M2i-M1', hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
+                    Button("M2=M1^-1xM3", escapse=False, hx_post=f'/doCalc/1/mult/M1i-M3-M2', hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
+                    Button("M1=Fix(M3)", escapse=False, hx_post=f'/doCalc/1/mult/fixM3-M1', hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'),
+                    InputCalcS(f'MatFixer', "Fixer", f'{calcData.t_fixer}', width = 80),
+
                 ),
                 Div(
                     ABCDMatControl("M1", calcData.M1),
@@ -194,34 +259,48 @@ def generate_calc(data_obj, tab, offset = 0):
         case 2: # Cavity
             added = Div(
                 Div(
-                    #Input(type="number", id=f'el{s}length', placeholder="0", step="0.01", style="width:50px;", value=f'{par[1]}'),
-                    Button("Cavity", escapse=False, hx_post=f'/doCalc/2/cavity/a', hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
+                    Button("Cavity into ABCD mat", escapse=False, hx_post=f'/doCalc/2/cavity/calc', hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
                 ),
-                Textarea(calcData.cavity_text, id="cavityText", style="min-height: 400px;",
-                            hx_trigger="input changed delay:1s", hx_post="/clUpdate", hx_vals='js:{localId: getLocalId()}', hx_include="#calcForm *",),
-                ABCDMatControl("MCavity", calcData.cavity_mat),
+                FlexN([
+                    Textarea(calcData.cavity_text, id="cavityText", style="min-height: 400px;",
+                            hx_trigger="input changed delay:1s", hx_post=f"/clUpdate/{tab}", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}', hx_include="#calcForm *",),
+                    Div(
+                        Div(*[Div(Button(f"Fixed {x[1].split(";")[0]}", escapse=False, 
+                                        hx_post=f'/doCalc/2/cavity/{x[0]}', hx_target="#gen_calc", 
+                                        hx_vals='js:{localId: getLocalId()}')) for x in enumerate(calcData.fixed_cavitis)]),
+                        ABCDMatControl("MCavity", calcData.cavity_mat),
+                    ),
+                ]),
             )
             
         case 3: # Fresnel
+            if len(calcData.vf_out) > 0:
+                s = calcData.kernel.shape[0]
+                skip = int(64 * calcData.fresnel_factor)
             added = Div(
                 Div(
-                    #Input(type="number", id=f'el{s}length', placeholder="0", step="0.01", style="width:50px;", value=f'{par[1]}'),
+                    SelectCalcS(f'CalcSelectFront', "Initial Front", ["Gaussian", "Live Front", "From Output"], calcData.select_front, width = 150),
                     Button("Calc Radial", escapse=False, hx_post=f'/doCalc/3/fresnel/calcrad', hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
                     Button("Calc 1D", escapse=False, hx_post=f'/doCalc/3/fresnel/calc1d', hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
                 ),
                 ABCDMatControl("MFresnel", calcData.fresnel_mat),
                 Div(
-                    InputCalcS(f'FresnelN', "N", f'{calcData.fresnel_N}', width = 80),
-                    InputCalcS(f'FresnelDX', "DX", f'{calcData.fresnel_dx_in}', width = 80),
-                    InputCalcS(f'FresnelDXOut', "DX_Out", f'{calcData.fresnel_dx_out}', width = 80),
+                    InputCalcS(f'FresnelN', "N samples", f'{calcData.fresnel_N}', width = 80),
+                    InputCalcS(f'FresnelFactor', "Factor", f'{calcData.fresnel_factor}', width = 80),
+                    InputCalcS(f'FresnelDXIn', "dx input", f'{calcData.fresnel_dx_in}', width = 140),
+                    InputCalcS(f'FresnelDXOut', "dx ouput", f'{calcData.fresnel_dx_out}', width = 140),
                     InputCalcS(f'FresnelWaist', "Waist", f'{calcData.fresnel_waist}', width = 80),
                 ),
                 Div(
                     Div(
-                        generate_chart([cget(calcData.x).tolist()], [cget(np.square(np.abs(calcData.vf_in))).tolist()], [""], "In"), 
-                        generate_chart([cget(calcData.x_out).tolist()], [cget(np.square(np.abs(calcData.vf_out))).tolist()], [""], "In"), 
+                        generate_chart([cget(calcData.x_in).tolist()], [cget(np.square(np.abs(calcData.vf_in))).tolist()], [""], "In", marker="."), 
+                        generate_chart([cget(calcData.x_out).tolist()], [cget(np.square(np.abs(calcData.vf_out))).tolist()], [""], "Out", marker="."),
+                        *[generate_chart([cget(calcData.x_in).tolist()], [cget(np.abs(calcData.kernel[min(i, s - 1)])).tolist()], [""], f"kernel {min(i, s - 1)}", color="#227722", marker=".") 
+                            for i in range(0, s + 1, skip)],
+                        *[generate_chart([cget(calcData.x_in).tolist()], [cget(calcData.j0[min(i, s - 1)]).tolist()], [""], f"j0 {min(i, s - 1)}", color="#770022", marker=".") 
+                            for i in range(0, s + 1, skip)],
                         cls="box", style="background-color: #008080;"
-                    ) 
+                    )
                 ) if len(calcData.vf_out) > 0 else Div(),
 
 

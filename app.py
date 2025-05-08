@@ -429,7 +429,9 @@ async def mmInit(request: Request, localId: str):
         dataObj = {'id': localId, 'count': 0, 
                 'run_state': False, 
                 'mmData': MultiModeSimulation()}
-        insert_data_obj(localId, dataObj)   
+        insert_data_obj(localId, dataObj)
+    if "mmData" not in dataObj:
+        dataObj['mmData'] = MultiModeSimulation()
     
     form_data = await request.form()  # Get all form fields as a dict-like object
     dataObj['mmData'].set({

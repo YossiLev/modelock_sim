@@ -209,7 +209,7 @@ def ViewButtons(data_obj, part):
     )
 
 def multimode_charts(data_obj):
-    if (data_obj is None or data_obj["mmData"] is None):
+    if data_obj is None or "mmData" not in data_obj:
         print("No data")
         return Div()
     mmData = data_obj["mmData"]
@@ -265,7 +265,7 @@ def InputS(id, title, value, step=0.01, width = 50):
                  hx_vals='js:{localId: getLocalId()}', style=f"width:{width}px;"),
 
 def generate_multi_on_server(data_obj):
-    if (data_obj is None or data_obj["mmData"] is None):
+    if data_obj is None or "mmData" not in data_obj:
         params = {
             "beamType": 0,
             "initialRange": 0.001, #0.00024475293,

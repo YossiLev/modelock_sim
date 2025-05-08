@@ -13,7 +13,33 @@ import json
 
 from scipy.special import j0
 
-def cylindrical_fresnel_prepare(r, r_out, wavelength, M):
+def cylindrical_fresnel_prepare(r_in, r_out, wavelength, M):
+    A, B = M[0]
+    C, D = M[1]
+    k = 2 * np.pi / wavelength
+
+    # Assume linear spacing of r
+    dr = r_out[1] - r_out[0]
+    
+    # Precompute kernel matrix: J0(k r1 r2 / B)
+    r1 = r_in.reshape(1, -1)
+    r2 = r_out.reshape(-1, 1)
+    kernel = j0(k * r1 * r2 / B).T  # shape (N_r, N_r)
+
+    # Precompute phase and prefactor
+    phase_input = np.exp(1j * k * A * r_in / (2 * B) * r_in)        # shape (N_r,)
+    factor_input = phase_input * r_in
+    phase_output = np.exp(1j * k * D * r_out / (2 * B) * r_out)        # shape (N_r,)
+    factor_output = 2 * np.pi * dr * phase_output / (1j * wavelength * B)           # shape (N_r,)
+    # print(f"factor_input = {factor_input}")
+    # print(f"factor_output = {factor_output}")
+
+    new_kernel = np.diag(factor_output) @ kernel @ np.diag(factor_input)  # shape (N_r, N_r)
+    # print(f"new_kernel = {new_kernel}")
+    #return np.asarray(kernel), np.asarray(factor_input), np.asarray(factor_output)
+    return np.asarray(new_kernel), np.asarray(kernel)
+
+def cylindrical_fresnel_preparekeep(r, r_out, wavelength, M):
     A, B = M[0]
     C, D = M[1]
     k = 2 * np.pi / wavelength
@@ -293,7 +319,8 @@ class MultiModeSimulation:
     def prepare_cylindrical_fresnel_help_data(self):
         self.mat_side = calc_original_sim_matrices(self.crystal_shift)
 
-        self.fresnel_data, _ = [cylindrical_fresnel_prepare(self.x, self.x, self.lambda_, mat) for mat in self.mat_side]
+
+        self.fresnel_data, _ = map(list, zip(*[cylindrical_fresnel_prepare(self.x, self.x, self.lambda_, mat) for mat in self.mat_side]))
 
     # def total_ix_power(self):
     #     self.intensity_total_by_ix = []

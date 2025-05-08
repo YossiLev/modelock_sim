@@ -265,7 +265,7 @@ def generate_calc(data_obj, tab, offset = 0):
                     Textarea(calcData.cavity_text, id="cavityText", style="min-height: 400px;",
                             hx_trigger="input changed delay:1s", hx_post=f"/clUpdate/{tab}", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}', hx_include="#calcForm *",),
                     Div(
-                        Div(*[Div(Button(f"Fixed {x[1].split(";")[0]}", escapse=False, 
+                        Div(*[Div(Button(f"Fixed {x[1].split(';')[0]}", escapse=False, 
                                         hx_post=f'/doCalc/2/cavity/{x[0]}', hx_target="#gen_calc", 
                                         hx_vals='js:{localId: getLocalId()}')) for x in enumerate(calcData.fixed_cavitis)]),
                         ABCDMatControl("MCavity", calcData.cavity_mat),

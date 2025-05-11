@@ -68,7 +68,7 @@ def menu_item(item_name, current_item):
 def content_table(current_page):
     menu_list = ["Design", "Simulation", "Geometry", "Iterations", "MultiMode", "Calculator", "Settings"]
     return Div(*[menu_item(x, current_page) for x in menu_list],
-                Div(F"n = {len(get_data_keys())}"),  cls="sideMenu")
+                Div(F"{len(get_data_keys())}"),  cls="sideMenu")
 
 def my_frame(current_page, content):
     return Div(
@@ -592,10 +592,41 @@ async def mmCenter(localId: str):
     return collectData(dataObj)
 
 
-def collect_mat_data(form_data, name):
-    M = [[float(form_data.get(f"{name}_A")), float(form_data.get(f"{name}_B"))], 
-         [float(form_data.get(f"{name}_C")), float(form_data.get(f"{name}_D"))]]
+def collect_mat_data(M, form_data, name):
+    updated = False
+    try:
+        M[0][0] = float(form_data.get(f"{name}_A"))
+        updated = True
+    except:
+        pass
+    try:
+        M[0][1] = float(form_data.get(f"{name}_B"))
+        updated = True
+    except:
+        pass
+    try:
+        M[1][0] = float(form_data.get(f"{name}_C"))
+        updated = True
+    except:
+        pass
+    try:
+        M[1][1] = float(form_data.get(f"{name}_D"))
+        updated = True
+    except:
+        pass
+    if not updated:
+        raise ValueError("Matrix data not updated") 
     return M
+
+def pushParam(target, name, extractor):
+    try:
+        #print(f"pushParam {name} ")
+        value = extractor()
+        #print(f"pushParam {name} = {value}")
+        if value is not None:
+            target.set({name: value})
+    except:
+        pass
 
 @app.post("/clUpdate/{tab}")
 async def clUpdate(request: Request, tab: int, localId: str):
@@ -605,41 +636,52 @@ async def clUpdate(request: Request, tab: int, localId: str):
                 'run_state': False,
                 'calcData': CalculatorData(),}
         insert_data_obj(localId, dataObj)
-    
-    form_data = await request.form()  # Get all form fields as a dict-like object
-    print("form Data", form_data)
+    calcData = dataObj['calcData']
+    form_data = await request.form()# Get all form fields as a dict-like object
+    print(form_data)
     try:
-        M1 = collect_mat_data(form_data, "M1")
-        M2 = collect_mat_data(form_data, "M2")
-        M3 = collect_mat_data(form_data, "M3")
-        dataObj['calcData'].set({
-            "M1": collect_mat_data(form_data, "M1"),
-            "M2": collect_mat_data(form_data, "M2"),
-            "M3": collect_mat_data(form_data, "M3"),
-            "t_fixer": float(form_data.get("MatFixer")),
-        })
+        pushParam(calcData, "M1", lambda: collect_mat_data(calcData.M1, form_data, "M1"))
+        #M1 = collect_mat_data(form_data, "M1")
+        pushParam(calcData, "M2", lambda: collect_mat_data(calcData.M2,form_data, "M2"))
+        #M2 = collect_mat_data(form_data, "M2")
+        pushParam(calcData, "M3", lambda: collect_mat_data(calcData.M3,form_data, "M3"))
+        #M3 = collect_mat_data(form_data, "M3")
+        pushParam(calcData, "t_fixer", lambda: float(form_data.get("MatFixer")))
+
+        # calcData.set({
+        #     "M1": collect_mat_data(form_data, "M1"),
+        #     "M2": collect_mat_data(form_data, "M2"),
+        #     "M3": collect_mat_data(form_data, "M3"),
+        #     "t_fixer": float(form_data.get("MatFixer")),
+        # })
     except:
         pass
     try:
         ct = form_data.get("cavityText")
         if ct is not None:
-            dataObj['calcData'].set({
+            calcData.set({
                 "cavity_text": ct,
-                "cavity_mat": collect_mat_data(form_data, "MCavity"),
             })
+        pushParam(calcData, "cavity_mat", lambda: collect_mat_data(calcData.cavity_mat, form_data, "MCavity"))
     except:
         pass
     try:
-        print(form_data)
-        dataObj['calcData'].set({
-            "fresnel_mat": collect_mat_data(form_data, "MFresnel"),
-            "fresnel_N": int(form_data.get("FresnelN")),
-            "fresnel_factor": float(form_data.get("FresnelFactor")),
-            "fresnel_dx_in": float(form_data.get("FresnelDXIn")),                         
-            "fresnel_dx_out": float(form_data.get("FresnelDXOut")),                         
-            "fresnel_waist": float(form_data.get("FresnelWaist")),
-            "select_front": form_data.get("CalcSelectFront"),                
-        })
+        pushParam(calcData, "fresnel_mat", lambda: collect_mat_data(calcData.fresnel_mat, form_data, "MFresnel"))
+        pushParam(calcData, "fresnel_N", lambda: int(form_data.get("FresnelN")))
+        pushParam(calcData, "fresnel_factor", lambda: float(form_data.get("FresnelFactor")))
+        pushParam(calcData, "fresnel_dx_in", lambda: float(form_data.get("FresnelDXIn")))
+        pushParam(calcData, "fresnel_dx_out", lambda: float(form_data.get("FresnelDXOut")))
+        pushParam(calcData, "fresnel_waist", lambda: float(form_data.get("FresnelWaist")))
+        pushParam(calcData, "select_front", lambda: form_data.get("CalcSelectFront"))
+        # calcData.set({
+        #     "fresnel_mat": collect_mat_data(form_data, "MFresnel"),
+        #     "fresnel_N": int(form_data.get("FresnelN")),
+        #     "fresnel_factor": float(form_data.get("FresnelFactor")),
+        #     "fresnel_dx_in": float(form_data.get("FresnelDXIn")),                         
+        #     "fresnel_dx_out": float(form_data.get("FresnelDXOut")),                         
+        #     "fresnel_waist": float(form_data.get("FresnelWaist")),
+        #     "select_front": form_data.get("CalcSelectFront"),                
+        # })
     except:
         pass
     return generate_calc(dataObj, tab)

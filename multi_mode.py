@@ -176,7 +176,9 @@ class MultiModeSimulation:
         self.spectral_gain = []
         self.modulator_gain = []
         self.dispersion = []
-        self.sum_power_ix = []
+        self.sum_power_ix = [np.asarray([0] * self.n_samples), np.asarray([0] * self.n_samples)]
+        self.two_sided_sum_power_ix = np.asarray([0] * self.n_samples)
+
         self.gain_reduction = []
         self.gain_reduction_with_origin = []
         self.gain_reduction_after_aperture = []
@@ -402,7 +404,7 @@ class MultiModeSimulation:
         total_kerr_lensing = np.multiply(self.lensing_factor, self.ikl_times_i)
 
         bin2 = np.square(np.abs(self.multi_time_fronts))
-        self.sum_power_ix = np.sum(bin2, axis=1)
+        self.sum_power_ix[self.side] = np.sum(bin2, axis=1)
         phase_shift1 = total_kerr_lensing * bin2
         self.multi_time_fronts *= np.exp(phase_shift1)
         self.ps[self.side] = phase_shift1[:, self.view_on_x].imag
@@ -431,9 +433,11 @@ class MultiModeSimulation:
     # rrrr need fix (ok)
     def linear_cavity_one_side(self):
 
+        self.two_sided_sum_power_ix = self.sum_power_ix[0] + self.sum_power_ix[1]
+
         Is = self.is_factor
-        #self.gain_reduction = np.real(np.multiply(self.pump_gain0, np.divide(self.n_samples_ones, 1 + np.divide(self.sum_power_ix, Is * self.n_time_samples))))
-        self.gain_reduction = np.divide(self.pump_gain0, 1 + np.divide(self.sum_power_ix, Is * self.n_time_samples))
+        self.gain_reduction = np.real(np.multiply(self.pump_gain0, np.divide(self.n_samples_ones, 1 + np.divide(self.two_sided_sum_power_ix, Is * self.n_time_samples))))
+        #self.gain_reduction_with_origin = np.multiply(self.gain_factor, 1 + self.gain_reduction)
         self.gain_reduction_with_origin = np.multiply(self.gain_factor, 1 + self.gain_reduction)
         self.gain_reduction_after_diffraction = np.multiply(self.gain_reduction_with_origin, self.multi_time_diffraction)
 

@@ -170,6 +170,12 @@ h1 {
   background: rgb(208 245 254);
   width: 126px;
 }
+@media (max-width: 1200px) {
+  .sideMenu {
+    display: flex;
+    width: auto;
+  }
+}
 
 .partBlock {
   border-radius: 5px;

@@ -19,7 +19,6 @@ def MMult(M1, M2):
         M1[1][0] * M2[0][0] + M1[1][1] * M2[1][0],
         M1[1][0] * M2[0][1] + M1[1][1] * M2[1][1]
     ]]
-    print(res)
 
     return res
 
@@ -117,9 +116,9 @@ class CalculatorData:
                 match params:
                     case "calc":
                         self.cavity_mat = [[1, 0], [0, 1]]
-                        print(f"cavity_text={self.cavity_text}")
+                        #print(f"cavity_text={self.cavity_text}")
                         coms = self.cavity_text.split("\n")
-                        print(f"coms={coms}")
+                        #print(f"coms={coms}")
                         for com in coms:
                             self.exec_cavity_command(com.strip().lower())
                     case "0":
@@ -195,7 +194,7 @@ def generate_calc(data_obj, tab, offset = 0):
                 Div(title, cls="floatRight", style="font-size: 10px; top:-3px; right:10px;background: #e7edb8;"),
                 Input(type="number", id=id, title=title,
                     value=value, step=f"{step}", 
-                    hx_trigger="input changed delay:1s, ", hx_post=f"/clUpdate/{tab}", hx_target=None, hx_include="#calcForm *", 
+                    hx_trigger="input changed delay:1s, ", hx_post=f"/clUpdate/{tab}", hx_target="#gen_calc", 
                     hx_vals='js:{localId: getLocalId()}', style=f"width:{width}px; margin:2px;"),
                 style="display: inline-block; position: relative;"
         )

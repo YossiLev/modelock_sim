@@ -446,12 +446,10 @@ class MultiModeSimulation:
         multi_time_fronts_trans = gain_factors * multi_time_fronts_trans
         self.multi_time_fronts_saves[self.side * 7 + 5] = np.copy(multi_time_fronts_trans.T)
 
-        #self.printSamples(name = "before fresnel", sample = multi_time_fronts_trans.T)
 
         if self.beam_type == 0:
             self.multi_time_fronts = self.fresnel_progress(multi_time_fronts_trans).T
         else:
-        #self.printSamples(name = "after fresnel")
             self.multi_time_fronts = cylindrical_fresnel_propogate(multi_time_fronts_trans.T, self.fresnel_data[self.side])
 
         self.multi_time_fronts_saves[self.side * 7 + 6] = np.copy(self.multi_time_fronts)

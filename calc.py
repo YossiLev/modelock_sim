@@ -9,7 +9,7 @@ except ImportError:
 import re
 from fasthtml.common import *
 from controls import *
-from multi_mode import cget, cylindrical_fresnel_prepare
+from multi_mode import cget, cylindrical_fresnel_prepare, prepare_linear_fresnel_calc_data, linear_fresnel_propogate
 
 def MMult(M1, M2):
     res = [[
@@ -76,6 +76,7 @@ class CalculatorData:
         self.x_out = []
         self.vf_in = []
         self.vf_out = []
+        self.distance_shifts = [-0.0002, -0.00015, -0.0001, -0.00005, 0.0000, 0.00005, 0.0001, 0.00015, 0.0002]
         self.select_front = "Gaussian"
     '''
         position_lens = -0.00015 + crystal_shift  # -0.00015 shift needed due to conclusions from single lens usage in original simulation
@@ -160,19 +161,26 @@ class CalculatorData:
                         self.x_in = self.x_out
                         self.vf_in = np.copy(self.vf_out)
                         N = len(self.vf_in)
-                        if (params == "calcrad"):
+                        if params == "calcrad":
                             vec = np.arange(N) + 0.5
                         else:
                             vec = np.arange(N) - np.asarray(N / 2) + 0.5
                         self.x_out = vec * np.asarray(self.fresnel_dx_out)    
 
+                self.vf_out = []
+                for shift in self.distance_shifts:
+                    MShift = [[1, shift], [0, 1]]
+                    local_fresnel_mat = MMult(MShift, self.fresnel_mat)
+                    if params == "calcrad":
+                        self.kernel, self.j0 = cylindrical_fresnel_prepare(self.x_in, self.x_out, 0.000000780, local_fresnel_mat)
+                        res = self.kernel @ self.vf_in
+                    else:
+                        dx0 = np.asarray(self.fresnel_dx_in / self.fresnel_factor)
+                        fresnel_data = prepare_linear_fresnel_calc_data(local_fresnel_mat, dx0, len(self.x_in), 0.000000780, 1)
+                        [res] = linear_fresnel_propogate(fresnel_data, np.asarray([self.vf_in]))
+                    self.vf_out.append(res)
 
-                self.kernel, self.j0 = cylindrical_fresnel_prepare(self.x_in, self.x_out, 0.000000780, self.fresnel_mat)
-                self.vf_out = self.kernel @ self.vf_in
-                # print(f"vf_in={self.vf_in}")
-                # print(f"vf_out={self.vf_out}")
-                # print(f"kernel shape={kernel.shape}")
-                
+
     def exec_cavity_command(self, com):
         if len(com) == 0:
             return
@@ -194,14 +202,15 @@ def generate_calc(data_obj, tab, offset = 0):
                 Div(title, cls="floatRight", style="font-size: 10px; top:-3px; right:10px;background: #e7edb8;"),
                 Input(type="number", id=id, title=title,
                     value=value, step=f"{step}", 
-                    hx_trigger="input changed delay:1s, ", hx_post=f"/clUpdate/{tab}", hx_target="#gen_calc", 
-                    hx_vals='js:{localId: getLocalId()}', style=f"width:{width}px; margin:2px;"),
+                    hx_trigger="input changed delay:1s", hx_post=f"/clUpdate/{tab}", hx_target="#gen_calc", 
+                    hx_vals='js:{localId: getLocalId()}',
+                    style=f"width:{width}px; margin:2px;"),
                 style="display: inline-block; position: relative;"
         )
 
     def SelectCalcS(id, title, options, selected, width = 150):
         return Select(*[Option(o) if o != selected else Option(o, selected="1") for o in options], id=id,
-                    hx_trigger="input changed, ", hx_post=f"/clUpdate/{tab}", hx_target="#gen_calc", hx_include="#calcForm *", 
+                    hx_trigger="input changed", hx_post=f"/clUpdate/{tab}", hx_target="#gen_calc", hx_include="#calcForm *", 
                     hx_vals='js:{localId: getLocalId()}', style=f"width:{width}px;")
 
     def ABCDMatControl(name, M):
@@ -210,8 +219,8 @@ def generate_calc(data_obj, tab, offset = 0):
         return Div(
             Div(
                 Div(
-                    Img(src="/static/copy.png", title="Copy", width=20, height=20, onclick=f"AbcdMatCopy('{name}')"),
-                    Img(src="/static/paste.png", title="Paste", width=20, height=20, onclick=f"AbcdMatPaste('{name}')"),
+                    Img(src="/static/copy.png", title="Copy", width=20, height=20, onclick=f"AbcdMatCopy('{name}');"),
+                    Img(src="/static/paste.png", title="Paste", width=20, height=20, onclick=f"AbcdMatPaste('{name}');"),
                     cls="floatRight"
                 ),
                 Span(name), 
@@ -273,14 +282,19 @@ def generate_calc(data_obj, tab, offset = 0):
             )
             
         case 3: # Fresnel
-            if len(calcData.vf_out) > 0:
-                s = calcData.kernel.shape[0]
-                skip = int(64 * calcData.fresnel_factor)
+            internal_data = False
+            try:
+                if len(calcData.vf_out) > 0 and len(calcData.vf_out[0]) > 0:
+                    s = calcData.kernel.shape[0]
+                    skip = int(64 * calcData.fresnel_factor)
+                    internal_data = True
+            except:
+                pass
             added = Div(
                 Div(
                     SelectCalcS(f'CalcSelectFront', "Initial Front", ["Gaussian", "Live Front", "From Output"], calcData.select_front, width = 150),
-                    Button("Calc Radial", escapse=False, hx_post=f'/doCalc/3/fresnel/calcrad', hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
-                    Button("Calc 1D", escapse=False, hx_post=f'/doCalc/3/fresnel/calc1d', hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
+                    Button("Calc Radial", hx_post=f'/doCalc/3/fresnel/calcrad', hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
+                    Button("Calc 1D", hx_post=f'/doCalc/3/fresnel/calc1d', hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
                 ),
                 ABCDMatControl("MFresnel", calcData.fresnel_mat),
                 Div(
@@ -292,15 +306,19 @@ def generate_calc(data_obj, tab, offset = 0):
                 ),
                 Div(
                     Div(
-                        generate_chart([cget(calcData.x_in).tolist()], [cget(np.square(np.abs(calcData.vf_in))).tolist()], [""], "In", marker="."), 
-                        generate_chart([cget(calcData.x_out).tolist()], [cget(np.square(np.abs(calcData.vf_out))).tolist()], [""], "Out", marker="."),
+                        generate_chart([cget(calcData.x_in).tolist()], [cget(np.square(np.abs(calcData.vf_in))).tolist()], [""], "In", color="#227700", marker="."),
+                        *[generate_chart([cget(calcData.x_out).tolist()], [cget(np.square(np.abs(calcData.vf_out[x[0]]))).tolist()], [""], 
+                                         f"Out {x[1]}", color="#774400", marker=".") for x in enumerate(calcData.distance_shifts)],
+                        cls="box", style="background-color: #008080;"
+                    ),
+                    Div(
                         *[generate_chart([cget(calcData.x_in).tolist()], [cget(np.abs(calcData.kernel[min(i, s - 1)])).tolist()], [""], f"kernel {min(i, s - 1)}", color="#227722", marker=".") 
                             for i in range(0, s + 1, skip)],
                         *[generate_chart([cget(calcData.x_in).tolist()], [cget(calcData.j0[min(i, s - 1)]).tolist()], [""], f"j0 {min(i, s - 1)}", color="#770022", marker=".") 
                             for i in range(0, s + 1, skip)],
                         cls="box", style="background-color: #008080;"
-                    )
-                ) if len(calcData.vf_out) > 0 else Div(),
+                    ) if internal_data else Div(),
+                ) if (len(calcData.vf_out) > 0 and len(calcData.vf_out[0]) > 0) else Div(),
 
 
 

@@ -13,6 +13,54 @@ import json
 
 from scipy.special import j0
 
+
+# rrrr need fix (skip)
+def vectors_for_linear_fresnel(lambda_, M, N, dx0, gain, is_back):
+    A, B = M[0]
+    C, D = M[1]
+    #print(A, B, C, D, self.lambda_)
+    dxf = B * lambda_ / (N * dx0)
+    factor = 1j * gain * np.sqrt(-1j / (B * lambda_))
+    if is_back:
+        factor *= 1j * gain
+    co0 = -np.pi * dx0 * dx0 * A / (B * lambda_)
+    cof = -np.pi * dxf * dxf * D / (B * lambda_)
+
+    vec0 = np.asarray([np.exp(1j * co0 * (i - N / 2) ** 2) for i in range(N)])
+    vecF = np.asarray([factor * np.exp(1j * cof * (i - N / 2) ** 2) for i in range(N)])
+
+    return {'dx': np.asarray(dx0), 'vecs': [vec0, vecF]}
+
+def prepare_linear_fresnel_calc_data(mat, dx0, n_samples, lambda_, loss):
+    A, B, C, D = mat[0][0], mat[0][1], mat[1][0], mat[1][1]
+    if A > 0:
+        M2 = [[A, B / (A + 1)], [C, D - C * B / (A + 1)]]
+        M1 = [[1, B / (A + 1)], [0, 1]]
+    else:
+        M2 = [[-A, -B / (-A + 1)], [-C, -D - C * B / (-A + 1)]]
+        M1 = [[-1, B / (-A + 1)], [0, -1]]
+
+    print(f"M1 = {M1[0][0]:11.6f}, {M1[0][1]:11.6f}, {M1[1][0]:11.6f}, {M1[1][1]:11.6f} dx = {M1[0][1] * lambda_ / (n_samples * dx0)} dx0 = {dx0}")
+    print(f"M2 = {M2[0][0]:11.6f}, {M2[0][1]:11.6f}, {M2[1][0]:11.6f}, {M2[1][1]:11.6f}")
+    fresnel_data = []
+    dx = dx0
+    for index, M in enumerate([M1, M2]):
+        fresnel_data.append(vectors_for_linear_fresnel(lambda_, M, n_samples, dx, loss if index == 0 else 1.0, M[0][0] < 0))
+        dx = M[0][1] * lambda_ / (n_samples * dx)
+        print(f"---- dx = {dx} dx0 = {dx0}")
+
+    return fresnel_data
+
+def linear_fresnel_propogate(fresnel_data, multi_time_fronts_trans):
+
+    for fresnel_step_data in fresnel_data:
+        vec0 = fresnel_step_data['vecs'][0]
+        vecF = fresnel_step_data['vecs'][1]
+        dx = fresnel_step_data['dx']
+        multi_time_fronts_trans = vecF * np.fft.fftshift(np.fft.fft(np.fft.fftshift(vec0 * multi_time_fronts_trans, axes=1), axis=1), axes=1) * dx
+    
+    return multi_time_fronts_trans
+
 def cylindrical_fresnel_prepare(r_in, r_out, wavelength, M):
     A, B = M[0]
     C, D = M[1]
@@ -274,24 +322,8 @@ class MultiModeSimulation:
         diffraction_width = self.multi_time_diffraction_val
         self.multi_time_diffraction = np.exp(- np.square(self.x / diffraction_width))
 
-    # rrrr need fix (skip)
-    def vectors_for_linear_fresnel(self, M, N, dx0, gain, is_back):
-        A, B = M[0]
-        C, D = M[1]
-        #print(A, B, C, D, self.lambda_)
-        dxf = B * self.lambda_ / (N * dx0)
-        factor = 1j * gain * np.sqrt(-1j / (B * self.lambda_))
-        if is_back:
-            factor *= 1j * gain
-        co0 = -np.pi * dx0 * dx0 * A / (B * self.lambda_)
-        cof = -np.pi * dxf * dxf * D / (B * self.lambda_)
 
-        vec0 = np.asarray([np.exp(1j * co0 * (i - N / 2) ** 2) for i in range(N)])
-        vecF = np.asarray([factor * np.exp(1j * cof * (i - N / 2) ** 2) for i in range(N)])
-
-        return {'dx': np.asarray(dx0), 'vecs': [vec0, vecF]}
-    
-    # rrrr need fix (skip)
+    # need fix (skip)
     def prepare_linear_fresnel_help_data(self):
         self.mat_side = calc_original_sim_matrices(self.crystal_shift)
 
@@ -299,28 +331,31 @@ class MultiModeSimulation:
 
         for index_side, side_m in enumerate(self.mat_side):
             dx = self.dx0
-            A, B, C, D = side_m[0][0], side_m[0][1], side_m[1][0], side_m[1][1]
-            if A > 0:
-                M2 = [[A, B / (A + 1)], [C, D - C * B / (A + 1)]]
-                M1 = [[1, B / (A + 1)], [0, 1]]
-            else:
-                M2 = [[-A, -B / (-A + 1)], [-C, -D - C * B / (-A + 1)]]
-                M1 = [[-1, B / (-A + 1)], [0, -1]]
 
-            print(f"M1 = {M1[0][0]:11.6f}, {M1[0][1]:11.6f}, {M1[1][0]:11.6f}, {M1[1][1]:11.6f} dx = {M1[0][1] * self.lambda_ / (self.n_samples * dx)} dx0 = {dx}")
-            print(f"M2 = {M2[0][0]:11.6f}, {M2[0][1]:11.6f}, {M2[1][0]:11.6f}, {M2[1][1]:11.6f}")
-            fresnel_side_data = []
-            for index, M in enumerate([M1, M2]):
-                loss = self.mirror_loss if index == 0 and index_side == 1 else 1
-                fresnel_side_data.append(self.vectors_for_linear_fresnel(M, self.n_samples, dx, loss, M[0][0] < 0))
-                dx = M[0][1] * self.lambda_ / (self.n_samples * dx)
-                print(f"---- dx = {dx} dx0 = {self.dx0}")
+            fresnel_side_data = prepare_linear_fresnel_calc_data(side_m, dx, self.n_samples, self.lambda_, 
+                                             self.mirror_loss if index_side == 1 else 1)
+            
+            # A, B, C, D = side_m[0][0], side_m[0][1], side_m[1][0], side_m[1][1]
+            # if A > 0:
+            #     M2 = [[A, B / (A + 1)], [C, D - C * B / (A + 1)]]
+            #     M1 = [[1, B / (A + 1)], [0, 1]]
+            # else:
+            #     M2 = [[-A, -B / (-A + 1)], [-C, -D - C * B / (-A + 1)]]
+            #     M1 = [[-1, B / (-A + 1)], [0, -1]]
+
+            # print(f"M1 = {M1[0][0]:11.6f}, {M1[0][1]:11.6f}, {M1[1][0]:11.6f}, {M1[1][1]:11.6f} dx = {M1[0][1] * self.lambda_ / (self.n_samples * dx)} dx0 = {dx}")
+            # print(f"M2 = {M2[0][0]:11.6f}, {M2[0][1]:11.6f}, {M2[1][0]:11.6f}, {M2[1][1]:11.6f}")
+            # fresnel_side_data = []
+            # for index, M in enumerate([M1, M2]):
+            #     loss = self.mirror_loss if index == 0 and index_side == 1 else 1
+            #     fresnel_side_data.append(self.vectors_for_linear_fresnel(M, self.n_samples, dx, loss, M[0][0] < 0))
+            #     dx = M[0][1] * self.lambda_ / (self.n_samples * dx)
+            #     print(f"---- dx = {dx} dx0 = {self.dx0}")
 
             self.fresnel_data.append(fresnel_side_data)
 
     def prepare_cylindrical_fresnel_help_data(self):
         self.mat_side = calc_original_sim_matrices(self.crystal_shift)
-
 
         self.fresnel_data, _ = map(list, zip(*[cylindrical_fresnel_prepare(self.x, self.x, self.lambda_, mat) for mat in self.mat_side]))
 
@@ -419,27 +454,31 @@ class MultiModeSimulation:
         self.multi_time_fronts = multi_time_fronts_trans.T
         self.multi_time_fronts_saves[self.side * 7 + 2] = np.copy(self.multi_time_fronts)
 
-    # rrrr need fix (ok)
+    # need fix (ok)
     def fresnel_progress(self, multi_time_fronts_trans):
 
-        for fresnel_side_data in self.fresnel_data[self.side]:
-            vec0 = fresnel_side_data['vecs'][0]
-            vecF = fresnel_side_data['vecs'][1]
-            dx = fresnel_side_data['dx']
+        linear_fresnel_propogate(self.fresnel_data[self.side], multi_time_fronts_trans)
+        for fresnel_step_data in self.fresnel_data[self.side]:
+            vec0 = fresnel_step_data['vecs'][0]
+            vecF = fresnel_step_data['vecs'][1]
+            dx = fresnel_step_data['dx']
             multi_time_fronts_trans = vecF * np.fft.fftshift(np.fft.fft(np.fft.fftshift(vec0 * multi_time_fronts_trans, axes=1), axis=1), axes=1) * dx
         
         return multi_time_fronts_trans
 
-    # rrrr need fix (ok)
+    # need fix (ok)
     def linear_cavity_one_side(self):
 
         self.two_sided_sum_power_ix = self.sum_power_ix[0] + self.sum_power_ix[1]
 
         Is = self.is_factor
         self.gain_reduction = np.real(np.multiply(self.pump_gain0, np.divide(self.n_samples_ones, 1 + np.divide(self.two_sided_sum_power_ix, Is * self.n_time_samples))))
+        
         #self.gain_reduction_with_origin = np.multiply(self.gain_factor, 1 + self.gain_reduction)
-        self.gain_reduction_with_origin = np.multiply(self.gain_factor, 1 + self.gain_reduction)
-        self.gain_reduction_after_diffraction = np.multiply(self.gain_reduction_with_origin, self.multi_time_diffraction)
+        #self.gain_reduction_after_diffraction = np.multiply(self.gain_reduction_with_origin, self.multi_time_diffraction)
+        ## rrrrrrr
+        self.gain_reduction_after_diffraction = np.multiply(self.gain_reduction, self.multi_time_diffraction)
+        self.gain_reduction_with_origin = 1 + np.multiply(self.gain_factor, self.gain_reduction_after_diffraction)
 
         multi_time_fronts_trans = self.multi_time_fronts.T
         gain_factors = self.gain_reduction_after_diffraction
@@ -449,6 +488,7 @@ class MultiModeSimulation:
 
         if self.beam_type == 0:
             self.multi_time_fronts = self.fresnel_progress(multi_time_fronts_trans).T
+            #self.multi_time_fronts = linear_fresnel_propogate(self.fresnel_data[self.side], multi_time_fronts_trans).T
         else:
             self.multi_time_fronts = cylindrical_fresnel_propogate(multi_time_fronts_trans.T, self.fresnel_data[self.side])
 
@@ -582,6 +622,14 @@ class MultiModeSimulation:
                 # {"color": "black", "values": cget(self.gain_reduction_after_diffraction), "text": f"gain_reduction_after_diffraction"}
         ]
 
+    def get_diffraction_graph_data(self):
+        return [{"color": "red", "values": cget(self.focus_front(self.gain_reduction_with_origin)).tolist(), "text": f"before diffraction"},
+                {"color": "blue", "values": cget(self.focus_front(self.gain_reduction_after_diffraction)).tolist(), "text": f"after diffraction"},
+                # {"color": "green", "values": cget(self.gain_reduction_with_origin), "text": f"gain_reduction_with_origin"},
+                # {"color": "purple", "values": cget(self.gain_reduction_after_aperture), "text": f"gain_reduction_after_aperture"},
+                # {"color": "black", "values": cget(self.gain_reduction_after_diffraction), "text": f"gain_reduction_after_diffraction"}
+        ]
+
     def serialize_mm_graphs_data(self):
         if self.n_rounds < 1:
             print("No graph data to serialize")
@@ -595,7 +643,7 @@ class MultiModeSimulation:
         s = [
                 {"name": "gr1", "lines": self.get_saturation_graph_data()},
                 # {"name": "gr1", "lines": self.get_kerr_influence(0, 0)},
-                # {"name": "gr2", "lines": self.get_kerr_influence(3, 1)},
+                {"name": "gr2", "lines": self.get_diffraction_graph_data()},
                 {"name": "gr3", "lines": [self.get_x_values(sample),
                                           self.get_x_values(1 - sample)]},
                 {"name": "gr4", "lines": [{"color": ["red", "blue"][sample], "values": psr, 

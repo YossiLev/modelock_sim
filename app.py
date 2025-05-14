@@ -415,6 +415,7 @@ async def mmInit(request: Request, localId: str):
         "seed": - 1 if len(form_data.get("seed").strip()) == 0 else int(form_data.get("seed")),
         "gain_factor": float(form_data.get("gainFactor")),
         "aperture": float(form_data.get("aperture")),
+        "diffraction_waist": float(form_data.get("diffractionWaist")),
         "epsilon": float(form_data.get("epsilon")),
         "dispersion_factor": float(form_data.get("dispersionFactor")),
         "lensing_factor": float(form_data.get("lensingFactor")),
@@ -441,6 +442,7 @@ async def mmUpdate(request: Request, localId: str):
     dataObj.mmData.set({
         "gain_factor": float(form_data.get("gainFactor")),
         "aperture": float(form_data.get("aperture")),
+        "diffraction_waist": float(form_data.get("diffractionWaist")),
         "epsilon": float(form_data.get("epsilon")),
         "dispersion_factor": float(form_data.get("dispersionFactor")),
         "lensing_factor": float(form_data.get("lensingFactor")),
@@ -477,7 +479,7 @@ async def mmView(localId: str):
     dataObj.run_state = False
 
 @app.ws('/mmRun')
-async def mmRun(send, nRounds: str, gainFactor: str, aperture: str, epsilon: str, dispersionFactor: str,
+async def mmRun(send, nRounds: str, gainFactor: str, aperture: str, diffractionWaist: str, epsilon: str, dispersionFactor: str,
                  lensingFactor: str, modulationGainFactor: str, isFactor: str, crystalShift: str, initialRange: str, localId: str):
     dataObj = get_Data_obj(localId)
     dataObj.assure('mmData')
@@ -487,6 +489,7 @@ async def mmRun(send, nRounds: str, gainFactor: str, aperture: str, epsilon: str
          "aperture": float(aperture),
          "epsilon": float(epsilon),
          "dispersion_factor": float(dispersionFactor),
+         "diffraction_waist": float(diffractionWaist),
          "lensing_factor": float(lensingFactor),
          "modulation_gain_factor": float(modulationGainFactor),
          "is_factor": float(isFactor),
@@ -507,7 +510,7 @@ async def mmRun(send, nRounds: str, gainFactor: str, aperture: str, epsilon: str
         if not dataObj.run_state:
             break       
         dataObj.mmData.multi_time_round_trip()
-        if (i + 1) % 200 == 0:
+        if (i + 1) % 100 == 0:
             try:
                 last_sent = i + 1
                 if last_sent >= count:

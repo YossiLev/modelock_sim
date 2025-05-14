@@ -196,6 +196,7 @@ class MultiModeSimulation:
         self.is_factor = np.asarray(15000)
         self.crystal_shift = np.asarray(0.0001)
         self.aperture = np.asarray(0.000056)
+        self.diffraction_waist = np.asarray(0.000030)
 
         self.n_rounds_per_full = 1
         self.lambda_ = 0.000000780
@@ -235,7 +236,6 @@ class MultiModeSimulation:
         self.pump_gain0 = []
         self.multi_time_aperture = []
         self.multi_time_diffraction = []
-        self.multi_time_diffraction_val = np.asarray(0.000030)
         self.frequency_total_mult_factor = []
         self.mirror_loss = np.asarray(0.95)
         self.fresnel_data = []
@@ -305,7 +305,7 @@ class MultiModeSimulation:
         # x0 = np.asarray(((self.n_samples) / 2 - 0.5) * dx)
         # x = (np.arange(self.n_samples) - np.asarray(((self.n_samples) / 2 - 0.5)) * dx
 
-    # rrrr need fix (ok)
+    # need fix (ok)
     def prepare_gain_pump(self):
         pump_width = np.asarray(0.000030 * 0.5)
         g0 = np.asarray(1 / self.mirror_loss + self.epsilon)
@@ -313,13 +313,13 @@ class MultiModeSimulation:
         xw = self.x / pump_width
         self.pump_gain0 = g0 * np.exp(-xw * xw)
 
-    # rrrr need fix (ok)
+    # need fix (ok)
     def prepare_aperture(self):
         aperture_width = np.asarray(self.aperture * 0.5)
         #x = (np.arange(self.n_samples) - np.asarray(self.n_samples / 2)) * np.asarray(self.dx0)
         self.multi_time_aperture = np.exp(- np.square(self.x / aperture_width))
 
-        diffraction_width = self.multi_time_diffraction_val
+        diffraction_width = self.diffraction_waist
         self.multi_time_diffraction = np.exp(- np.square(self.x / diffraction_width))
 
 

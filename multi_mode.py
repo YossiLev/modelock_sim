@@ -194,7 +194,7 @@ class MultiModeSimulation:
         self.dispersion_factor = np.asarray(0.45)
         self.lensing_factor = np.asarray(1.0)
         self.is_factor = np.asarray(15000)
-        self.crystal_shift = np.asarray(0.0)
+        self.crystal_shift = np.asarray(0.0001)
         self.aperture = np.asarray(0.000056)
 
         self.n_rounds_per_full = 1
@@ -454,17 +454,17 @@ class MultiModeSimulation:
         self.multi_time_fronts = multi_time_fronts_trans.T
         self.multi_time_fronts_saves[self.side * 7 + 2] = np.copy(self.multi_time_fronts)
 
-    # need fix (ok)
-    def fresnel_progress(self, multi_time_fronts_trans):
+    # # need fix (ok)
+    # def fresnel_progress(self, multi_time_fronts_trans):
 
-        linear_fresnel_propogate(self.fresnel_data[self.side], multi_time_fronts_trans)
-        for fresnel_step_data in self.fresnel_data[self.side]:
-            vec0 = fresnel_step_data['vecs'][0]
-            vecF = fresnel_step_data['vecs'][1]
-            dx = fresnel_step_data['dx']
-            multi_time_fronts_trans = vecF * np.fft.fftshift(np.fft.fft(np.fft.fftshift(vec0 * multi_time_fronts_trans, axes=1), axis=1), axes=1) * dx
+    #     #linear_fresnel_propogate(self.fresnel_data[self.side], multi_time_fronts_trans)
+    #     for fresnel_step_data in self.fresnel_data[self.side]:
+    #         vec0 = fresnel_step_data['vecs'][0]
+    #         vecF = fresnel_step_data['vecs'][1]
+    #         dx = fresnel_step_data['dx']
+    #         multi_time_fronts_trans = vecF * np.fft.fftshift(np.fft.fft(np.fft.fftshift(vec0 * multi_time_fronts_trans, axes=1), axis=1), axes=1) * dx
         
-        return multi_time_fronts_trans
+    #     return multi_time_fronts_trans
 
     # need fix (ok)
     def linear_cavity_one_side(self):
@@ -473,7 +473,7 @@ class MultiModeSimulation:
         if True:
             self.two_sided_sum_power_ix = self.sum_power_ix[self.side]
         else:
-            self.two_sided_sum_power_ix = self.sum_power_ix[0] + self.sum_power_ix[1]
+            self.two_sided_sum_power_ix = (self.sum_power_ix[0] + self.sum_power_ix[1]) * 0.5
 
         Is = self.is_factor
         self.gain_reduction = np.real(np.multiply(self.pump_gain0, np.divide(self.n_samples_ones, 1 + np.divide(self.two_sided_sum_power_ix, Is * self.n_time_samples))))
@@ -493,8 +493,8 @@ class MultiModeSimulation:
 
 
         if self.beam_type == 0:
-            self.multi_time_fronts = self.fresnel_progress(multi_time_fronts_trans).T
-            #self.multi_time_fronts = linear_fresnel_propogate(self.fresnel_data[self.side], multi_time_fronts_trans).T
+            #self.multi_time_fronts = self.fresnel_progress(multi_time_fronts_trans).T
+            self.multi_time_fronts = linear_fresnel_propogate(self.fresnel_data[self.side], multi_time_fronts_trans).T
         else:
             self.multi_time_fronts = cylindrical_fresnel_propogate(multi_time_fronts_trans.T, self.fresnel_data[self.side])
 

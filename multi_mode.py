@@ -197,6 +197,7 @@ class MultiModeSimulation:
         # self.crystal_shift = np.asarray(0.0001)
         # self.aperture = np.asarray(0.000056)
         # self.diffraction_waist = np.asarray(0.000030)
+        # self.initial_range = 0.001 # 0.00024475293
         
         self.beam_type = 1# 0 - 1D line, 1 - radial
         self.modulation_gain_factor = np.asarray(0.0)
@@ -208,10 +209,10 @@ class MultiModeSimulation:
         self.crystal_shift = np.asarray(0.00009)
         self.aperture = np.asarray(0.000156)
         self.diffraction_waist = np.asarray(0.000060)
+        self.initial_range = 0.0001
 
         self.n_rounds_per_full = 1
         self.lambda_ = 0.000000780
-        self.initial_range = 0.001 # 0.00024475293
         self.multi_ranges = [[], []]
         # rrrr need fix (ok)
         #self.n_samples = 256 if self.beam_type == 0 else 128

@@ -187,16 +187,27 @@ def serialize_fronts(fs):
 class MultiModeSimulation:
     def __init__(self):
 
-        self.beam_type = 0 # 0 - 1D line, 1 - radial
+        # self.beam_type = 0 # 0 - 1D line, 1 - radial
+        # self.modulation_gain_factor = np.asarray(0.0)
+        # self.gain_factor = np.asarray(0.50)
+        # self.epsilon = np.asarray(1.8)
+        # self.dispersion_factor = np.asarray(0.45)
+        # self.lensing_factor = np.asarray(1.0)
+        # self.is_factor = np.asarray(15000)
+        # self.crystal_shift = np.asarray(0.0001)
+        # self.aperture = np.asarray(0.000056)
+        # self.diffraction_waist = np.asarray(0.000030)
+        
+        self.beam_type = 1# 0 - 1D line, 1 - radial
         self.modulation_gain_factor = np.asarray(0.0)
         self.gain_factor = np.asarray(0.50)
-        self.epsilon = np.asarray(1.8)
-        self.dispersion_factor = np.asarray(0.45)
-        self.lensing_factor = np.asarray(1.0)
-        self.is_factor = np.asarray(15000)
-        self.crystal_shift = np.asarray(0.0001)
-        self.aperture = np.asarray(0.000056)
-        self.diffraction_waist = np.asarray(0.000030)
+        self.epsilon = np.asarray(5.0)
+        self.dispersion_factor = np.asarray(1.5)
+        self.lensing_factor = np.asarray(0.8)
+        self.is_factor = np.asarray(10000)
+        self.crystal_shift = np.asarray(0.00009)
+        self.aperture = np.asarray(0.000156)
+        self.diffraction_waist = np.asarray(0.000060)
 
         self.n_rounds_per_full = 1
         self.lambda_ = 0.000000780

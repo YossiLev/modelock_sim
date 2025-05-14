@@ -144,10 +144,10 @@ class CalculatorData:
                         self.vf_in = np.exp(front_exp)
                     case "Live Front":
                         print("Live Front")
-                        if 'mmData' not in dataObj or dataObj['mmData'] is None:
+                        if not hasattr(dataObj, 'mmData') is None:
                             print("No mmData")
                             return
-                        mmData = dataObj['mmData']
+                        mmData = dataObj.mmData
                         self.vf_in = np.asarray(mmData.get_x_values_full(0))
                         print(f"vf_in={len(self.vf_in)} dx0={mmData.dx0}")
                         if (params == "calcrad"):
@@ -240,10 +240,9 @@ def generate_calc(data_obj, tab, offset = 0):
     if data_obj is None:
         return Div()
     
-    if "calcData" not in data_obj or data_obj["calcData"] is None:
-        data_obj["calcData"] = CalculatorData()
+    data_obj.assure("calcData")
 
-    calcData = data_obj["calcData"]
+    calcData = data_obj.calcData
     added = Div()
 
     match tab:

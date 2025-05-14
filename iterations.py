@@ -121,7 +121,7 @@ def generate_iter_chart(dataObj, parameterName):
     vecY = []
     vecL = []
     
-    for iteration in dataObj['iterationRuns']:
+    for iteration in dataObj.iterationRuns:
         fullIndex = math.prod(iteration.n_values)
         skip = math.prod(iteration.n_values[1:])  
         if (iteration.current_index >= fullIndex and iteration.show != 0):
@@ -136,9 +136,9 @@ def generate_iter_chart(dataObj, parameterName):
 
 def generate_iterations(dataObj, full = True):
     # try:
-        index = dataObj['iteration_focus'] if 'iteration_focus' in dataObj.keys() else 0
-        if dataObj is not None and dataObj is not None and len(dataObj['iterationRuns']) > index:
-            iteration = dataObj['iterationRuns'][index]
+        index = dataObj.iteration_focus if  hasattr(dataObj, 'iteration_focus') else 0
+        if dataObj is not None and dataObj is not None and len(dataObj.iterationRuns) > index:
+            iteration = dataObj.iterationRuns[index]
         else:
             iteration = None
 
@@ -154,7 +154,7 @@ def generate_iterations(dataObj, full = True):
                     Div(
                         *list(map(lambda x: Button(x[1].name, hx_post=f"/iterChange/{x[0]}", 
                                                    hx_target="#iterateFull", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}',
-                                                   cls=("buttonH" if x[0] == index else "")), enumerate(dataObj['iterationRuns']))),
+                                                   cls=("buttonH" if x[0] == index else "")), enumerate(dataObj.iterationRuns))),
                         Div(
                             Button("Update", hx_post=f"/iterUpdate/{index}", hx_target="#iterateFull", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
                             Button("Delete", hx_post=f"/iterDelete/{index}", hx_target="#iterateFull", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),

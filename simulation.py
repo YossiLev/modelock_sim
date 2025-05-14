@@ -9,21 +9,20 @@ from controls import *
 
 def generate_all_charts(dataObj):
     # try:
-        if dataObj is None or 'cavityData' not in dataObj.keys():
+        if dataObj is None:
             return  "No data"
-        print(dataObj is None)
-        print('cavityData' not in dataObj.keys())
-        count = dataObj['count']
-        seed = dataObj['seed']
-        charts = dataObj['cavityData'].get_state()
-        analysis = dataObj['cavityData'].get_state_analysis()
+        dataObj.assure('cavityData')
+        count = dataObj.count
+        seed = dataObj.seed
+        charts = dataObj.cavityData.get_state()
+        analysis = dataObj.cavityData.get_state_analysis()
         analysisP = {k: f"{v:.2e}" if isinstance(v,float) else v for k,v in analysis.items()}
 
         return Div(
             Div(f"Seed {seed} - Step {count}", id="count"),
             Div(json.dumps(analysisP)),
             Div(
-                Div(*[p.render() for p in dataObj['cavityData'].getPinnedParameters(1)], cls="rowx"), 
+                Div(*[p.render() for p in dataObj.cavityData.getPinnedParameters(1)], cls="rowx"), 
                 Div(*[Div(generate_chart([chart.x], [chart.y], [""], chart.name), cls="box", style="background-color: #008080;") for chart in charts],
                     cls="rowx"
                 ))

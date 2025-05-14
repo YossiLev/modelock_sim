@@ -127,8 +127,8 @@ def make_page(data_obj):
                             Input(type="text", id=f"iterEndValue{p[0]}", name=f"iterEndValue{p[0]}", placeholder="End", style="width:70px; margin: 5px 4px 4px 0px;"),
                             Input(type="text", id=f"iterValueSteps{p[0]}", name=f"iterValueSteps{p[0]}", placeholder="Steps number", style="width:70px; margin: 5px 4px 4px 0px;"),
                             Select(Option("Linear"), Option("Logarithmic"), id=f"interpolationType{p[0]}"), cls="rowx"
-                              ) for p in enumerate(data_obj['cavityData'].getPinnedParameters(1))], 
-                        Div(*[p.render() for p in data_obj['cavityData'].getPinnedParameters(2)], cls="rowx"),
+                              ) for p in enumerate(data_obj.cavityData.getPinnedParameters(1))], 
+                        Div(*[p.render() for p in data_obj.cavityData.getPinnedParameters(2)], cls="rowx"),
                         id="iterParams"
                     ),
                     Div(generate_iterations(data_obj), id="iterateFull"), style="width:1100px"))
@@ -157,7 +157,7 @@ def home():
 def parameter_num(localId: str, id: str, param: str):
     print(f"id = {id}, param = {param}")
     dataObj = get_Data_obj(localId)
-    cavity: CavityData = dataObj['cavityData']
+    cavity: CavityData = dataObj.cavityData
 
     simParam, simComp  = cavity.getParameter(id)
     if simParam.set_value(param):
@@ -171,7 +171,7 @@ def parameter_num(localId: str, id: str, param: str):
 @app.post("/parpinn/{id}")
 def parameter_num(localId: str, id: str):
     dataObj = get_Data_obj(localId)
-    cavity: CavityData = dataObj['cavityData']
+    cavity: CavityData = dataObj.cavityData
 
     simParam, simComp  = cavity.getParameter(id)
     simParam.pinned = (simParam.pinned + 1) % 3
@@ -181,17 +181,7 @@ def parameter_num(localId: str, id: str):
 @app.post("/init")
 def init(session, seedInit: str, localId: str, matlab:bool = False):
     dataObj = get_Data_obj(localId)
-
-    if dataObj is None:
-        dataObj = {'id': localId, 'count': 0, 
-                'run_state': False, 'cavityData': CavityDataPartsKerr(matlab = matlab), 
-                'iterationRuns': []} 
-        insert_data_obj(localId, dataObj)
-    elif 'cavityData' not in dataObj:
-        dataObj['count'] = 0
-        dataObj['run_state'] = False
-        dataObj['cavityData'] = CavityDataPartsKerr(matlab = matlab)
-        dataObj['iterationRuns'] = []    
+    dataObj.assure('cavityData')
     
     seed = 0
     try:
@@ -201,10 +191,10 @@ def init(session, seedInit: str, localId: str, matlab:bool = False):
     if seed == 0:
         seed = int(np.random.rand() * (2 ** 32 - 1))
 
-    dataObj['seed'] = seed
-    dataObj['count'] = 0
-    dataObj['run_state'] = False
-    dataObj['cavityData'].restart(seed)
+    dataObj.seed = seed
+    dataObj.count = 0
+    dataObj.run_state = False
+    dataObj.cavityData.restart(seed)
 
     add_toast(session, f"Simulation initialized", "info")
 
@@ -213,19 +203,16 @@ def init(session, seedInit: str, localId: str, matlab:bool = False):
 @app.post("/stop")
 def stop(localId: str):
     dataObj = get_Data_obj(localId)
-    if dataObj:
-        if dataObj['run_state']:
-            dataObj['run_state'] = False
+    dataObj.assure('cavityData')
+    dataObj.run_state = False
 
     return generate_all_charts(dataObj)
 
 @app.post("/inc")
 def increment(localId: str):
     dataObj = get_Data_obj(localId)
-    if dataObj:
-        count = dataObj['count']
-        dataObj['cavityData'].simulation_step()
-        dataObj['count'] = count + 1
+    dataObj.assure('cavityData')
+    dataObj.count += 1
 
     return generate_all_charts(dataObj)
 
@@ -240,21 +227,21 @@ async def run(send, quick: bool, localId: str, matlab:bool = False):
     dataObj = get_Data_obj(localId)
     sim = get_sim_obj(localId)
 
-    if dataObj['run_state']:
+    if dataObj.run_state:
         return
-    dataObj['run_state'] = True
-    count = dataObj['count']
+    dataObj.run_state = True
+    count = dataObj.count
     end_count = count + 1000
     sim.matlab = matlab
     #sim.positionShift = positionShift
     sim.finalize()
 
-    while dataObj['run_state'] and count < end_count:
+    while dataObj.run_state and count < end_count:
         
         sim.simulation_step()
 
         count = count + 1
-        dataObj['count'] = count
+        dataObj.count = count
 
         if count % 100 == 0:
             sim.get_state_analysis()
@@ -267,23 +254,18 @@ async def run(send, quick: bool, localId: str, matlab:bool = False):
             await asyncio.sleep(0.001)
 
     if count >= end_count:
-        dataObj['run_state'] = False
+        dataObj.run_state = False
 
 #------------------- iterations
 @app.post("/iterInit")
 async def iterInit(request: Request, iterSeedInit: str, iterName: str, iterMaxCount: str, localId: str):
     dataObj = get_Data_obj(localId)
-
-    if dataObj is None:
-        dataObj = {'id': localId, 'count': 0, 
-                'run_state': False, 'cavityData': CavityDataPartsKerr(), 
-                'iterationRuns': []} 
-        insert_data_obj(localId, dataObj)   
+    dataObj.assure('cavityData')
 
     form_data = await request.form()  # Get all form fields as a dict-like object
 
-    iterations = dataObj['iterationRuns']
-    sim = dataObj['cavityData']
+    iterations = dataObj.iterationRuns
+    sim = dataObj.cavityData
     parameters = sim.getPinnedParameters(1)
     modifications = sim.getPinnedParameters(2)
 
@@ -314,23 +296,23 @@ async def iterInit(request: Request, iterSeedInit: str, iterName: str, iterMaxCo
         pass
 
     iterations.append(Iteration(sim, seed, modifications, parameters, value_start, value_end, n_values, values_mode, max_count, name = name))
-    dataObj['iteration_focus'] = len(iterations) - 1
+    dataObj.iteration_focus = len(iterations) - 1
 
     return generate_iterations(dataObj)
 
 @app.post("/iterStop")
 def stop(localId: str):
     dataObj = get_Data_obj(localId)
-    if dataObj['run_state']:
-        dataObj['run_state'] = False
+    if dataObj.run_state:
+        dataObj.run_state = False
     return generate_iterations(dataObj)
 
 @app.post("/iterStep")
 def step(localId: str):
     dataObj = get_Data_obj(localId)
-    iterations = dataObj['iterationRuns']
-    index = dataObj['iteration_focus'] or 0
-    print(F"chosen index {index} after {dataObj['iteration_focus']}")
+    iterations = dataObj.iterationRuns
+    index = dataObj.iteration_focus or 0
+    print(F"chosen index {index} after {dataObj.iteration_focus}")
 
     iterations[index].step()
 
@@ -340,38 +322,38 @@ def step(localId: str):
 @app.post("/iterChange/{index}")
 def step(localId: str, index: int):
     dataObj = get_Data_obj(localId)
-    dataObj['iteration_focus'] = index
+    dataObj.iteration_focus = index
     return generate_iterations(dataObj, True)
 
 @app.post("/iterDelete/{index}")
 def step(localId: str, index: int):
     dataObj = get_Data_obj(localId)
-    if (len(dataObj['iterationRuns']) > index):
-        del dataObj['iterationRuns'][index]
-        dataObj['iteration_focus'] = 0
+    if (len(dataObj.iterationRuns) > index):
+        del dataObj.iterationRuns[index]
+        dataObj.iteration_focus = 0
     return generate_iterations(dataObj)
 
 @app.post("/iterUpdate/{index}")
 def step(localId: str, index: int):
     dataObj = get_Data_obj(localId)
-    if (len(dataObj['iterationRuns']) > index):
-        dataObj['iterationRuns'][index].update_modifications()
+    if (len(dataObj.iterationRuns) > index):
+        dataObj.iterationRuns[index].update_modifications()
 
     return generate_iterations(dataObj)
 
 @app.post("/iterToggleShow/{index}")
 def step(localId: str, index: int):
     dataObj = get_Data_obj(localId)
-    if (len(dataObj['iterationRuns']) > index):
-        dataObj['iterationRuns'][index].toggle_show()
+    if (len(dataObj.iterationRuns) > index):
+        dataObj.iterationRuns[index].toggle_show()
 
     return generate_iterations(dataObj)
 
 @app.post("/iterClear/{index}")
 def step(localId: str, index: int):
     dataObj = get_Data_obj(localId)
-    if (len(dataObj['iterationRuns']) > index):
-        dataObj['iterationRuns'][index].clear()
+    if (len(dataObj.iterationRuns) > index):
+        dataObj.iterationRuns[index].clear()
 
     return generate_iterations(dataObj)
 
@@ -384,17 +366,17 @@ async def on_disconnect_iter(ws):
 @app.ws('/iterRun', conn=on_connect_iter, disconn=on_disconnect_iter)
 async def iterRun(send, localId: str):
     dataObj = get_Data_obj(localId)
-    dataObj['run_state'] = True
+    dataObj.run_state = True
 
-    index = dataObj['iteration_focus'] or 0
+    index = dataObj.iteration_focus or 0
     indices = [index]
 
     while len(indices) > 0:
         index = indices.pop(0)
-        dataObj['iteration_focus'] = index
-        iteration = dataObj['iterationRuns'][index]
+        dataObj.iteration_focus = index
+        iteration = dataObj.iterationRuns[index]
         while iteration.step():
-            if not dataObj['run_state']:
+            if not dataObj.run_state:
                 return
             if iteration.current_count % 20 == 0:
                 await send(Div(generate_iterations(dataObj, full = False), id="iterate"))
@@ -405,17 +387,17 @@ async def iterRun(send, localId: str):
 @app.ws('/iterRunAll', conn=on_connect_iter, disconn=on_disconnect_iter)
 async def iterRunAll(send, localId: str):
     dataObj = get_Data_obj(localId)
-    dataObj['run_state'] = True
-    indices = [i for i in range(len(dataObj['iterationRuns']))]
+    dataObj.run_state = True
+    indices = [i for i in range(len(dataObj.iterationRuns))]
 
     while len(indices) > 0:
         index = indices.pop(0)
-        dataObj['iteration_focus'] = index
-        iteration = dataObj['iterationRuns'][index]
+        dataObj.iteration_focus = index
+        iteration = dataObj.iterationRuns[index]
         await send(Div(generate_iterations(dataObj), id="iterateFull"))
         await asyncio.sleep(0.001)        
         while iteration.step():
-            if not dataObj['run_state']:
+            if not dataObj.run_state:
                 return
             if iteration.current_count % 20 == 0:
                 await send(Div(generate_iterations(dataObj, full = False), id="iterate"))
@@ -425,16 +407,10 @@ async def iterRunAll(send, localId: str):
 @app.post("/mmInit")
 async def mmInit(request: Request, localId: str):
     dataObj = get_Data_obj(localId)
-    if dataObj is None:
-        dataObj = {'id': localId, 'count': 0, 
-                'run_state': False, 
-                'mmData': MultiModeSimulation()}
-        insert_data_obj(localId, dataObj)
-    if "mmData" not in dataObj:
-        dataObj['mmData'] = MultiModeSimulation()
+    dataObj.assure('mmData')
     
     form_data = await request.form()  # Get all form fields as a dict-like object
-    dataObj['mmData'].set({
+    dataObj.mmData.set({
         "beam_type": 0 if form_data.get("beamType") == "1-Dimensional" else 1,
         "seed": - 1 if len(form_data.get("seed").strip()) == 0 else int(form_data.get("seed")),
         "gain_factor": float(form_data.get("gainFactor")),
@@ -449,8 +425,8 @@ async def mmInit(request: Request, localId: str):
         "n_rounds_per_full": int(form_data.get("nRounds")),
         "steps_sounter": 0,
     })
-    print(f"initial_range in init {dataObj['mmData'].initial_range}")
-    dataObj['mmData'].init_multi_time()
+    print(f"initial_range in init {dataObj.mmData.initial_range}")
+    dataObj.mmData.init_multi_time()
     print(f"after init_multi_time")
     
     return generate_multi_on_server(dataObj)
@@ -458,15 +434,11 @@ async def mmInit(request: Request, localId: str):
 @app.post("/mmUpdate")
 async def mmUpdate(request: Request, localId: str):
     dataObj = get_Data_obj(localId)
-    if dataObj is None:
-        dataObj = {'id': localId, 'count': 0, 
-                'run_state': False, 
-                'mmData': MultiModeSimulation()}
-        insert_data_obj(localId, dataObj)   
+    dataObj.assure('mmData')
     
     form_data = await request.form()  # Get all form fields as a dict-like object
     print(form_data)
-    dataObj['mmData'].set({
+    dataObj.mmData.set({
         "gain_factor": float(form_data.get("gainFactor")),
         "aperture": float(form_data.get("aperture")),
         "epsilon": float(form_data.get("epsilon")),
@@ -478,17 +450,17 @@ async def mmUpdate(request: Request, localId: str):
         "initial_range": float(form_data.get("initialRange")),
         "steps_sounter": int(form_data.get("stepsCounter")),
     })
-    dataObj['mmData'].update_helpData()
+    dataObj.mmData.update_helpData()
     
     return collectData(dataObj)
 
 @app.post("/mmView/{part}/{action}")
 async def mmView(part: int, action: str, localId: str):
     dataObj = get_Data_obj(localId)
-    if dataObj is None:
-        return Div()
+    dataObj.assure('mmData')
+
     
-    mmData = dataObj['mmData']
+    mmData = dataObj.mmData
     match action:
         case "Amp" | "Frq":
             mmData.view_on_amp_freq[part] = action
@@ -502,23 +474,15 @@ async def mmView(part: int, action: str, localId: str):
 @app.put("/mmStop")
 async def mmView(localId: str):
     dataObj = get_Data_obj(localId)
-    if dataObj is not None:
-        dataObj['run_state'] = False
+    dataObj.run_state = False
 
 @app.ws('/mmRun')
 async def mmRun(send, nRounds: str, gainFactor: str, aperture: str, epsilon: str, dispersionFactor: str,
                  lensingFactor: str, modulationGainFactor: str, isFactor: str, crystalShift: str, initialRange: str, localId: str):
     dataObj = get_Data_obj(localId)
-    if dataObj is None:
-        print("Error: mmRun dataObj is None")
-        dataObj = {'id': localId, 'count': 0, 
-                'run_state': False, 
-                'cavityData': CavityDataPartsKerr(), 
-                'mmData': MultiModeSimulation(),
-                'iterationRuns': []}
-        insert_data_obj(localId, dataObj)
+    dataObj.assure('mmData')
     
-    dataObj['mmData'].set({
+    dataObj.mmData.set({
          "gain_factor": float(gainFactor),
          "aperture": float(aperture),
          "epsilon": float(epsilon),
@@ -531,32 +495,32 @@ async def mmRun(send, nRounds: str, gainFactor: str, aperture: str, epsilon: str
          "n_rounds_per_full": int(nRounds),
     #     "steps_counter": int(form_data.get("stepsCounter")),
     })
-    dataObj['mmData'].update_helpData()
+    dataObj.mmData.update_helpData()
     last_sent = 0
 
     start_time = time.time()
     count = int(nRounds)
-    dataObj['run_state'] = True
+    dataObj.run_state = True
     for i in range(count):
         # if i % 100 == 0:
         #     print(f"round {i}")
-        if not dataObj['run_state']:
+        if not dataObj.run_state:
             break       
-        dataObj['mmData'].multi_time_round_trip()
+        dataObj.mmData.multi_time_round_trip()
         if (i + 1) % 200 == 0:
             try:
                 last_sent = i + 1
                 if last_sent >= count:
-                    dataObj['run_state'] = False
+                    dataObj.run_state = False
                 await send(Div(collectData(dataObj, 0, more=last_sent < count), id="numData"))
                 await asyncio.sleep(0.001)
             except Exception as e:
                 print(f"Error sending data: {e}")
-                dataObj['run_state'] = False
+                dataObj.run_state = False
                 return
     
     if last_sent < count:
-        dataObj['run_state'] = False
+        dataObj.run_state = False
         await send(Div(collectData(dataObj), id="numData"))
     end_time = time.time()
     elapsed_time = end_time - start_time
@@ -569,9 +533,9 @@ async def mmGraph(request: Request, sample: int, x: int, y: int):
 
     localId = jj["localId"]
     dataObj = get_Data_obj(localId)
-    if dataObj is None:
-        return "{}"
-    mmData = dataObj['mmData']
+    dataObj.assure('mmData')
+
+    mmData = dataObj.mmData
     mmData.view_on_sample = sample
     mmData.view_on_x = x
     mmData.view_on_y = y
@@ -581,13 +545,9 @@ async def mmGraph(request: Request, sample: int, x: int, y: int):
 @app.post("/mmCenter")
 async def mmCenter(localId: str):
     dataObj = get_Data_obj(localId)
-    if dataObj is None:
-        dataObj = {'id': localId, 'count': 0, 
-                'run_state': False, 
-                'mmData': MultiModeSimulation()}
-        insert_data_obj(localId, dataObj)   
-    
-    dataObj['mmData'].center_multi_time()
+    dataObj.assure('mmData')
+   
+    dataObj.mmData.center_multi_time()
     
     return collectData(dataObj)
 
@@ -631,12 +591,9 @@ def pushParam(target, name, extractor):
 @app.post("/clUpdate/{tab}")
 async def clUpdate(request: Request, tab: int, localId: str):
     dataObj = get_Data_obj(localId)
-    if dataObj is None:
-        dataObj = {'id': localId, 'count': 0, 
-                'run_state': False,
-                'calcData': CalculatorData(),}
-        insert_data_obj(localId, dataObj)
-    calcData = dataObj['calcData']
+    dataObj.assure('calcData')
+
+    calcData = dataObj.calcData
     form_data = await request.form()# Get all form fields as a dict-like object
     print(form_data)
     try:
@@ -691,7 +648,7 @@ async def clUpdate(request: Request, tab: int, localId: str):
 async def doCalc(tab: int, cmd: str, params: str, localId: str):
     dataObj = get_Data_obj(localId)
 
-    dataObj["calcData"].doCalcCommand(cmd, params, dataObj)
+    dataObj.calcData.doCalcCommand(cmd, params, dataObj)
 
     return generate_calc(dataObj, tab)
 
@@ -764,12 +721,7 @@ def load(localId: str):
 @app.post("/load/{id}")
 def load(id: str, localId: str):
     dataObj = get_Data_obj(localId)
-
-    if dataObj is None:
-        dataObj = {'id': localId, 'count': 0, 
-                'run_state': False, 'cavityData': CavityDataPartsKerr(), 
-                'iterationRuns': []} 
-        insert_data_obj(localId, dataObj)  
+    dataObj.assure('cacityData')
 
     db = dataset.connect(db_path)
     table = db['simulation']
@@ -781,15 +733,15 @@ def load(id: str, localId: str):
     s = rec["content"]
     sim = jsonpickle.decode(s)
     sim.finalize()
-    dataObj['cavityData'] = sim
+    dataObj.cavityData = sim
     return generate_design(dataObj)
 
 @app.post("/store_iter/{label}")
 def store(label: str, localId: str):
     dataObj = get_Data_obj(localId)
-    iterations = dataObj['iterationRuns']
+    iterations = dataObj.iterationRuns
     db = dataset.connect(db_path)
-    table = db['iterations']
+    table = db.iterations
     for iteration in iterations:
         print(dict(labels=f"@{label}@", content=jsonpickle.encode(iteration)))
         #table.insert(dict(labels=f"@{label}@", content=jsonpickle.encode(iteration)))

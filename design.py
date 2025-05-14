@@ -7,6 +7,7 @@ def generate_design(data_obj):
         return Div(
             Div("No simulation loaed please load"), cls="rowx", id="cavity" )
     
-    cavity: CavityData = data_obj['cavityData']
+    data_obj.assure('cavityData')
+    cavity: CavityData = data_obj.cavityData
 
     return cavity.render()

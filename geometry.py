@@ -28,7 +28,7 @@ def generate_geometry(data_obj, tab, offset = 0):
     images = []
     added = Div()
     if data_obj:
-        sim = data_obj['cavityData']
+        sim = data_obj.cavityData
         match tab:
             case 1:
                 images.append(Image.new('RGB', (1024, 512 + 256), (225, 255, 255)))

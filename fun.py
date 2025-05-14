@@ -163,10 +163,10 @@ def initBeamType(beamParamInit = 0.0005, beamDistInit = 0.0):
 
 def collectData(data_obj, delay=0, more=False):
     if data_obj is None:
-        return Div()
-    if "mmData" not in data_obj or data_obj["mmData"] is None:
-        data_obj["mmData"] = MultiModeSimulation()
-    mmData = data_obj["mmData"]
+        return Div("mmData")
+    data_obj.assure("mmData")
+
+    mmData = data_obj.mmData
     mmDataSer = mmData.serialize_mm_data(delay, more)
     return Div(mmDataSer, style="height:1px; overflow:hidden;")
 
@@ -196,7 +196,7 @@ def num_but_title(label):
 
 def ViewButtons(data_obj, part):
     if (data_obj is not None):
-        mmData = data_obj["mmData"]
+        mmData = data_obj.mmData
     return Div(
         *[ViewButton(f"{x}", num_but_title(x), part, data_obj and mmData.view_on_stage[part] == f"{x}") for x in range(1, 15)],
         Div("", style="width:20px; display:inline-block;"),
@@ -209,10 +209,11 @@ def ViewButtons(data_obj, part):
     )
 
 def multimode_charts(data_obj):
-    if data_obj is None or "mmData" not in data_obj:
+    if data_obj is None:
         print("No data")
         return Div()
-    mmData = data_obj["mmData"]
+    data_obj.assure("mmData")
+    mmData = data_obj.mmData
     return Div(
         Div(
             Div(
@@ -265,7 +266,7 @@ def InputS(id, title, value, step=0.01, width = 50):
                  hx_vals='js:{localId: getLocalId()}', style=f"width:{width}px;"),
 
 def generate_multi_on_server(data_obj):
-    if data_obj is None or "mmData" not in data_obj:
+    if data_obj is None:
         params = {
             "beamType": 0,
             "initialRange": 0.001, #0.00024475293,
@@ -282,7 +283,8 @@ def generate_multi_on_server(data_obj):
 
         }
     else:
-        mmData = data_obj["mmData"]
+        data_obj.assure("mmData")
+        mmData = data_obj.mmData
         params = {
             "beamType": mmData.beam_type,
             "initialRange": mmData.initial_range,

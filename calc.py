@@ -207,6 +207,18 @@ def generate_calc(data_obj, tab, offset = 0):
                     style=f"width:{width}px; margin:2px;"),
                 style="display: inline-block; position: relative;"
         )
+    def InputCalcM(id, title, value, step=0.01, width = 150):
+        return Div(
+                Div(title, cls="floatRight", style="font-size: 10px; top:-3px; right:10px;background: #e7edb8;"),
+                Input(type="number", id=id, title=title,
+                    value=value, step=f"{step}", 
+#                    hx_trigger="input changed delay:1s", hx_post=f"/clUpdate/{tab}", hx_target="#gen_calc", 
+#                    hx_vals='js:{localId: getLocalId()}',
+                    style=f"width:{width}px; margin:2px;",
+                    **{'onkeyup':f"validateMat(event);",
+                       'onpaste':f"validateMat(event);",}),
+                style="display: inline-block; position: relative;"
+        )
 
     def SelectCalcS(id, title, options, selected, width = 150):
         return Select(*[Option(o) if o != selected else Option(o, selected="1") for o in options], id=id,
@@ -215,7 +227,7 @@ def generate_calc(data_obj, tab, offset = 0):
 
     def ABCDMatControl(name, M):
         det = M[0][0] * M[1][1] - M[0][1] * M[1][0]
-        msg = f"&#9888; det={det}" if np.abs(det - 1.0) > 0.00001 else ""
+        msg = f'&#9888; det={det}'
         return Div(
             Div(
                 Div(
@@ -224,15 +236,16 @@ def generate_calc(data_obj, tab, offset = 0):
                     cls="floatRight"
                 ),
                 Span(name), 
-                Span(NotStr(msg), style="color: yellow; background-color: red; padding: 3px; border-radius: 4px; margin-left: 30px; ") if len(msg) > 0 else "",
+                Span(NotStr(msg), id=f"{name}_msg", 
+                     style=f"visibility: {'hidden' if abs(det - 1.0) < 0.000001 else 'visible'}; color: yellow; background-color: red; padding: 1px; border-radius: 4px; margin-left: 30px; ") if len(msg) > 0 else "",
             ),
             Div(
-                InputCalcS(f'{name}_A', "A", f'{M[0][0]}', width = 180),
-                InputCalcS(f'{name}_B', "B", f'{M[0][1]}', width = 180),
+                InputCalcM(f'{name}_A', "A", f'{M[0][0]}', width = 180),
+                InputCalcM(f'{name}_B', "B", f'{M[0][1]}', width = 180),
             ),
             Div(
-                InputCalcS(f'{name}_C', "C", f'{M[1][0]}', width = 180),
-                InputCalcS(f'{name}_D', "D", f'{M[1][1]}', width = 180),
+                InputCalcM(f'{name}_C', "C", f'{M[1][0]}', width = 180),
+                InputCalcM(f'{name}_D', "D", f'{M[1][1]}', width = 180),
             ),
             cls="ABCDMatControl"
         )
@@ -250,10 +263,10 @@ def generate_calc(data_obj, tab, offset = 0):
             added = Div(
                 Div(
                     #Input(type="number", id=f'el{s}length', placeholder="0", step="0.01", style="width:50px;", value=f'{par[1]}'),
-                    Button("M3=M1xM2", escapse=False, hx_post=f'/doCalc/1/mult/M1-M2-M3', hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
-                    Button("M1=M3xM2^-1", escapse=False, hx_post=f'/doCalc/1/mult/M3-M2i-M1', hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
-                    Button("M2=M1^-1xM3", escapse=False, hx_post=f'/doCalc/1/mult/M1i-M3-M2', hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
-                    Button("M1=Fix(M3)", escapse=False, hx_post=f'/doCalc/1/mult/fixM3-M1', hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'),
+                    Button("M3=M1xM2", escapse=False, hx_post=f'/doCalc/1/mult/M1-M2-M3', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
+                    Button("M1=M3xM2^-1", escapse=False, hx_post=f'/doCalc/1/mult/M3-M2i-M1', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
+                    Button("M2=M1^-1xM3", escapse=False, hx_post=f'/doCalc/1/mult/M1i-M3-M2', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
+                    Button("M1=Fix(M3)", escapse=False, hx_post=f'/doCalc/1/mult/fixM3-M1', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'),
                     InputCalcS(f'MatFixer', "Fixer", f'{calcData.t_fixer}', width = 80),
 
                 ),
@@ -266,7 +279,7 @@ def generate_calc(data_obj, tab, offset = 0):
         case 2: # Cavity
             added = Div(
                 Div(
-                    Button("Cavity into ABCD mat", escapse=False, hx_post=f'/doCalc/2/cavity/calc', hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
+                    Button("Cavity into ABCD mat", escapse=False, hx_post=f'/doCalc/2/cavity/calc', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
                 ),
                 FlexN([
                     Textarea(calcData.cavity_text, id="cavityText", style="min-height: 400px;",
@@ -292,8 +305,8 @@ def generate_calc(data_obj, tab, offset = 0):
             added = Div(
                 Div(
                     SelectCalcS(f'CalcSelectFront', "Initial Front", ["Gaussian", "Live Front", "From Output"], calcData.select_front, width = 150),
-                    Button("Calc Radial", hx_post=f'/doCalc/3/fresnel/calcrad', hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
-                    Button("Calc 1D", hx_post=f'/doCalc/3/fresnel/calc1d', hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
+                    Button("Calc Radial", hx_post=f'/doCalc/3/fresnel/calcrad', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
+                    Button("Calc 1D", hx_post=f'/doCalc/3/fresnel/calc1d', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
                 ),
                 ABCDMatControl("MFresnel", calcData.fresnel_mat),
                 Div(
@@ -329,11 +342,11 @@ def generate_calc(data_obj, tab, offset = 0):
 
     return Div(
         Div(
-            TabMaker("Matrix", "/tabcalc/1", tab == 1, target="#gen_calc"),
-            TabMaker("Cavity", "/tabcalc/2", tab == 2, target="#gen_calc"),
-            TabMaker("Fresnel", "/tabcalc/3", tab == 3, target="#gen_calc"),
-            TabMaker("TBD3", "/tabcalc/4", tab == 4, target="#gen_calc"),
-            TabMaker("TBD4", "/tabcalc/5", tab == 5, target="#gen_calc"),
+            TabMaker("Matrix", "/tabcalc/1", tab == 1, target="#gen_calc", inc="#calcForm *"),
+            TabMaker("Cavity", "/tabcalc/2", tab == 2, target="#gen_calc", inc="#calcForm *"),
+            TabMaker("Fresnel", "/tabcalc/3", tab == 3, target="#gen_calc", inc="#calcForm *"),
+            TabMaker("TBD3", "/tabcalc/4", tab == 4, target="#gen_calc", inc="#calcForm *"),
+            TabMaker("TBD4", "/tabcalc/5", tab == 5, target="#gen_calc", inc="#calcForm *"),
         ),
         Div(added, id="calcForm"),
 

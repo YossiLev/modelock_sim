@@ -133,3 +133,34 @@ function initializeDragAndDrop() {
         });
     });
 }
+
+function parseStrictFloat(str) {
+  const floatRegex = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/;
+  return floatRegex.test(str.trim()) ? parseFloat(str) : NaN;
+}
+
+function validateMat(event) {
+    tv = event.target.id;
+    matName = tv.split("_")[0];
+    validateMatName(matName);
+}
+function validateMatName(matName) {
+
+    chars = "ABCD".split("")
+    vals = chars.map(c => document.getElementById(`${matName}_${c}`).value);
+    nums = vals.map(v => parseStrictFloat(v));
+    if (nums.findIndex(v => isNaN(v) >= 0)) {
+        nums.forEach((v, i) => { 
+            document.getElementById(`${matName}_${chars[i]}`).style.color = isNaN(v) ? "red" : "black";
+        });
+    } else {
+        det = nums[0] * nums[3] - nums[1] * nums[2];
+        el = document.getElementById(`${matName}_msg`)
+        if (Math.abs(det - 1.0) > 0.000001) {
+            el.innerHTML = `&#9888; det=${det}`;
+            el.style.visibility = "visible";
+        } else {
+            el.style.visibility = "hidden";
+        }
+    }
+}

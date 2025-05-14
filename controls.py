@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 def FlexN(v):
     return Div(*v, style="display: flex; gap: 3px;")
 
-def TabMaker(label, group, sel, target="#fun"):
-    return Div(label,  hx_post=group, hx_target=target, cls=f"tab {'tabselected' if sel else ''}", hx_vals='js:{localId: getLocalId()}'),
+def TabMaker(label, group, sel, target="#fun", inc=""):
+    return Div(label,  hx_post=group, hx_target=target, hx_include=inc, cls=f"tab {'tabselected' if sel else ''}", hx_vals='js:{localId: getLocalId()}'),
 
 def generate_chart(x, y, l, t, w=11, h=2, color="blue", marker=None):
     fig = plt.figure(figsize=(w, h))

@@ -187,26 +187,26 @@ def serialize_fronts(fs):
 class MultiModeSimulation:
     def __init__(self):
 
-        self.beam_type = 1 # 0 - 1D line, 1 - radial
-        self.modulation_gain_factor = np.asarray(0.1)
+        self.beam_type = 0 # 0 - 1D line, 1 - radial
+        self.modulation_gain_factor = np.asarray(0.0)
         self.gain_factor = np.asarray(0.50)
-        self.epsilon = np.asarray(0.2)
-        self.dispersion_factor = np.asarray(1.0)
+        self.epsilon = np.asarray(1.8)
+        self.dispersion_factor = np.asarray(0.45)
         self.lensing_factor = np.asarray(1.0)
-        self.is_factor = np.asarray(200 * 352000)
+        self.is_factor = np.asarray(15000)
         self.crystal_shift = np.asarray(0.0)
         self.aperture = np.asarray(0.000056)
 
         self.n_rounds_per_full = 1
         self.lambda_ = 0.000000780
-        self.initial_range = 0.00024475293 # 0.00024475293
+        self.initial_range = 0.001 # 0.00024475293
         self.multi_ranges = [[], []]
         # rrrr need fix (ok)
         #self.n_samples = 256 if self.beam_type == 0 else 128
         self.n_samples = 256
         self.n_max_matrices = 1000
         self.n_rounds = 0
-        self.seed = -1
+        self.seed = 0
         self.used_seed = 0
 
         self.steps_counter = 0
@@ -469,16 +469,22 @@ class MultiModeSimulation:
     # need fix (ok)
     def linear_cavity_one_side(self):
 
-        self.two_sided_sum_power_ix = self.sum_power_ix[0] + self.sum_power_ix[1]
+        #rrrrr choice
+        if True:
+            self.two_sided_sum_power_ix = self.sum_power_ix[self.side]
+        else:
+            self.two_sided_sum_power_ix = self.sum_power_ix[0] + self.sum_power_ix[1]
 
         Is = self.is_factor
         self.gain_reduction = np.real(np.multiply(self.pump_gain0, np.divide(self.n_samples_ones, 1 + np.divide(self.two_sided_sum_power_ix, Is * self.n_time_samples))))
         
-        #self.gain_reduction_with_origin = np.multiply(self.gain_factor, 1 + self.gain_reduction)
-        #self.gain_reduction_after_diffraction = np.multiply(self.gain_reduction_with_origin, self.multi_time_diffraction)
-        ## rrrrrrr
-        self.gain_reduction_after_diffraction = np.multiply(self.gain_reduction, self.multi_time_diffraction)
-        self.gain_reduction_with_origin = 1 + np.multiply(self.gain_factor, self.gain_reduction_after_diffraction)
+        #rrrrr choice
+        if True:
+            self.gain_reduction_with_origin = np.multiply(self.gain_factor, 1 + self.gain_reduction)
+            self.gain_reduction_after_diffraction = np.multiply(self.gain_reduction_with_origin, self.multi_time_diffraction)
+        else:
+            self.gain_reduction_after_diffraction = np.multiply(self.gain_reduction, self.multi_time_diffraction)
+            self.gain_reduction_with_origin = 1 + np.multiply(self.gain_factor, self.gain_reduction_after_diffraction)
 
         multi_time_fronts_trans = self.multi_time_fronts.T
         gain_factors = self.gain_reduction_after_diffraction

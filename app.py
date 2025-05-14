@@ -594,23 +594,19 @@ async def clUpdate(request: Request, tab: int, localId: str):
     dataObj.assure('calcData')
 
     calcData = dataObj.calcData
-    form_data = await request.form()# Get all form fields as a dict-like object
-    print(form_data)
+    form_data = await request.form()
+
+    doCalcUpdate(calcData, form_data)
+
+    return generate_calc(dataObj, tab)
+
+def doCalcUpdate(calcData, form_data):
+    print("updating... ", form_data)
     try:
         pushParam(calcData, "M1", lambda: collect_mat_data(calcData.M1, form_data, "M1"))
-        #M1 = collect_mat_data(form_data, "M1")
         pushParam(calcData, "M2", lambda: collect_mat_data(calcData.M2,form_data, "M2"))
-        #M2 = collect_mat_data(form_data, "M2")
         pushParam(calcData, "M3", lambda: collect_mat_data(calcData.M3,form_data, "M3"))
-        #M3 = collect_mat_data(form_data, "M3")
         pushParam(calcData, "t_fixer", lambda: float(form_data.get("MatFixer")))
-
-        # calcData.set({
-        #     "M1": collect_mat_data(form_data, "M1"),
-        #     "M2": collect_mat_data(form_data, "M2"),
-        #     "M3": collect_mat_data(form_data, "M3"),
-        #     "t_fixer": float(form_data.get("MatFixer")),
-        # })
     except:
         pass
     try:
@@ -630,23 +626,15 @@ async def clUpdate(request: Request, tab: int, localId: str):
         pushParam(calcData, "fresnel_dx_out", lambda: float(form_data.get("FresnelDXOut")))
         pushParam(calcData, "fresnel_waist", lambda: float(form_data.get("FresnelWaist")))
         pushParam(calcData, "select_front", lambda: form_data.get("CalcSelectFront"))
-        # calcData.set({
-        #     "fresnel_mat": collect_mat_data(form_data, "MFresnel"),
-        #     "fresnel_N": int(form_data.get("FresnelN")),
-        #     "fresnel_factor": float(form_data.get("FresnelFactor")),
-        #     "fresnel_dx_in": float(form_data.get("FresnelDXIn")),                         
-        #     "fresnel_dx_out": float(form_data.get("FresnelDXOut")),                         
-        #     "fresnel_waist": float(form_data.get("FresnelWaist")),
-        #     "select_front": form_data.get("CalcSelectFront"),                
-        # })
     except:
         pass
-    return generate_calc(dataObj, tab)
 
-    
 @app.post("/doCalc/{tab}/{cmd}/{params}")
-async def doCalc(tab: int, cmd: str, params: str, localId: str):
+async def doCalc(request: Request, tab: int, cmd: str, params: str, localId: str):
     dataObj = get_Data_obj(localId)
+    calcData = dataObj.calcData
+    form_data = await request.form()
+    doCalcUpdate(calcData, form_data)
 
     dataObj.calcData.doCalcCommand(cmd, params, dataObj)
 
@@ -757,7 +745,15 @@ def load(tabid: int, localId: str):
     return generate_multimode(get_Data_obj(localId), tabid)
 
 @app.post("/tabcalc/{tabid}")
-def tabcalc(tabid: int, localId: str):
+async def tabcalc(request: Request, tabid: int, localId: str):
+    dataObj = get_Data_obj(localId)
+    dataObj.assure('calcData')
+
+    calcData = dataObj.calcData
+    form_data = await request.form()
+
+    doCalcUpdate(calcData, form_data)
+
     return generate_calc(get_Data_obj(localId), tabid)
 
 @app.post("/moveonchart/{offset}/{tab}")

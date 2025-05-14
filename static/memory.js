@@ -39,6 +39,7 @@ function AbcdMatPaste(name) {
         document.getElementById(name + "_B").dispatchEvent(new Event('input'));
         document.getElementById(name + "_C").dispatchEvent(new Event('input'));
         document.getElementById(name + "_D").dispatchEvent(new Event('input'));
+        validateMatName(name);
     } else {
         console.error("No data found in local storage for key 'AbcdMat'");
     }

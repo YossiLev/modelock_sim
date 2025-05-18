@@ -301,7 +301,7 @@ def generate_multi_on_server(data_obj):
             "crystalShift": mmData.crystal_shift,
             "nRounds": mmData.n_rounds_per_full,
         }
-    n_rounds_options = [1, 10, 100, 300, 1000, 3000, 10000]
+    n_rounds_options = [1, 10, 100, 300, 1000, 2000, 5000, 10000]
     selected_rounds_option = params["nRounds"]
 
     return Div(
@@ -352,11 +352,10 @@ def generate_multi_on_server(data_obj):
         id="multiModeServer",
     )
 
-def generate_multimode(data_obj, tab, offset = 0):
+def generate_multimode(data_obj, tab):
 
     images = []
     added = Div()
-    added2 = Div()
     match tab:
         case 1:
             added = Div(

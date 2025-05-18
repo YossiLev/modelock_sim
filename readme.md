@@ -5,12 +5,13 @@ A Python-based web application for laser simulation, powered by [FastAPI](https:
 ## 🚀 Features
 
 - Performs simulation of gasusian beam in a cavity holding a titanium sapphire crystal. The simulation
-follows the article: Parshani, I; Bello, L; Meller, M; Pe'er, A "Kerr-Lens Mode-Locking: Numerical Simulation 
-of the Spatio-Temporal Dynamics on All Time Scales" https://doi.org/10.3390/app122010354 .
+follows the article: 
+**Parshani, I; Bello, L; Meller, M; Pe'er, A**
+[Kerr-Lens Mode-Locking: Numerical Simulation of the Spatio-Temporal Dynamics on All Time Scales](https://doi.org/10.3390/app122010354).
 
-- Performs simulation of a multimode beam in a cavity holding a titanium sapphire crystal
+- Performs simulation of a multimode beam in a cavity holding a titanium sapphire crystal.
 
-- Performs various calculations of Gaussian Laser beam stability in a cavity
+- Performs various calculations of Gaussian Laser beam stability in a cavity.
 
 ## 📦 Installation
 
@@ -32,11 +33,11 @@ pip install -r requirements.txt
 ## ▶️ Activation
 Run the developement server
 
-From the project folder run:
+- From the project folder run:
 
 uvicorn app:app -- host 0.0.0.0
 
-From your browser go to
+- From your browser go to
 
 http://localhost:8000
 
@@ -52,7 +53,9 @@ laser-sim/
 ```
 
 ## 📄 License
-This project is licensed under the MIT License.
+Copyright (c) 2024-2025, Bar Ilan University, Prof. Avi Pe'er Lab
+
+This project is licensed under the [MIT License](https://opensource.org/license/mit).
 
 ## 🙋‍♂️ Contact
-For questions or feedback, feel free to contact me at yossi.lev.home@gmail.com .
+For questions or feedback, feel free to contact me at **yossi.lev.home@gmail.com**.

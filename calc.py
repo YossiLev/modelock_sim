@@ -9,7 +9,7 @@ except ImportError:
 import re
 from fasthtml.common import *
 from controls import *
-from multi_mode import cget, cylindrical_fresnel_prepare, prepare_linear_fresnel_calc_data, linear_fresnel_propogate
+from multi_mode import cget, cylindrical_fresnel_prepare, prepare_linear_fresnel_calc_data, prepare_linear_fresnel_straight_calc_data, linear_fresnel_propogate
 
 def MMult(M1, M2):
     res = [[
@@ -135,6 +135,8 @@ class CalculatorData:
                         N = int(self.fresnel_N * self.fresnel_factor)
                         if (params == "calcrad"):
                             vec = np.arange(N) + 0.5
+                        elif (params == "calc1d"):
+                            vec = np.arange(N) - np.asarray(N / 2) + 0.5
                         else:
                             vec = np.arange(N) - np.asarray(N / 2) + 0.5
                         self.x_in = vec * np.asarray(self.fresnel_dx_in / self.fresnel_factor)
@@ -152,6 +154,8 @@ class CalculatorData:
                         print(f"vf_in={len(self.vf_in)} dx0={mmData.dx0}")
                         if (params == "calcrad"):
                             vec = np.arange(len(self.vf_in)) + 0.5
+                        elif (params == "calc1d"):
+                            vec = np.arange(len(self.vf_in)) - np.asarray(len(self.vf_in) / 2) + 0.5
                         else:
                             vec = np.arange(len(self.vf_in)) - np.asarray(len(self.vf_in) / 2) + 0.5
                         self.x_in = vec * np.asarray(mmData.dx0)
@@ -163,6 +167,8 @@ class CalculatorData:
                         N = len(self.vf_in)
                         if params == "calcrad":
                             vec = np.arange(N) + 0.5
+                        elif (params == "calc1d"):
+                            vec = np.arange(N) - np.asarray(N / 2) + 0.5
                         else:
                             vec = np.arange(N) - np.asarray(N / 2) + 0.5
                         self.x_out = vec * np.asarray(self.fresnel_dx_out)    
@@ -174,9 +180,13 @@ class CalculatorData:
                     if params == "calcrad":
                         self.kernel, self.j0 = cylindrical_fresnel_prepare(self.x_in, self.x_out, 0.000000780, local_fresnel_mat)
                         res = self.kernel @ self.vf_in
-                    else:
+                    elif (params == "calc1d"):
                         dx0 = np.asarray(self.fresnel_dx_in / self.fresnel_factor)
                         fresnel_data = prepare_linear_fresnel_calc_data(local_fresnel_mat, dx0, len(self.x_in), 0.000000780, 1)
+                        [res] = linear_fresnel_propogate(fresnel_data, np.asarray([self.vf_in]))
+                    else:
+                        dx0 = np.asarray(self.fresnel_dx_in / self.fresnel_factor)
+                        fresnel_data = prepare_linear_fresnel_straight_calc_data(local_fresnel_mat, dx0, len(self.x_in), 0.000000780, 1)
                         [res] = linear_fresnel_propogate(fresnel_data, np.asarray([self.vf_in]))
                     self.vf_out.append(res)
 
@@ -307,6 +317,7 @@ def generate_calc(data_obj, tab, offset = 0):
                     SelectCalcS(f'CalcSelectFront', "Initial Front", ["Gaussian", "Live Front", "From Output"], calcData.select_front, width = 150),
                     Button("Calc Radial", hx_post=f'/doCalc/3/fresnel/calcrad', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
                     Button("Calc 1D", hx_post=f'/doCalc/3/fresnel/calc1d', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
+                    Button("Calc 1D Straight", hx_post=f'/doCalc/3/fresnel/calc1dstraight', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
                 ),
                 ABCDMatControl("MFresnel", calcData.fresnel_mat),
                 Div(

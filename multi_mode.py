@@ -51,6 +51,16 @@ def prepare_linear_fresnel_calc_data(mat, dx0, n_samples, lambda_, loss):
 
     return fresnel_data
 
+def prepare_linear_fresnel_straight_calc_data(mat, dx0, n_samples, lambda_, loss):
+
+    fresnel_data = []
+    dx = dx0
+    fresnel_data.append(vectors_for_linear_fresnel(lambda_, mat, n_samples, dx, 1.0, mat[0][0] < 0))
+    dx = mat[0][1] * lambda_ / (n_samples * dx)
+    print(f"---- dx = {dx} dx0 = {dx0}")
+
+    return fresnel_data
+
 def linear_fresnel_propogate(fresnel_data, multi_time_fronts_trans):
 
     for fresnel_step_data in fresnel_data:

@@ -40,13 +40,16 @@ From your browser go to
 
 http://localhost:8000
 
+
 ## 📁 Project Structure
+```
 laser-sim/
 ├── app.py                             # Uvicorn entry point
 ├── other_application_modules.py       # Application modules
 ├── static/                            # Frontend assets
 ├── requirements.txt
 └── README.md
+```
 
 ## 📄 License
 This project is licensed under the MIT License.

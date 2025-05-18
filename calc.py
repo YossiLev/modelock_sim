@@ -163,7 +163,7 @@ class CalculatorData:
                     case "From Output":
                         print("From Output")
                         self.x_in = self.x_out
-                        self.vf_in = np.copy(self.vf_out)
+                        self.vf_in = np.copy(self.vf_out[(len(self.vf_out) - 1) // 2])
                         N = len(self.vf_in)
                         if params == "calcrad":
                             vec = np.arange(N) + 0.5
@@ -212,8 +212,8 @@ def generate_calc(data_obj, tab, offset = 0):
                 Div(title, cls="floatRight", style="font-size: 10px; top:-3px; right:10px;background: #e7edb8;"),
                 Input(type="number", id=id, title=title,
                     value=value, step=f"{step}", 
-                    hx_trigger="input changed delay:1s", hx_post=f"/clUpdate/{tab}", hx_target="#gen_calc", 
-                    hx_vals='js:{localId: getLocalId()}',
+                    # hx_trigger="input changed delay:1s", hx_post=f"/clUpdate/{tab}", hx_target="#gen_calc", 
+                    # hx_vals='js:{localId: getLocalId()}',
                     style=f"width:{width}px; margin:2px;"),
                 style="display: inline-block; position: relative;"
         )

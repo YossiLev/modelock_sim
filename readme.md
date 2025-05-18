@@ -4,7 +4,7 @@ A Python-based web application for laser simulation, powered by [FastAPI](https:
 
 ## 🚀 Features
 
-- Performs simulation of gasusian beam in a cavity holding a titanium sapphire crystal. The simulation
+- Performs simulation of Gaussian beam in a cavity holding a **titanium sapphire crystal**. The simulation
 follows the article: 
 **Parshani, I; Bello, L; Meller, M; Pe'er, A**
 [Kerr-Lens Mode-Locking: Numerical Simulation of the Spatio-Temporal Dynamics on All Time Scales](https://doi.org/10.3390/app122010354).
@@ -35,7 +35,7 @@ Run the developement server
 
 - From the project folder run:
 
-uvicorn app:app -- host 0.0.0.0
+uvicorn app:app --host 0.0.0.0 --port 8000
 
 - From your browser go to
 

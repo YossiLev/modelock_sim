@@ -577,6 +577,8 @@ class MultiModeSimulation:
                 stage_data = np.fft.fftshift(np.fft.fft(np.fft.ifftshift(stage_data, axes=1), axis=1), axes=1)
             if (self.view_on_abs_phase[target] == "Abs"):
                 stage_data = np.abs(stage_data)
+            elif (self.view_on_abs_phase[target] == "Pow"):
+                stage_data = np.square(np.abs(stage_data))
             else:
                 stage_data = np.angle(stage_data)
         return stage_data

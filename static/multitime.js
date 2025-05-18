@@ -1015,7 +1015,7 @@ function spreadUpdatedData(data) {
                     but.classList.remove("buttonH");
                 }
             }
-            for (let i of ["Phs", "Abs"]) {
+            for (let i of ["Phs", "Abs", "Pow"]) {
                 but = document.getElementById(`view_button-${part}-${i}`);  
                 if (data.view_buttons.view_on_abs_phase[part] == `${i}`) {
                     but.classList.add("buttonH");

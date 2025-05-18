@@ -36,8 +36,8 @@ function drawTextBG(ctx, txt, x, y, color = '#000', font = "8pt Courier") {
 
 function getClientCoordinates(e) {
     var bounds = e.target.getBoundingClientRect();
-    var x = e.clientX - bounds.left;
-    var y = e.clientY - bounds.top;
+    var x = e.clientX - Math.round(bounds.left);
+    var y = e.clientY - Math.round(bounds.top);
     return [x, y];
 }
 

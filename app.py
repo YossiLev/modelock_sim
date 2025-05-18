@@ -54,10 +54,6 @@ def menu(new_tab: str, localId: str):
 
     dataObj = get_Data_obj(localId)
 
-    if dataObj is None:
-        dataObj = {'id': localId} 
-        insert_data_obj(localId, dataObj)
-
     current_tab = new_tab
     return make_page(dataObj)
 
@@ -92,7 +88,6 @@ def make_page(data_obj):
                     Button("Stop", hx_post="/stop", hx_target="#charts", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
                     Label(Input(id="cbxQuick", type='checkbox', name='quick', checked=False), "Speed"),
                     Label(Input(id="cbxmatlab", type='checkbox', name='matlab', checked=False), "Matlab style"),
-                    #Input(type="number", id=f'positionShift', placeholder="0.0", step="0.0001", style="width:100px;", value=f'0.0', title="Shift in crystal position"),
                     Div(generate_all_charts(data_obj), id="charts"),
                     style="width:1100px;"
                 )
@@ -233,7 +228,6 @@ async def run(send, quick: bool, localId: str, matlab:bool = False):
     count = dataObj.count
     end_count = count + 1000
     sim.matlab = matlab
-    #sim.positionShift = positionShift
     sim.finalize()
 
     while dataObj.run_state and count < end_count:
@@ -312,12 +306,10 @@ def step(localId: str):
     dataObj = get_Data_obj(localId)
     iterations = dataObj.iterationRuns
     index = dataObj.iteration_focus or 0
-    print(F"chosen index {index} after {dataObj.iteration_focus}")
 
     iterations[index].step()
 
     return generate_iterations(dataObj)
-
 
 @app.post("/iterChange/{index}")
 def step(localId: str, index: int):
@@ -404,6 +396,7 @@ async def iterRunAll(send, localId: str):
                 await asyncio.sleep(0.001)
         await send(Div(generate_iterations(dataObj), id="iterateFull"))
         await asyncio.sleep(0.001)
+
 @app.post("/mmInit")
 async def mmInit(request: Request, localId: str):
     dataObj = get_Data_obj(localId)
@@ -426,9 +419,7 @@ async def mmInit(request: Request, localId: str):
         "n_rounds_per_full": int(form_data.get("nRounds")),
         "steps_sounter": 0,
     })
-    print(f"initial_range in init {dataObj.mmData.initial_range}")
     dataObj.mmData.init_multi_time()
-    print(f"after init_multi_time")
     
     return generate_multi_on_server(dataObj)
 
@@ -460,13 +451,12 @@ async def mmUpdate(request: Request, localId: str):
 async def mmView(part: int, action: str, localId: str):
     dataObj = get_Data_obj(localId)
     dataObj.assure('mmData')
-
     
     mmData = dataObj.mmData
     match action:
         case "Amp" | "Frq":
             mmData.view_on_amp_freq[part] = action
-        case "Abs" | "Phs":
+        case "Abs" | "Phs" | "Pow":
             mmData.view_on_abs_phase[part] = action
         case "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "10" | "11" | "12" | "13" | "14":
             mmData.view_on_stage[part] = action
@@ -554,7 +544,6 @@ async def mmCenter(localId: str):
     
     return collectData(dataObj)
 
-
 def collect_mat_data(M, form_data, name):
     updated = False
     try:
@@ -583,9 +572,7 @@ def collect_mat_data(M, form_data, name):
 
 def pushParam(target, name, extractor):
     try:
-        #print(f"pushParam {name} ")
         value = extractor()
-        #print(f"pushParam {name} = {value}")
         if value is not None:
             target.set({name: value})
     except:
@@ -604,7 +591,6 @@ async def clUpdate(request: Request, tab: int, localId: str):
     return generate_calc(dataObj, tab)
 
 def doCalcUpdate(calcData, form_data):
-    print("updating... ", form_data)
     try:
         pushParam(calcData, "M1", lambda: collect_mat_data(calcData.M1, form_data, "M1"))
         pushParam(calcData, "M2", lambda: collect_mat_data(calcData.M2,form_data, "M2"))

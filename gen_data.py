@@ -14,6 +14,7 @@ class Data_object():
                 if not hasattr(self, 'cavityData'):
                     self.cavityData = CavityDataPartsKerr()
                     self.iterationRuns = []
+                    self.seed = 0
             case 'mmData':
                 if not hasattr(self, 'mmData'):
                     self.mmData = MultiModeSimulation()

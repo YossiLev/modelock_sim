@@ -205,6 +205,7 @@ def ViewButtons(data_obj, part):
         Div("", style="width:20px; display:inline-block;"),
         ViewButton("Phs", "Phase of the complex data", part, data_obj and mmData.view_on_abs_phase[part] == "Phs"),
         ViewButton("Abs", "Absolute value of the complex data", part, data_obj and mmData.view_on_abs_phase[part] == "Abs"),
+        ViewButton("Pow", "Power value of the complex data", part, data_obj and mmData.view_on_abs_phase[part] == "Pow"),
         style="display:inline-block;"
     )
 

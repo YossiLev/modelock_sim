@@ -29,6 +29,7 @@ class CavityData():
         self.step = 0
         self.recorded_data = [["Time", "Power", "Width", "Lensing Right", "Lensing Left", "Total Mat"]]
         self.recorded_data_indices = []
+        self.finalized = False
 
         pass
 
@@ -348,6 +349,7 @@ class CavityDataPartsKerr(CavityDataParts):
         self.g0 = 1 / self.mirror_loss + self.epsilon  # linear gain
 
 
+
     def restart(self, seed):
         super().restart()
 
@@ -375,6 +377,9 @@ class CavityDataPartsKerr(CavityDataParts):
         self.Et[self.cbuf, :] = np.fft.fftshift(np.fft.ifft(np.fft.ifftshift(self.Ew[self.cbuf, :])))
 
         self.phaseShift = np.angle(self.Ew[self.cbuf, :])
+
+        self.finalized = True
+
 
     def get_record_steps(self, index):
         powerChart = self.get_state()[0]
@@ -429,7 +434,9 @@ class CavityDataPartsKerr(CavityDataParts):
 
 
     def get_state(self):
-
+        print(f" in get_state finalized = {self.finalized}")
+        if not self.finalized:
+            return []
         self.It[self.nbuf, :] = np.abs(self.Et[self.nbuf, :])**2
         am = np.argmax(self.It[self.nbuf, :])
         self.phaseShift = np.angle(self.Ew[self.nbuf, :])
@@ -453,6 +460,8 @@ class CavityDataPartsKerr(CavityDataParts):
         return charts
     
     def get_state_analysis(self):
+        if not self.finalized:
+            return {}
         analysis = {}
         power = np.abs(self.Et[self.cbuf, :])**2
         total_power = np.sum(power)

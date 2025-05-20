@@ -308,3 +308,17 @@ h1 {
   right:3px;
   top: 3px;
 }
+
+.pophelp {
+  position: absolute;
+
+  background-color: #f0f0f0;
+  border: 1px solid #ccc;
+  padding: 10px;
+  z-index: 1000;
+}
+.header {
+  background-color: #f0f0f0;
+  border: 1px solid #ccc;
+  padding: 10px;
+}

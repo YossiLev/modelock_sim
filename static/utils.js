@@ -34,6 +34,14 @@ function drawTextBG(ctx, txt, x, y, color = '#000', font = "8pt Courier") {
     ctx.restore();
 }
 
+function toggleVisibility(el) {
+    if (el.style.visibility === "hidden" || el.style.visibility === "") {
+        el.style.visibility = "visible";
+    } else {
+        el.style.visibility = "hidden";
+    }
+}
+
 function getClientCoordinates(e) {
     var bounds = e.target.getBoundingClientRect();
     var x = e.clientX - Math.round(bounds.left);
@@ -163,4 +171,32 @@ function validateMatName(matName) {
             el.style.visibility = "hidden";
         }
     }
+}
+
+function AbcdMatEigenValuesCalc(name) {
+    let eigenText = document.getElementById(name + "_eigen"); 
+    if (eigenText.style.visibility == "visible") {
+        toggleVisibility(eigenText);
+        eigenText.innerHTML = "";
+        return;
+    }
+    let A = document.getElementById(name + "_A").value;
+    let D = document.getElementById(name + "_D").value; 
+
+    let a = parseFloat(A);
+    let d = parseFloat(D);
+
+    let disc = 1 - (a + d) * (a + d) * 0.25;
+    if (disc >= 0) {
+        // stable
+        let re = (d + a) / 2.0
+        let im = Math.sqrt(disc)
+        eigenText.innerHTML = `&#x1F603; ${re.toFixed(3)} &#xb1; i${im.toFixed(3)}`;
+    } else {
+        // unstable
+        let re = (d + a) / 2.0
+        let re2 = Math.sqrt(-disc)
+        eigenText.innerHTML = `&#x1F62D; ${(re + re2).toFixed(3)} or ${(re - re2).toFixed(3)}`;
+    }
+    toggleVisibility(eigenText);
 }

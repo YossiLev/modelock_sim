@@ -117,9 +117,7 @@ class CalculatorData:
                 match params:
                     case "calc":
                         self.cavity_mat = [[1, 0], [0, 1]]
-                        #print(f"cavity_text={self.cavity_text}")
                         coms = self.cavity_text.split("\n")
-                        #print(f"coms={coms}")
                         for com in coms:
                             self.exec_cavity_command(com.strip().lower())
                     case "0":
@@ -241,6 +239,7 @@ def generate_calc(data_obj, tab, offset = 0):
         return Div(
             Div(
                 Div(
+                    Img(src="/static/eigen.png", title="Copy", width=20, height=20, onclick=f"AbcdMatEigenValuesCalc('{name}');"),
                     Img(src="/static/copy.png", title="Copy", width=20, height=20, onclick=f"AbcdMatCopy('{name}');"),
                     Img(src="/static/paste.png", title="Paste", width=20, height=20, onclick=f"AbcdMatPaste('{name}');"),
                     cls="floatRight"
@@ -257,6 +256,7 @@ def generate_calc(data_obj, tab, offset = 0):
                 InputCalcM(f'{name}_C', "C", f'{M[1][0]}', width = 180),
                 InputCalcM(f'{name}_D', "D", f'{M[1][1]}', width = 180),
             ),
+            Div("", id=f"{name}_eigen", style="visibility: hidden;"),
             cls="ABCDMatControl"
         )
 

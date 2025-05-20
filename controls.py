@@ -9,6 +9,17 @@ def FlexN(v):
 def TabMaker(label, group, sel, target="#fun", inc=""):
     return Div(label,  hx_post=group, hx_target=target, hx_include=inc, cls=f"tab {'tabselected' if sel else ''}", hx_vals='js:{localId: getLocalId()}'),
 
+def Header(title, help = None):
+    return Div(
+        FlexN(
+            [Div(title, cls="header"),
+            Button("?", cls="helpbutton", onclick="toggleVisibility(this.parentElement.nextElementSibling);") if help else "",
+            ]
+        ),
+        Div(NotStr(help), cls="pophelp", style="position: absolute; visibility: hidden") if help else "",
+        cls="headercontainer",
+    )
+
 def generate_chart(x, y, l, t, w=11, h=2, color="blue", marker=None):
     fig = plt.figure(figsize=(w, h))
     for i in range(len(x)):

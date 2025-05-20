@@ -7,7 +7,9 @@ from controls import *
 from multi_mode import MultiModeSimulation
 
 elements = [
-    [{"t": "L", "par":[0.3, 0.075]}, {"t": "L", "par":[0.45, 0.075, 1.0], "del": 1.0}, {"t": "X", "par":[0.85]}, ],
+    #[{"t": "L", "par":[0.3, 0.075]}, {"t": "L", "par":[0.45, 0.075, 1.0], "del": 1.0}, {"t": "X", "par":[0.85]}, ],
+    [{"t": "L", "par":[0.07, 0.05]}, {"t": "L", "par":[0.392, 0.008, 1.0], "del": 1.0}, 
+     {"t": "L", "par":[0.408, 0.008, 1.0], "del": 1.0}, {"t": "L", "par":[0.73, 0.05]}, {"t": "X", "par":[0.80]}], 
     [{"t": "L", "par":[0.9, 0.075]}, {"t": "C", "par":[0.9735, 0.003]}, {"t": "L", "par":[1.05, 0.075, 1.0]}, {"t": "X", "par":[1.55]}, ],
     [{"t": "L", "par":[0.9, 0.075]}, {"t": "L", "par":[0.982318181, 10.000, 0.5], "del": 0.5}, 
         {"t": "L", "par":[1.057818181, 0.075, 1.0], "del": 1.0}, {"t": "X", "par":[1.557818181]}, ],   
@@ -359,7 +361,9 @@ def generate_multimode(data_obj, tab):
     match tab:
         case 1:
             added = Div(
-                Div(initBeamType(), 
+                Header("See light lateral shape as a 1D front progressing in the cavity", help="This is a help text"),
+                Div(
+                    initBeamType(), 
                     Button("Init", onclick="initElementsMultiMode(); initMultiMode(1);"),
                     Select(Option("All"), Option("1"), Option("2"), Option("3"), Option("4"), Option("5"), id="nMaxMatrices", **{'onchange':"nMaxMatricesChanged();"},),
                     Button("Full", onclick="initElementsMultiMode(); initMultiMode(1);fullCavityMultiMode()"),

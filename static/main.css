@@ -320,5 +320,6 @@ h1 {
 .header {
   background-color: #f0f0f0;
   border: 1px solid #ccc;
-  padding: 10px;
+  padding: 4px;
+  margin: 4px 0px;
 }

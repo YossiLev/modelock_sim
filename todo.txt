@@ -10,3 +10,4 @@
 - compare physical parameters reality vs. simulation 
 
 - cavity building in calculator and using in other places
+    - using Guassian Q parameter propogation

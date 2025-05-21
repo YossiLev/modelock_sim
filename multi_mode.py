@@ -14,7 +14,7 @@ import json
 from scipy.special import j0
 
 
-# rrrr need fix (skip)
+# need fix (skip)
 def vectors_for_linear_fresnel(lambda_, M, N, dx0, gain, is_back):
     A, B = M[0]
     C, D = M[1]
@@ -120,7 +120,6 @@ def cylindrical_fresnel_preparekeep(r, r_out, wavelength, M):
 
     new_kernel = np.diag(factor_output) @ kernel @ np.diag(factor_input)  # shape (N_r, N_r)
     # print(f"new_kernel = {new_kernel}")
-    #return np.asarray(kernel), np.asarray(factor_input), np.asarray(factor_output)
     return np.asarray(new_kernel), np.asarray(kernel)
 
 def cylindrical_fresnel_propogate(fronts, kernel):
@@ -261,9 +260,7 @@ class MultiModeSimulation:
         self.frequency_total_mult_factor = []
         self.mirror_loss = np.asarray(0.95)
         self.fresnel_data = []
-        #self.total_range = 0.001000
         self.dx0 = self.initial_range / self.n_samples
-        print(f"++++ A dx0 = {self.dx0}")
         self.scalar_one = 1 + 0j
         self.n_time_samples_ones = np.asarray([self.scalar_one] * self.n_time_samples)
         self.n_samples_ones = np.asarray([self.scalar_one] * self.n_samples)
@@ -275,9 +272,6 @@ class MultiModeSimulation:
         self.view_on_x = self.n_time_samples // 2
         self.view_on_y = self.n_samples // 2
         self.view_on_sample = 0
-
-        #self.mat_side = [[[-1.2947E+00, 4.8630E-03], [1.5111E+02, -1.3400E+00]],  # right
-        #                 [[1.1589E+00, 8.2207E-04], [2.9333E+02, 1.0709E+00]]]    # left
 
         self.mat_side = calc_original_sim_matrices()
         self.prepare_x()
@@ -314,7 +308,7 @@ class MultiModeSimulation:
             self.multi_time_fronts = self.multi_time_fronts * self.modulator_gain
         self.multi_time_fronts_saves[self.side * 7 + 4] = np.copy(self.multi_time_fronts)
 
-    # rrrr need fix (ok)
+    # need fix (ok)
     def prepare_x(self):
         self.dx0 = self.initial_range / self.n_samples
         print(f"++++ B dx0 = {self.dx0}")
@@ -323,27 +317,20 @@ class MultiModeSimulation:
 
         self.x = vec * np.asarray(self.dx0)
 
-        # dx = np.asarray(self.initial_range / self.n_samples)
-        # x0 = np.asarray(((self.n_samples) / 2 - 0.5) * dx)
-        # x = (np.arange(self.n_samples) - np.asarray(((self.n_samples) / 2 - 0.5)) * dx
-
     # need fix (ok)
     def prepare_gain_pump(self):
         pump_width = np.asarray(0.000030 * 0.5)
         g0 = np.asarray(1 / self.mirror_loss + self.epsilon)
-        #x = (np.arange(self.n_samples) - np.asarray(self.n_samples / 2)) * np.asarray(self.dx0)
         xw = self.x / pump_width
         self.pump_gain0 = g0 * np.exp(-xw * xw)
 
     # need fix (ok)
     def prepare_aperture(self):
         aperture_width = np.asarray(self.aperture * 0.5)
-        #x = (np.arange(self.n_samples) - np.asarray(self.n_samples / 2)) * np.asarray(self.dx0)
         self.multi_time_aperture = np.exp(- np.square(self.x / aperture_width))
 
         diffraction_width = self.diffraction_waist
         self.multi_time_diffraction = np.exp(- np.square(self.x / diffraction_width))
-
 
     # need fix (skip)
     def prepare_linear_fresnel_help_data(self):
@@ -357,34 +344,12 @@ class MultiModeSimulation:
             fresnel_side_data = prepare_linear_fresnel_calc_data(side_m, dx, self.n_samples, self.lambda_, 
                                              self.mirror_loss if index_side == 1 else 1)
             
-            # A, B, C, D = side_m[0][0], side_m[0][1], side_m[1][0], side_m[1][1]
-            # if A > 0:
-            #     M2 = [[A, B / (A + 1)], [C, D - C * B / (A + 1)]]
-            #     M1 = [[1, B / (A + 1)], [0, 1]]
-            # else:
-            #     M2 = [[-A, -B / (-A + 1)], [-C, -D - C * B / (-A + 1)]]
-            #     M1 = [[-1, B / (-A + 1)], [0, -1]]
-
-            # print(f"M1 = {M1[0][0]:11.6f}, {M1[0][1]:11.6f}, {M1[1][0]:11.6f}, {M1[1][1]:11.6f} dx = {M1[0][1] * self.lambda_ / (self.n_samples * dx)} dx0 = {dx}")
-            # print(f"M2 = {M2[0][0]:11.6f}, {M2[0][1]:11.6f}, {M2[1][0]:11.6f}, {M2[1][1]:11.6f}")
-            # fresnel_side_data = []
-            # for index, M in enumerate([M1, M2]):
-            #     loss = self.mirror_loss if index == 0 and index_side == 1 else 1
-            #     fresnel_side_data.append(self.vectors_for_linear_fresnel(M, self.n_samples, dx, loss, M[0][0] < 0))
-            #     dx = M[0][1] * self.lambda_ / (self.n_samples * dx)
-            #     print(f"---- dx = {dx} dx0 = {self.dx0}")
-
             self.fresnel_data.append(fresnel_side_data)
 
     def prepare_cylindrical_fresnel_help_data(self):
         self.mat_side = calc_original_sim_matrices(self.crystal_shift)
 
         self.fresnel_data, _ = map(list, zip(*[cylindrical_fresnel_prepare(self.x, self.x, self.lambda_, mat) for mat in self.mat_side]))
-
-    # def total_ix_power(self):
-    #     self.intensity_total_by_ix = []
-    #     for ix in range(self.n_samples):
-    #         self.intensity_total_by_ix.append(np.sum(np.multiply(self.multi_time_fronts[ix], np.conj(self.multi_time_fronts[ix]))))
 
     def init_gain_by_frequency(self):
 
@@ -400,7 +365,7 @@ class MultiModeSimulation:
         self.frequency_total_mult_factor = 0.5 * (1.0 + exp_w * self.spectral_gain * self.dispersion)
         self.modulator_gain = np.asarray([1.0 + self.modulation_gain_factor * np.cos(2 * np.pi * w / self.n_time_samples) for w in self.range_w])
 
-    # rrrr need fix (ok)
+    # need fix (ok)
     def get_init_front(self, p_par=-1):
 
         waist0 = p_par if p_par > 0.0 else 0.00003  # Example value, replace with actual value
@@ -476,18 +441,6 @@ class MultiModeSimulation:
         self.multi_time_fronts = multi_time_fronts_trans.T
         self.multi_time_fronts_saves[self.side * 7 + 2] = np.copy(self.multi_time_fronts)
 
-    # # need fix (ok)
-    # def fresnel_progress(self, multi_time_fronts_trans):
-
-    #     #linear_fresnel_propogate(self.fresnel_data[self.side], multi_time_fronts_trans)
-    #     for fresnel_step_data in self.fresnel_data[self.side]:
-    #         vec0 = fresnel_step_data['vecs'][0]
-    #         vecF = fresnel_step_data['vecs'][1]
-    #         dx = fresnel_step_data['dx']
-    #         multi_time_fronts_trans = vecF * np.fft.fftshift(np.fft.fft(np.fft.fftshift(vec0 * multi_time_fronts_trans, axes=1), axis=1), axes=1) * dx
-        
-    #     return multi_time_fronts_trans
-
     # need fix (ok)
     def linear_cavity_one_side(self):
 
@@ -515,7 +468,6 @@ class MultiModeSimulation:
 
 
         if self.beam_type == 0:
-            #self.multi_time_fronts = self.fresnel_progress(multi_time_fronts_trans).T
             self.multi_time_fronts = linear_fresnel_propogate(self.fresnel_data[self.side], multi_time_fronts_trans).T
         else:
             self.multi_time_fronts = cylindrical_fresnel_propogate(multi_time_fronts_trans.T, self.fresnel_data[self.side])

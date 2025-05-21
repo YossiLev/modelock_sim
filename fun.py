@@ -15,6 +15,23 @@ elements = [
         {"t": "L", "par":[1.057818181, 0.075, 1.0], "del": 1.0}, {"t": "X", "par":[1.557818181]}, ],   
 ]
 
+cavities = [
+    ["S",
+     "P 7cm",
+     "L 5cm",
+     "P 33cm",
+     "L 0.8cm",
+     "P 0.8cm",
+     ">D "
+     "P 0.8cm",
+     "L 0.8cm",
+     "P 33cm",
+     "L 5cm",
+     "P 7cm",
+     "E"
+    ],
+]
+
 def ver_func(l):
     vf = []
     z = l / 2
@@ -366,18 +383,23 @@ def generate_multimode(data_obj, tab):
                     initBeamType(), 
                     Button("Init", onclick="initElementsMultiMode(); initMultiMode(1);"),
                     Select(Option("All"), Option("1"), Option("2"), Option("3"), Option("4"), Option("5"), id="nMaxMatrices", **{'onchange':"nMaxMatricesChanged();"},),
-                    Button("Full", onclick="initElementsMultiMode(); initMultiMode(1);fullCavityMultiMode()"),
-                    Button("Roundtrip", onclick="initElementsMultiMode(); initMultiMode(1);roundtripMultiMode()"),
+                    Button("Full", onclick="initElementsMultiMode(); initMultiMode(1); fullCavityMultiMode()"),
+                    Button("Gaussian", onclick="initElementsMultiMode(); initMultiMode(1); fullCavityGaussian()"),
+                    Button("Roundtrip", onclick="initElementsMultiMode(); initMultiMode(1); roundtripMultiMode()"),
                     Button("Delta graph", onclick="initElementsMultiMode(); initMultiMode(1);deltaGraphMultiMode()"),
                     Button("Switch view", onclick="switchViewMultiMode()"),
                     Input(type="number", id=f'initialRange', placeholder="range(m)", step="0.001", style="width:80px;", value=f'0.005'),
                     Button("Auto range", onclick="initElementsMultiMode(); autoRangeMultiMode();"),
                     Select(Option("256"), Option("512"), Option("1024"), Option("2048"), Option("4096"), id="nSamples", **{'onchange':"nSamplesChanged();"},),
                 ),
-                Div(
-                    *[Element(el, i, tab) for i, el in enumerate(elements[tab - 1])],
-                    Button(NotStr("&#43;"), escapse=False, hx_post="/addElement/1", hx_target="#fun", hx_vals='js:{localId: getLocalId()}'), 
-                ),
+                # Div(
+                #     *[Element(el, i, tab) for i, el in enumerate(elements[tab - 1])],
+                #     Button(NotStr("&#43;"), escapse=False, hx_post="/addElement/1", hx_target="#fun", hx_vals='js:{localId: getLocalId()}'), 
+                # ),
+                FlexN([
+                    Textarea("\n".join(list(map(lambda x: '-', cavities[0]))), id="cavitySelect", style="width:20px; height: 300px; user-select: none; ", **{'readonly':"readonly"} ),
+                    Textarea("\n".join(cavities[0]), id="cavity", style="width:200px; height: 300px;"),
+                ]),
                 funCanvas(1),
                 graphCanvas()
             )

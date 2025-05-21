@@ -2,6 +2,7 @@
 var workingTab = 1;
 var sfs = -1;
 var multiFronts = [[], []];
+var gaussianFronts = [[], []];
 const lambda = 0.000000780;
 var initialRange = 0.01047;
 var multiRanges = [[], []];
@@ -317,7 +318,7 @@ function drawDeltaGraph(ctx) {
     drowShenets(ctx, "H", zoomX, deltaMinX);
 }
 
-function drawFronts(canvas, ctx, fronts, ranges) {
+function drawFronts(canvas, ctx, fronts, ranges, gaussian) {
     for (let f = 0; f < fronts.length; f++) {
         let fi = fronts[f];
         let r = ranges[f];
@@ -337,7 +338,29 @@ function drawFronts(canvas, ctx, fronts, ranges) {
             ctx.fillStyle = `rgba(${c}, ${c}, ${c}, 255)`;
             ctx.fillRect(drawSx + f * drawW, (i - (l / 2)) * (h) + drawMid, drawW, h + 1);
         }
+
     }
+
+    let waists = vecWaistFromQ(gaussian);
+    let hFactor = zoomFactor * basicZoomFactor;
+    h = 0.0;
+    ctx.strokeStyle = `rgba(255, 128, 0, 255)`;
+    ctx.beginPath();
+    ctx.moveTo(drawSx, drawMid);
+    for (let f = 0; f < waists.length; f++) {
+        wi = waists[f];
+        ctx.lineTo(drawSx + f * drawW, drawMid + wi * hFactor);
+    }
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(drawSx, drawMid);
+    for (let f = 0; f < waists.length; f++) {
+        wi = waists[f];
+        ctx.lineTo(drawSx + f * drawW, drawMid - wi * hFactor);
+    }
+    ctx.stroke();
+
+
 }
 
 function drawMultiMode(startDraw = 0.0) {
@@ -366,7 +389,7 @@ function drawMultiMode(startDraw = 0.0) {
             return;
         }
 
-        drawFronts(canvas, ctx, multiFronts[index], multiRanges[index]);
+        drawFronts(canvas, ctx, multiFronts[index], multiRanges[index], gaussianFronts[index]);
 
         if (drawMode == 1) {
             drawElements(index + 1, startDraw);
@@ -788,7 +811,10 @@ function drawGraph() {
 
 function initElementsMultiMode() {
     let iEl = 0;
-    elements = [];
+    if (document.getElementById("cavity") != null) {
+        elements = initElementsFromCavityText(document.getElementById("cavity").value);
+        return;
+    }
     do {
         let valOther = 0;
         let elementTypeControl = document.getElementById(`type${iEl}`);
@@ -816,6 +842,57 @@ function initElementsMultiMode() {
         iEl++;
     } while(true);
 }
+
+function extractLength(str) {
+    if (str.endsWith("MM")) {
+        return parseFloat(str.slice(0, -2)) / 1000;
+    } else if (str.endsWith("CM")) {
+        return parseFloat(str.slice(0, -2)) / 100;
+    } else if (str.endsWith("M")) {
+        return parseFloat(str.slice(0, -1));
+    } else {
+        throw new Error(`Unknown unit in '${lengthStr}'`);
+    }
+}    
+
+function initElementsFromCavityText(text) {
+    let elementsT = [];
+    let lines = text.split("\n");
+    let position = 0.0;
+    lines.forEach((line) => {
+        let el = line.toUpperCase().split(" ");
+        if (el[0].startsWith(">")) {
+            el[0] = el[0].slice(1);
+        }
+
+        if (el.length >= 1) {
+            switch (el[0]) {
+                case "P":
+                    position += extractLength(el[1]);
+                    break;
+                case "L":
+                    elementsT.push({t: "L", par: [position, extractLength(el[1])], delta: 0.0});
+                    break;
+                case "LC":
+                    elementsT.push({t: "LC", par: [position, extractLength(el[1]), extractLength(el[2])], delta: 0.0});
+                    break;
+                case "C":
+                    elementsT.push({t: "C", par: [position, extractLength(el[1])], delta: 0.0});
+                    break;
+                case "E":
+                    elementsT.push({t: "X", par: [position], delta: 0.0});
+                    break;
+                case "S":
+                    break;
+                case "D":
+                    break;
+            }
+        }
+    });
+
+    return elementsT;
+}
+
 function focusOnCrystal() {
     elements.forEach((el, index) => {
         if (el.t == "C") {
@@ -855,6 +932,8 @@ function initMultiMode(setWorkingTab = - 1, beamParam = - 1) {
 
     multiFronts[0] = [getInitFront(beamParam)];
     multiRanges[0] = [initialRange];
+    waist0 = getFieldFloat("beamParam", 0.0005);
+    gaussianFronts[0] = [math.complex(0.0, Math.pow(waist0, 2) * Math.PI / lambda)];
     multiFronts[1] = [];
     multiRanges[1] = [];
     sfs = 0;
@@ -1267,6 +1346,58 @@ function fullCavityMultiMode(startDist = 0.0) {
         vecWaist.push(width * Math.abs(dxf) * 1.41421356237);
         fronts.push(ff);
         ranges.push(L * dxf);
+    }
+
+    drawMultiMode();
+}
+
+function fullCavityGaussian(startDist = 0.0) {
+    drawMode = 1;
+    
+    let fronts = gaussianFronts[0];
+
+    if (fronts.length <= 0) {
+        return;
+    }
+    
+    let MS0, MStartDistInv = [[1, 0], [0, 1]];
+    if (startDist > 0.000001) {
+        MStartDistInv = MInv(getMatDistanceForever(startDist));
+        MS0 = MMult(getMatDistanceForever(startDist + 2 * 0.982318181), MStartDistInv);
+        console.log("MS0 ", MS0)
+    }
+    vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0]; vecW = [0], vecWaist = [0], vecQ[0] = math.complex(0, RayleighRange), vecMats = [];
+    
+    for (let iStep = 1; iStep < 400; iStep++) {
+        let f0 = fronts[0];
+
+        let dStep = getDistanceOfStep(iStep) + startDist;
+        if (dStep < 0) {
+            fronts.push(math.complex(0.0));
+            continue;
+        }
+
+        let M = MMult(getMatDistanceForever(dStep), MStartDistInv);
+
+        //let [mats, isBack] = getMatricesAtDistFromStart(MS, dStep, r0);
+
+        let A = M[0][0], B = M[0][1], C = M[1][0], D = M[1][1];
+        vecA.push(M[0][0]);
+        vecB.push(M[0][1]);
+        vecC.push(M[1][0]);
+        vecD.push(M[1][1]);
+        let newQ = math.chain(f0).multiply(A).add(B).divide(math.chain(f0).multiply(C).add(D).done()).done();
+        fronts.push(newQ);
+
+        vecMats.push([M]);
+
+        vecQ.push(newQ);
+        let waist = Math.sqrt(- math.im(math.divide(math.complex(1, 0), newQ)) / lambda * Math.PI);
+        if (waist < 0.0000001) {
+            break;
+        }
+        vecW.push(waist / 1.41421356237);
+        vecWaist.push(waist);
     }
 
     drawMultiMode();

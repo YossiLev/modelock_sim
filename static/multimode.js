@@ -581,14 +581,7 @@ function vecDeriv2(v, dx = 1, n = 5) {
 function vecWaistFromQ(v) {
     let vw = math.clone(v);
     for (let i = 0; i < v.length; i++) {
-        console.log(`i = ${i}`);
-        console.log(v[i]);
-        console.log(math.divide(1, v[i]));
-        console.log(math.divide(1, v[i]).im);
         vw[i] = Math.sqrt(- lambda / (Math.PI * (math.divide(1, v[i]).im)));
-        console.log(- lambda / (Math.PI * (math.divide(1, v[i]).im)));
-        console.log(math.divide(1, v[i]).im);
-
     }
     return vw;
 }
@@ -811,8 +804,8 @@ function drawGraph() {
 
 function initElementsMultiMode() {
     let iEl = 0;
-    if (document.getElementById("cavity") != null) {
-        elements = initElementsFromCavityText(document.getElementById("cavity").value);
+    if (document.getElementById("pickEl_text") != null) {
+        elements = initElementsFromCavityText(document.getElementById("pickEl_text").value);
         return;
     }
     do {
@@ -844,16 +837,42 @@ function initElementsMultiMode() {
 }
 
 function extractLength(str) {
-    if (str.endsWith("MM")) {
-        return parseFloat(str.slice(0, -2)) / 1000;
-    } else if (str.endsWith("CM")) {
-        return parseFloat(str.slice(0, -2)) / 100;
-    } else if (str.endsWith("M")) {
-        return parseFloat(str.slice(0, -1));
+    if (str.toUpperCase().endsWith("MM")) {
+        return {val: parseFloat(str.slice(0, -2)) / 1000, units: str.slice(-2)};
+    } else if (str.toUpperCase().endsWith("CM")) {
+        return  {val: parseFloat(str.slice(0, -2)) / 100, units: str.slice(-2)};
+    } else if (str.toUpperCase().endsWith("M")) {
+        return  {val: parseFloat(str.slice(0, -1)), units: str.slice(-1)};
     } else {
         throw new Error(`Unknown unit in '${lengthStr}'`);
     }
-}    
+}
+
+function buildLength(lengthObj) {
+    let val = 0.0;
+    switch (lengthObj.units.toUpperCase()) {
+        case "MM":
+            val = lengthObj.val * 1000;
+            break;
+        case "CM":
+            val = lengthObj.val * 100;
+            break;
+        case "M":
+            val = lengthObj.val;
+            break;
+        default:
+            throw new Error(`Unknown unit in '${lengthObj.units}'`);
+    }
+    valStr = val.toFixed(5);
+    while (valStr.endsWith("0")) {
+        valStr = valStr.slice(0, -1);
+    }
+    if (valStr.endsWith(".")) {
+        valStr = valStr.slice(0, -1);
+    }
+
+    return `${valStr}${lengthObj.units}`;
+}
 
 function initElementsFromCavityText(text) {
     let elementsT = [];
@@ -868,16 +887,16 @@ function initElementsFromCavityText(text) {
         if (el.length >= 1) {
             switch (el[0]) {
                 case "P":
-                    position += extractLength(el[1]);
+                    position += extractLength(el[1]).val;
                     break;
                 case "L":
-                    elementsT.push({t: "L", par: [position, extractLength(el[1])], delta: 0.0});
+                    elementsT.push({t: "L", par: [position, extractLength(el[1]).val], delta: 0.0});
                     break;
                 case "LC":
-                    elementsT.push({t: "LC", par: [position, extractLength(el[1]), extractLength(el[2])], delta: 0.0});
+                    elementsT.push({t: "LC", par: [position, extractLength(el[1].val), extractLength(el[2].val)], delta: 0.0});
                     break;
                 case "C":
-                    elementsT.push({t: "C", par: [position, extractLength(el[1])], delta: 0.0});
+                    elementsT.push({t: "C", par: [position, extractLength(el[1].val)], delta: 0.0});
                     break;
                 case "E":
                     elementsT.push({t: "X", par: [position], delta: 0.0});
@@ -1181,7 +1200,7 @@ function calcWidth(v) {
 //     return [M1, M2];
 // }
 
-function getMatricesAtDistFromStart(M, dStep, r0) {
+function getMatricesAtDistFromStart(M, dStep, r0, mode) {
     let L = nSamples;
     let mats = [], isBack = [];
     let spDist = r0 * r0 / (L * lambda);
@@ -1189,62 +1208,66 @@ function getMatricesAtDistFromStart(M, dStep, r0) {
     mats.push(math.clone(M));
     isBack.push(false);
 
-    let MS, MD, useDistFix = 0;
-    if (Math.abs(M[0][1]) < 1.8 * spDist) {
-        if (dStep > 2 * spDist) {
-            MD = [[1.0, spDist], [0, 1]];
-            useDistFix = 1;
-            let mPush = [[1, - spDist], [0, 1]];
-            MS = MMult(mPush, M);
-            while (Math.abs(MS[0][1]) < spDist) {
-                MS = MMult(mPush, MS);
-                useDistFix++;
+    if (mode == 1) {
+        let MS, MD, useDistFix = 0;
+        if (Math.abs(M[0][1]) < 1.8 * spDist) {
+            if (dStep > 2 * spDist) {
+                MD = [[1.0, spDist], [0, 1]];
+                useDistFix = 1;
+                let mPush = [[1, - spDist], [0, 1]];
+                MS = MMult(mPush, M);
+                while (Math.abs(MS[0][1]) < spDist) {
+                    MS = MMult(mPush, MS);
+                    useDistFix++;
+                }
+            } else {
+                MD = [[1.0, - spDist], [0, 1]];
+                useDistFix = 2;
+                let mPush = [[1, 2 * spDist], [0, 1]];
+                MS = MMult(mPush, M);
+                while (Math.abs(MS[0][1]) < spDist) {
+                    MS = MMult(mPush, MS);
+                    useDistFix++;
+                }
             }
         } else {
-            MD = [[1.0, - spDist], [0, 1]];
-            useDistFix = 2;
-            let mPush = [[1, 2 * spDist], [0, 1]];
-            MS = MMult(mPush, M);
-            while (Math.abs(MS[0][1]) < spDist) {
-                MS = MMult(mPush, MS);
-                useDistFix++;
-            }
+            MS = math.clone(M);
+        }
+        let A = MS[0][0], B = MS[0][1], C = MS[1][0], D = MS[1][1];
+
+        let M1, M2;//, dxMid, ff;
+        //console.log(`===== StartM XNew ${M[0][0]},${M[0][1]},${M[1][0]},${M[1][1]},`);
+
+        //[M1, M2] = decomposeMat(M, dStep, r0, L);
+
+        // decompose into two matrices
+        //if (Math.abs(A + 1) > 0.1) {
+        if (A > 0) {
+            //console.log(`AAN dStep = ${dStep} A = ${A}, B = ${B}, C = ${C}, D = ${D} B1 = ${B / (A + 1)} Rdxf = ${lambda * B / (A + 1) / r0} RR${L * lambda * B / (A + 1) / r0}`);
+            M2 = [[A, B / (A + 1)], [C, D - C * B / (A + 1)]];
+            //dxMid = lambda * B / (A + 1) / r0;
+            M1 = [[1, B / (A + 1)], [0, 1]];
+        } else {
+            // negate matrix and then decompose
+            //console.log(`BBN dStep = ${dStep} A = ${A}, B = ${B}, C = ${C}, D = ${D} B1 = ${B / (- A + 1)} Rdxf = ${lambda * B / (- A + 1) / r0} RR${L * lambda * B / (- A + 1) / r0}`);
+            M2 = [[-A, -B / (-A + 1)], [-C, -D - C * B / (-A + 1)]];
+            //dxMid = lambda * B / (- A + 1) / r0;
+            M1 = [[-1, B / (-A + 1)], [0, -1]];
+        }
+
+        // dxMid = lambda * M2[0][1] / r0;
+
+        mats.push(math.clone(M1));
+        isBack.push(A < 0);
+        mats.push(math.clone(M2));
+        isBack.push(A < 0);
+        for (let iDistFix = 0; iDistFix < useDistFix; iDistFix++) {
+            mats.push(math.clone(MD));
+            isBack.push(MD[0][1] < 0.0);
         }
     } else {
-        MS = math.clone(M);
-    }
-    let A = MS[0][0], B = MS[0][1], C = MS[1][0], D = MS[1][1];
-
-    let M1, M2;//, dxMid, ff;
-    //console.log(`===== StartM XNew ${M[0][0]},${M[0][1]},${M[1][0]},${M[1][1]},`);
-
-    //[M1, M2] = decomposeMat(M, dStep, r0, L);
-
-    // decompose into two matrices
-    //if (Math.abs(A + 1) > 0.1) {
-    if (A > 0) {
-        //console.log(`AAN dStep = ${dStep} A = ${A}, B = ${B}, C = ${C}, D = ${D} B1 = ${B / (A + 1)} Rdxf = ${lambda * B / (A + 1) / r0} RR${L * lambda * B / (A + 1) / r0}`);
-        M2 = [[A, B / (A + 1)], [C, D - C * B / (A + 1)]];
-        //dxMid = lambda * B / (A + 1) / r0;
-        M1 = [[1, B / (A + 1)], [0, 1]];
-    } else {
-        // negate matrix and then decompose
-        //console.log(`BBN dStep = ${dStep} A = ${A}, B = ${B}, C = ${C}, D = ${D} B1 = ${B / (- A + 1)} Rdxf = ${lambda * B / (- A + 1) / r0} RR${L * lambda * B / (- A + 1) / r0}`);
-        M2 = [[-A, -B / (-A + 1)], [-C, -D - C * B / (-A + 1)]];
-        //dxMid = lambda * B / (- A + 1) / r0;
-        M1 = [[-1, B / (-A + 1)], [0, -1]];
-    }
-
-    // dxMid = lambda * M2[0][1] / r0;
-
-    mats.push(math.clone(M1));
-    isBack.push(A < 0);
-    mats.push(math.clone(M2));
-    isBack.push(A < 0);
-
-    for (let iDistFix = 0; iDistFix < useDistFix; iDistFix++) {
-        mats.push(math.clone(MD));
-        isBack.push(MD[0][1] < 0.0);
+        mats.push(math.clone(M));
+        isBack.push(false);
     }
 
     return [mats, isBack];
@@ -1276,7 +1299,7 @@ function fullCavityNewParams(delta, focal, waist) {
     fullCavityMultiMode();
 }
 
-function fullCavityMultiMode(startDist = 0.0) {
+function fullCavityMultiMode(mode = 1, startDist = 0.0) {
     drawMode = 1;
     
     let fronts = multiFronts[0];
@@ -1292,7 +1315,7 @@ function fullCavityMultiMode(startDist = 0.0) {
         MS0 = MMult(getMatDistanceForever(startDist + 2 * 0.982318181), MStartDistInv);
         console.log("MS0 ", MS0)
     }
-    vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0]; vecW = [0], vecWaist = [0], vecQ[0] = math.complex(0, RayleighRange), vecMats = [];
+    vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0]; vecW = [0], vecWaist = [0.0005], vecQ[0] = math.complex(0, RayleighRange), vecMats = [];
     
     for (let iStep = 1; iStep < 400; iStep++) {
         let f0 = math.clone(fronts[0]);
@@ -1315,7 +1338,7 @@ function fullCavityMultiMode(startDist = 0.0) {
             MS = MMult(getMatDistanceForever(dStep), MStartDistInv);
         // }
 
-        let [mats, isBack] = getMatricesAtDistFromStart(MS, dStep, r0);
+        let [mats, isBack] = getMatricesAtDistFromStart(MS, dStep, r0, mode);
 
         let M  = mats[0];
         let A = M[0][0], B = M[0][1], C = M[1][0], D = M[1][1];
@@ -1328,22 +1351,30 @@ function fullCavityMultiMode(startDist = 0.0) {
         let dx = dx0;
         let fx = math.clone(fronts[0]);
 
-        for (let iMat = 1; iMat < Math.min(mats.length, nMaxMatrices + 1); iMat++) {
-            //console.log(`===== MM ${mats[iMat][0][0]},${mats[iMat][0][1]},${mats[iMat][1][0]},${mats[iMat][1][1]}, dx = ${dx}`);
-            [ff, dx] = CalcNextFrontOfM(fx, L, mats[iMat], dx, isBack[iMat]);
-            fx = math.clone(ff);
+        if (mode == 1) {
+            for (let iMat = 1; iMat < Math.min(mats.length, nMaxMatrices + 1); iMat++) {
+                //console.log(`===== MM ${mats[iMat][0][0]},${mats[iMat][0][1]},${mats[iMat][1][0]},${mats[iMat][1][1]}, dx = ${dx}`);
+                [ff, dx] = CalcNextFrontOfM(fx, L, mats[iMat], dx, isBack[iMat]);
+                fx = math.clone(ff);
+            }
+            let width = calcWidth(fx);
+            if (width < 0.0000001) {
+                break;
+            }
+            vecQ.push(newQ);
+            vecW.push(width * Math.abs(dxf));
+            vecWaist.push(width * Math.abs(dxf) * 1.41421356237);
+        } else {
+            vecQ.push(newQ);
+            let waist = Math.sqrt(- lambda / (Math.PI * (math.divide(1, newQ).im)));
+            dx = ranges[0] / L / vecWaist[0] * waist
+            vecW.push(waist / 1.41421356237);
+            vecWaist.push(waist);
         }
         ff = math.clone(fx);    
         vecMats.push(mats);
         let dxf = dx;
 
-        vecQ.push(newQ);
-        let width = calcWidth(ff);
-        if (width < 0.0000001) {
-            break;
-        }
-        vecW.push(width * Math.abs(dxf));
-        vecWaist.push(width * Math.abs(dxf) * 1.41421356237);
         fronts.push(ff);
         ranges.push(L * dxf);
     }
@@ -1392,7 +1423,7 @@ function fullCavityGaussian(startDist = 0.0) {
         vecMats.push([M]);
 
         vecQ.push(newQ);
-        let waist = Math.sqrt(- math.im(math.divide(math.complex(1, 0), newQ)) / lambda * Math.PI);
+        let waist = Math.sqrt(- lambda / (Math.PI * (math.divide(1, newQ).im)));
         if (waist < 0.0000001) {
             break;
         }

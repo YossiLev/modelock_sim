@@ -3,8 +3,8 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
 
-def FlexN(v):
-    return Div(*v, style="display: flex; gap: 3px;")
+def FlexN(v, style = ""):
+    return Div(*v, style=f"display: flex; gap: 3px; {style}")
 
 def TabMaker(label, group, sel, target="#fun", inc=""):
     return Div(label,  hx_post=group, hx_target=target, hx_include=inc, cls=f"tab {'tabselected' if sel else ''}", hx_vals='js:{localId: getLocalId()}'),
@@ -19,6 +19,18 @@ def Header(title, help = None):
         Div(NotStr(help), cls="pophelp", style="position: absolute; visibility: hidden") if help else "",
         cls="headercontainer",
     )
+
+def PickerDivs(id, count, sel, style=""):
+    sOn = f"background-color: #4CAF50; color: white; {style}"
+    sOff = f"background-color: #f1a1a1; color: black; {style}"
+    return Div(
+        Input(type="hidden", id=f"{id}_val", value=f"{sel}"),
+        *[Div(id=f'{id}_{i}', style=sOn if i == sel else sOff, onclick=f"pickerDivsSelect('{id}', {i})") for i in range(count)],
+        cls="pickerdivs",
+        tabindex="0",
+        id = id,
+        **{'onkeydown':"handlePickerKeyDown(event);"}
+   )
 
 def generate_chart(x, y, l, t, w=11, h=2, color="blue", marker=None):
     fig = plt.figure(figsize=(w, h))

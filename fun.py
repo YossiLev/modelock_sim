@@ -15,21 +15,26 @@ elements = [
         {"t": "L", "par":[1.057818181, 0.075, 1.0], "del": 1.0}, {"t": "X", "par":[1.557818181]}, ],   
 ]
 
+current_cavity_name = "Yehuda"
 cavities = [
-    ["S",
-     "P 7cm",
-     "L 5cm",
-     "P 33cm",
-     "L 0.8cm",
-     "P 0.8cm",
-     ">D "
-     "P 0.8cm",
-     "L 0.8cm",
-     "P 33cm",
-     "L 5cm",
-     "P 7cm",
-     "E"
-    ],
+    { "name": "Empty", "elements": []},  
+    { "name": "Yehuda", "elements": 
+        [
+            "S",
+            "P 7cm",
+            "L 5cm",
+            "P 33cm",
+            "L 0.8cm",
+            "P 0.83cm",
+            ">D ",
+            "P 0.83cm",
+            "L 0.8cm",
+            "P 23.4cm",
+            "L 5cm",
+            "P 7cm",
+            "E"
+        ]
+    },
 ]
 
 def ver_func(l):
@@ -370,6 +375,11 @@ def generate_multi_on_server(data_obj):
         
         id="multiModeServer",
     )
+def collect_cavity(name):
+    cav = [c for c in cavities if c["name"] == name]
+    if len(cav) == 0:
+        return ""
+    return "\n".join(cav[0]["elements"])
 
 def generate_multimode(data_obj, tab):
 
@@ -384,7 +394,8 @@ def generate_multimode(data_obj, tab):
                     Button("Init", onclick="initElementsMultiMode(); initMultiMode(1);"),
                     Select(Option("All"), Option("1"), Option("2"), Option("3"), Option("4"), Option("5"), id="nMaxMatrices", **{'onchange':"nMaxMatricesChanged();"},),
                     Button("Full", onclick="initElementsMultiMode(); initMultiMode(1); fullCavityMultiMode()"),
-                    Button("Gaussian", onclick="initElementsMultiMode(); initMultiMode(1); fullCavityGaussian()"),
+                    Button("Full Range", onclick="initElementsMultiMode(); initMultiMode(1); fullCavityMultiMode(mode=2)"),
+                    Button("Gaussian", onclick="initElementsMultiMode(); fullCavityGaussian()"),
                     Button("Roundtrip", onclick="initElementsMultiMode(); initMultiMode(1); roundtripMultiMode()"),
                     Button("Delta graph", onclick="initElementsMultiMode(); initMultiMode(1);deltaGraphMultiMode()"),
                     Button("Switch view", onclick="switchViewMultiMode()"),
@@ -392,13 +403,12 @@ def generate_multimode(data_obj, tab):
                     Button("Auto range", onclick="initElementsMultiMode(); autoRangeMultiMode();"),
                     Select(Option("256"), Option("512"), Option("1024"), Option("2048"), Option("4096"), id="nSamples", **{'onchange':"nSamplesChanged();"},),
                 ),
-                # Div(
-                #     *[Element(el, i, tab) for i, el in enumerate(elements[tab - 1])],
-                #     Button(NotStr("&#43;"), escapse=False, hx_post="/addElement/1", hx_target="#fun", hx_vals='js:{localId: getLocalId()}'), 
-                # ),
                 FlexN([
-                    Textarea("\n".join(list(map(lambda x: '-', cavities[0]))), id="cavitySelect", style="width:20px; height: 300px; user-select: none; ", **{'readonly':"readonly"} ),
-                    Textarea("\n".join(cavities[0]), id="cavity", style="width:200px; height: 300px;"),
+                    PickerDivs("pickEl", 15, 0, style="width: 13px; height: 13px; margin:2px; cursor: pointer;"),
+                    Textarea(collect_cavity(data_obj.current_cavity_name), id="pickEl_text", style="width:200px; height: 300px; border: none;"),
+                    Div(
+                        Div(Input(type="number", id=f'pickEl_edit_inc', step="0.001", style="width:100px; height: 20px;", value=f'0.001')),
+                        *[Div(Button(x["name"], hx_post=f"/setcavity/1/{x['name']}", hx_target="#genMultiMode", hx_vals='js:{localId: getLocalId()}')) for x in cavities],)
                 ]),
                 funCanvas(1),
                 graphCanvas()

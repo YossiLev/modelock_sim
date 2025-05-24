@@ -15,6 +15,10 @@ follows the article:
 
 ## 📦 Installation
 
+Code tested with python 3.11.6 so we recommend python 3.11
+
+Found incompatible with 3.12 3.13 so please avoid using those version for this project
+
 ```bash
 # clone the repo
 git clone https://github.com/YossiLev/modelock_sim

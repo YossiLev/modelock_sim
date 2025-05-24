@@ -787,6 +787,11 @@ def addlens(localId: str, tab: int):
     elements[tab - 1].append({"t": "L", "par":[0.2, 0.1]})
     return generate_multimode(get_Data_obj(localId), tab)
 
+@app.post("/setcavity/{tab}/{cavity_name}")
+def setcavity(localId: str, tab: int, cavity_name: str):
+    dataObj = get_Data_obj(localId)
+    dataObj.current_cavity_name = cavity_name
+    return generate_multimode(dataObj, tab)
 
 @app.post("/removeElements/{tab}/{index}")
 def addlens(index: int, localId: str, tab: int):

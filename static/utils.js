@@ -200,3 +200,95 @@ function AbcdMatEigenValuesCalc(name) {
     }
     toggleVisibility(eigenText);
 }
+
+function changeVal(val, incVal) {
+    let obj = extractLength(val);
+    obj.val += incVal;
+    return buildLength(obj);
+}
+function changeline(line, incVal) {
+    let parts = line.split(" ");
+    parts[1] = changeVal(parts[1], incVal);
+
+    return parts.join(" ");
+}
+
+function changeCavityLines(lines, selectedVal, incVal) {
+    let newLines = [];
+    for (let i = 0; i < lines.length; i++) {
+        if (i == selectedVal) {
+            newLines.push(changeline(lines[i], incVal));
+        } else {
+            newLines.push(lines[i]);
+        }
+    }
+    return newLines;
+}
+
+function changeCavityLinesShift(lines, selectedVal, incVal) {
+    if (selectedVal <= 0 || selectedVal >= lines.length - 1) {
+        return lines;
+    }
+    if (lines[selectedVal].split(" ")[0].toUpperCase() == "P" ||
+        lines[selectedVal - 1].split(" ")[0].toUpperCase() != "P" ||
+        lines[selectedVal + 1].split(" ")[0].toUpperCase() != "P"
+        ) {
+        return lines;
+    }
+    let newLines = [];
+    for (let i = 0; i < lines.length; i++) {
+        if (i == selectedVal - 1) {
+            newLines.push(changeline(lines[i], incVal));
+        } else if (i == selectedVal + 1) {
+            newLines.push(changeline(lines[i], - incVal));
+        } else {
+            newLines.push(lines[i]);
+        }
+    }
+    return newLines;
+}
+
+function handlePickerKeyDown(event) {
+    let name = event.target.id;
+    let incVal = parseFloat(document.getElementById(`${name}_edit_inc`).value);
+    let selectedVal = parseInt(document.getElementById(`${name}_val`).value);
+    let textEl = document.getElementById(`${name}_text`);
+    let textElVal = textEl.value;
+    let lines = textElVal.split("\n");
+
+    if (event.key === 'ArrowUp') {
+        lines = changeCavityLines(lines, selectedVal, incVal);
+        textEl.value = lines.join("\n");
+        initElementsMultiMode(); initMultiMode(1); fullCavityGaussian();
+        event.preventDefault();
+    } else if (event.key === 'ArrowDown') {
+        lines = changeCavityLines(lines, selectedVal, - incVal);
+        initElementsMultiMode(); initMultiMode(1); fullCavityGaussian();
+        textEl.value = lines.join("\n");
+        event.preventDefault();
+    } else if (event.key === 'ArrowLeft') {
+        lines = changeCavityLinesShift(lines, selectedVal, - incVal);
+        initElementsMultiMode(); initMultiMode(1); fullCavityGaussian();
+        textEl.value = lines.join("\n");
+        event.preventDefault();
+    } else if (event.key === 'ArrowRight') {
+        lines = changeCavityLinesShift(lines, selectedVal, incVal);
+        initElementsMultiMode(); initMultiMode(1); fullCavityGaussian();
+        textEl.value = lines.join("\n");
+        event.preventDefault();
+    }
+}
+
+function pickerDivsSelect(name, sel) {
+    let divVal = document.getElementById(`${name}_val`);
+    divVal.value = `${sel}`;
+    for (let i = 0, divB = divVal.nextElementSibling; divB != null; i++, divB = divB.nextElementSibling) {
+        if (i == sel) {
+            divB.style.backgroundColor = "#00FF00";
+        } else {
+            divB.style.backgroundColor = "#FFFFFF";
+        }
+    }
+    let text = document.getElementById(`${name}_text`).value;
+    inpEdit.value = text.split("\n")[sel];
+}

@@ -7,6 +7,7 @@ class Data_object():
         self.id = id
         self.count = 0
         self.run_state = False
+        self.current_cavity_name = ""
 
     def assure(self, part):
         match part:

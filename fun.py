@@ -35,6 +35,24 @@ cavities = [
             "E"
         ]
     },
+    { "name": "Malachi 1", "elements": 
+        [
+            "S",
+            "P 100mm",
+            "L 50mm",
+            "P 107.5mm",
+            "L 7.5mm",
+            "P 7.5mm",
+            "D 4mm",
+            "P 4mm",
+            "P 7.5mm",
+            "L 7.5mm",
+            "P 87.5mm",
+            "L 80mm ",
+            "P 240mm",
+            "E",
+        ]
+    },
 ]
 
 def ver_func(l):
@@ -405,7 +423,7 @@ def generate_multimode(data_obj, tab):
                 ),
                 FlexN([
                     PickerDivs("pickEl", 15, 0, style="width: 13px; height: 13px; margin:2px; cursor: pointer;"),
-                    Textarea(collect_cavity(data_obj.current_cavity_name), id="pickEl_text", style="width:200px; height: 300px; border: none;"),
+                    Textarea(collect_cavity(data_obj.current_cavity_name), id="pickEl_text", style="width:200px; height: 300px; border: none; font-size: 13px; font-family: Arial;"),
                     Div(
                         Div(Input(type="number", id=f'pickEl_edit_inc', step="0.001", style="width:100px; height: 20px;", value=f'0.001')),
                         *[Div(Button(x["name"], hx_post=f"/setcavity/1/{x['name']}", hx_target="#genMultiMode", hx_vals='js:{localId: getLocalId()}')) for x in cavities],)

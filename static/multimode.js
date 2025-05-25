@@ -844,7 +844,7 @@ function extractLength(str) {
     } else if (str.toUpperCase().endsWith("M")) {
         return  {val: parseFloat(str.slice(0, -1)), units: str.slice(-1)};
     } else {
-        throw new Error(`Unknown unit in '${lengthStr}'`);
+        throw new Error(`Unknown unit in '${str}'`);
     }
 }
 
@@ -885,6 +885,7 @@ function initElementsFromCavityText(text) {
         }
 
         if (el.length >= 1) {
+            try {
             switch (el[0]) {
                 case "P":
                     position += extractLength(el[1]).val;
@@ -905,6 +906,9 @@ function initElementsFromCavityText(text) {
                     break;
                 case "D":
                     break;
+            }
+            } catch (e) {
+                console.error(`Error parsing element in line '${line}': ${e.message}`);
             }
         }
     });

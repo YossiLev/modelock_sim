@@ -12,9 +12,8 @@ from geometry import generate_geometry, generate_beam_params
 from fun import generate_multimode, collectData, generate_multi_on_server
 from design import generate_design
 from iterations import generate_iterations, Iteration
-from cavity import CavityDataPartsKerr, CavityData
-from multi_mode import MultiModeSimulation
-from calc import generate_calc, CalculatorData
+from cavity import CavityData
+from calc import generate_calc
 
 import app
 import jsonpickle

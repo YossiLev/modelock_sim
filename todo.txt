@@ -1,5 +1,6 @@
 - optimizations
     - ignore week data vectors in both dimensions
+    - use pytorch
     - optimize number of samples (as a prep for full 2D modes)
     - shift to pytorch
     - shift to cuda

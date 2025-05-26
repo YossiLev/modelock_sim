@@ -1,4 +1,4 @@
-from cavity import CavityDataPartsKerr, CavityData
+from cavity import CavityDataPartsKerr
 from multi_mode import MultiModeSimulation
 from calc import CalculatorData
 

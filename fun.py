@@ -4,7 +4,6 @@ import io
 import base64
 from fasthtml.common import *
 from controls import *
-from multi_mode import MultiModeSimulation
 
 elements = [
     #[{"t": "L", "par":[0.3, 0.075]}, {"t": "L", "par":[0.45, 0.075, 1.0], "del": 1.0}, {"t": "X", "par":[0.85]}, ],

@@ -2,10 +2,14 @@ try:
     import cupy
     if cupy.cuda.is_available():
         np = cupy
+        print("using cuda")
     else:
         import numpy as np
+        print("using cpu")
+
 except ImportError:
     import numpy as np
+    print("using cpu")
 
 from controls import random_lcg_set_seed, random_lcg
 import random
@@ -433,12 +437,12 @@ class MultiModeSimulation:
 
         self.multi_time_fronts_saves[self.side * 7 + 1] = np.copy(self.multi_time_fronts)
 
-        multi_time_fronts_trans = self.multi_time_fronts.T
-        p_fr_before = self.front_power(multi_time_fronts_trans)
-        fr_after = multi_time_fronts_trans * self.multi_time_aperture
-        p_fr_after = self.front_power(fr_after)
-        multi_time_fronts_trans = fr_after * np.sqrt(p_fr_before / p_fr_after)
-        self.multi_time_fronts = multi_time_fronts_trans.T
+        # multi_time_fronts_trans = self.multi_time_fronts.T
+        # p_fr_before = self.front_power(multi_time_fronts_trans)
+        # fr_after = multi_time_fronts_trans * self.multi_time_aperture
+        # p_fr_after = self.front_power(fr_after)
+        # multi_time_fronts_trans = fr_after * np.sqrt(p_fr_before / p_fr_after)
+        # self.multi_time_fronts = multi_time_fronts_trans.T
         self.multi_time_fronts_saves[self.side * 7 + 2] = np.copy(self.multi_time_fronts)
 
     # need fix (ok)

@@ -494,12 +494,10 @@ async def mmRun(send, nRounds: str, gainFactor: str, aperture: str, diffractionW
     count = int(nRounds)
     dataObj.run_state = True
     for i in range(count):
-        # if i % 100 == 0:
-        #     print(f"round {i}")
         if not dataObj.run_state:
             break       
         dataObj.mmData.multi_time_round_trip()
-        if (i + 1) % 100 == 0:
+        if (i + 1) % 250 == 0:
             try:
                 last_sent = i + 1
                 if last_sent >= count:

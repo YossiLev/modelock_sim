@@ -588,6 +588,23 @@ function vecWaistFromQ(v) {
 
 var drawVectorComparePrevious = [];
 
+function drawVectorPar(v, id, params) {
+    if (!drawOption) {
+        return
+    }
+    let clear = params.clear || true;
+    let color = params.color || "red";
+    let pixelWidth = params.pixelWidth || drawW;
+    let allowChange = params.allowChange || false;
+    let name = params.name || "";
+    let start = params.start || drawSx;
+    let message = params.message || "";
+    let zoomX = params.zoomX || 1;
+    let backColor = params.backColor || "white";
+
+    drawVector(v, clear, color, pixelWidth, allowChange, id, name, start, message, zoomX, backColor);
+}
+
 function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowChange = false, 
     id = "graphCanvas", name = "", start = drawSx, message = "", zoomX = 1, backColor = "white") {
     if (!drawOption) {
@@ -750,14 +767,14 @@ function zoomGraph(id, change) {
         val *= 0.5;
     }
     document.getElementById(`${id}-zoomVal`).innerHTML = val.toFixed(4);
-    drawVector([], false, "red", drawW, true, id, "", 0);
+    drawVectorPar([], id, {clear: false, allowChange: true, start: 0});
 
 }
 
 function selectGraph(id) {
     val = parseInt(document.getElementById(`${id}-selectVal`).innerHTML);
     document.getElementById(`${id}-selectVal`).innerHTML = `${1 - val}`;
-    drawVector([], false, "red", drawW, true, id, "", 0);
+    drawVectorPar([], id, {clear: false, allowChange: true, start: 0});
 }
 
 function drawGraph() {

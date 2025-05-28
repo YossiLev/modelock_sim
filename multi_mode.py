@@ -445,7 +445,7 @@ class MultiModeSimulation:
     def linear_cavity_one_side(self):
 
         #rrrrr choice
-        if True:
+        if False:
             self.two_sided_sum_power_ix = self.sum_power_ix[self.side]
         else:
             self.two_sided_sum_power_ix = (self.sum_power_ix[0] + self.sum_power_ix[1]) * 0.5

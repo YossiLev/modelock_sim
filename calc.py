@@ -87,7 +87,6 @@ class CalculatorData:
 
     '''
     def set(self, params):
-        print("SET-----", params)
         for key, value in params.items():
             if hasattr(self, key):
                 if type(value) is list:
@@ -176,7 +175,7 @@ class CalculatorData:
                     MShift = [[1, shift], [0, 1]]
                     local_fresnel_mat = MMult(MShift, self.fresnel_mat)
                     if params == "calcrad":
-                        self.kernel, self.j0 = cylindrical_fresnel_prepare(self.x_in, self.x_out, 0.000000780, local_fresnel_mat)
+                        self.kernel, self.j0 = cylindrical_fresnel_prepare(self.x_in, self.x_out, 0.000000780, local_fresnel_mat, True)
                         res = self.kernel @ self.vf_in
                     elif (params == "calc1d"):
                         dx0 = np.asarray(self.fresnel_dx_in / self.fresnel_factor)

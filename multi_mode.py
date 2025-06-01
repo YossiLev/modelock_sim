@@ -75,7 +75,35 @@ def linear_fresnel_propogate(fresnel_data, multi_time_fronts_trans):
     
     return multi_time_fronts_trans
 
-def cylindrical_fresnel_prepare(r_in, r_out, wavelength, M):
+
+def j0_gpu(x): # j0 implemention that can be enhanced by cuda gpu usage (thank you chat gpt)
+    # For small x (|x| < 8), use a polynomial approximation
+    y = np.abs(x)
+    small = y < 8.0
+
+    # Approximation for |x| < 8
+    y2 = x**2
+    p1 = 57568490574.0 + y2 * (-13362590354.0 + y2 * (651619640.7 +
+         y2 * (-11214424.18 + y2 * (77392.33017 + y2 * (-184.9052456)))))
+    q1 = 57568490411.0 + y2 * (1029532985.0 + y2 * (9494680.718 +
+         y2 * (59272.64853 + y2 * (267.8532712 + y2 * 1.0))))
+    result_small = p1 / q1
+
+    # Approximation for |x| >= 8
+    z = 8.0 / y
+    y2 = z * z
+    xx = y - 0.785398164
+    p2 = 1.0 + y2 * (-0.1098628627e-2 + y2 * (0.2734510407e-4 +
+         y2 * (-0.2073370639e-5 + y2 * 0.2093887211e-6)))
+    q2 = -0.1562499995e-1 + y2 * (0.1430488765e-3 +
+         y2 * (-0.6911147651e-5 + y2 * (0.7621095161e-6 -
+         y2 * 0.934935152e-7)))
+    result_large = np.sqrt(0.636619772 / y) * (
+        np.cos(xx) * p2 - z * np.sin(xx) * q2)
+
+    return np.where(small, result_small, result_large)
+
+def cylindrical_fresnel_prepare(r_in, r_out, wavelength, M, gpcalc):
     A, B = M[0]
     C, D = M[1]
     k = 2 * np.pi / wavelength
@@ -86,7 +114,11 @@ def cylindrical_fresnel_prepare(r_in, r_out, wavelength, M):
     # Precompute kernel matrix: J0(k r1 r2 / B)
     r1 = r_in.reshape(1, -1)
     r2 = r_out.reshape(-1, 1)
-    kernel = j0(k * r1 * r2 / B).T  # shape (N_r, N_r)
+    x = k * r1 * r2 / B
+    if gpcalc:
+        kernel = j0_gpu(x).T  # shape (N_r, N_r)
+    else:
+        kernel = j0(x).T  # shape (N_r, N_r)
 
     # Precompute phase and prefactor
     phase_input = np.exp(1j * k * A * r_in / (2 * B) * r_in)        # shape (N_r,)
@@ -353,7 +385,7 @@ class MultiModeSimulation:
     def prepare_cylindrical_fresnel_help_data(self):
         self.mat_side = calc_original_sim_matrices(self.crystal_shift)
 
-        self.fresnel_data, _ = map(list, zip(*[cylindrical_fresnel_prepare(self.x, self.x, self.lambda_, mat) for mat in self.mat_side]))
+        self.fresnel_data, _ = map(list, zip(*[cylindrical_fresnel_prepare(self.x, self.x, self.lambda_, mat, True) for mat in self.mat_side]))
 
     def init_gain_by_frequency(self):
 

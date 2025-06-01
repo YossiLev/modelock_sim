@@ -516,17 +516,19 @@ function drawMultiTime() {
     }
     drawTimeFrontsWithOptions(timeContentOption, timeContentView, document.getElementById("funCanvasTime"));
     drawTimeFrontsWithOptions(freqContentOption, freqContentView, document.getElementById("funCanvasFrequency"));
-    drawVector(pumpGain0, true, "green", 1,  false,"gainSat", "Pump", 0, "", 8);
-    drawVector(gainReduction, false, "red", 1, false, "gainSat", "PumpSat", 0, "", 8);
-    drawVector(gainReductionWithOrigin, false, "blue", 1,  false, "gainSat", "Pump + 1", 0, "", 8);
-    drawVector(gainReductionAfterDiffraction, false, "black", 1,  false,"gainSat", "with Diff", 0, "", 8);
-    //drawVector(multiTimeAperture, false, "gray", 1,  false,"gainSat", "aperture", 0, "", 8);
-    drawVector(sumPowerIx, true, "blue", 1,  false,"meanPower", "Power", 0);
-    drawVector(ps1, true, "red", 1, false, "kerrPhase", "Kerr", 0, "hello");
+
+    drawVectorPar(pumpGain0, "gainSat", {color: "green", pixelWidth: 1, name: "Pump",start: 0, zoomX: 8});
+    drawVectorPar(gainReduction, "gainSat", {clear: false, pixelWidth: 1, name: "PumpSat", start: 0, zoomX: 8});
+    drawVectorPar(gainReductionWithOrigin, "gainSat", {clear: false, color: "blue", pixelWidth: 1, name: "Pump + 1", start: 0, zoomX: 8});
+    drawVectorPar(gainReductionAfterDiffraction, "gainSat", {clear: false, color: "black", pixelWidth: 1, name: "with Diff", start: 0, zoomX: 8});
+    //drawVectorPar(multiTimeAperture, "gainSat", {clear: false, color: "gray", pixelWidth: 1, name: "aperture", start: 0, zoomX: 8});
+    drawVectorPar(sumPowerIx, "meanPower", {color: "blue", pixelWidth1, name: "Power", start: 0});
+    drawVectorPar(ps1, "kerrPhase", {pixelWidth: 1, Name: "Kerr", start: 0});
     if (ps1.length > 0) {
-        drawVector(focalFromPhase(ps1), false, "green", 1,  false,"kerrPhase", "KerrD2", 0);
+        drawVectorPar(focalFromPhase(ps1), "kerrPhase", {clear: false, color: "green", pixelWidth: 1, name: "KerrD2", start: 0});
     }
-    //drawVector(ps2, false, "green", 1,  false,"kerrPhase", "Lens", 0, `f=${kerrFocalLength}`);
+
+    //drawVectorPar(ps2, "kerrPhase", {clear: false, colro: "green", pixelWidth: 1, name: "Lens", start: 0, message: `f=${kerrFocalLength}`});
 }
 
 function drawTimeFronts(fs, view, canvas) {
@@ -748,12 +750,12 @@ function multiTimeCanvasMouseMove(e, updateTest = false) {
     ps3 = xVec.map((dumx, ix) => (- Math.PI / lambda / focal * ((ix - nSamples / 2) * dx0) * ((ix - nSamples / 2) * dx0)));
     let message = `t=${x}</br>Wa=${(waist*1000000).toFixed(0)}mic</br>p=${pw.toExponential(4)}</br>f=${focal.toFixed(4)}`;
 
-    drawVector(xVec, true, "red", 1, false, "sampleX", "by-X", 0, message);
-    drawVector(yVec, true, "red", 1, false, "sampleY", "by-Y", 0);
-    drawVector(ps1, true, "red", 1, false, "kerrPhase", "Kerr", 0);
-    drawVector(focalFromPhase(ps1), false, "green", 1,  false,"kerrPhase", "KerrD2", 0);
-    //drawVector(ps2, false, "green", 1,  false,"kerrPhase", "Lens", 0, `f=${kerrFocalLength}`);
-    drawVector(ps3, false, "blue", 1,  false,"kerrPhase", "LensW", 0, `f=${focal.toFixed(4)}`);
+    drawVectorPar(xVec, "sampleX", {pixelWidth: 1, name: "by-X", start: 0, message: message});
+    drawVectorPar(yVec, "sampleY", {pixelWidth: 1, name: "by-Y", start: 0});
+    drawVectorPar(ps1, "kerrPhase", {pixelWidth: 1, name: "Kerr", start: 0});
+    drawVectorPar(focalFromPhase(ps1), "kerrPhase", {clear: false, color: "green", pixelWidth: 1, name: "KerrD2", start: 0});
+    //drawVectorPar(ps2, "kerrPhase", {clear: false, color: "green", pixelWidth: 1, name: "Lens", start: 0, message: `f=${kerrFocalLength}`});
+    drawVectorPar(ps3, "kerrPhase", {clear: false, color: "blue", pixelWidth: 1, name: "LensW", start: 0, message: `f=${focal.toFixed(4)}`});
 
     if (updateTest) {
         const canvas = document.getElementById(`funCanvasTest`);

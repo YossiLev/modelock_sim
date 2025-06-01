@@ -2005,14 +2005,16 @@ function mainCanvasMouseMove(e) {
             for (let i = 0; i < fi.length; i++) {
                 fr.push(fi[i].toPolar().r);
             }
-            drawVector(fr, true, "red", 1, true);
+            drawVectorPar(fr, "graphCanvas", {pixelWidth: 1, allowChange: true});
+ 
         } else if (sel.value == "ArgE(x)") {
             fi = fronts[ix];
             fr = [];
             for (let i = 0; i < fi.length; i++) {
                 fr.push(fi[i].toPolar().phi);
             }
-            drawVector(fr, true, "purple", 1, true);
+            drawVectorPar(fr, "graphCanvas", {color: "purple", pixelWidth: 1, allowChange: true});
+
         } else if (sel.value == "M(x)") {
             drawMatDecomposition(ix);
         }

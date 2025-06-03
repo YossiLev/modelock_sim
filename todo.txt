@@ -11,3 +11,7 @@
 
 - cavity building in calculator and using in other places
     - using Guassian Q parameter propogation
+
+
+
+ssh -f -N -L 13389:132.71.147.168:3389 -l levyose1 vpn.esc.biu.ac.il -p 2222

@@ -29,6 +29,11 @@ def insert_data_obj(id, obj):
     global gen_data
     gen_data[id] = obj
 
+def clear_data_obj():
+    print("clear data obj")
+    global gen_data
+    gen_data = {}
+
 def get_Data_obj(id):
     global gen_data
     if id not in gen_data.keys():

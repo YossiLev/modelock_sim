@@ -14,6 +14,7 @@ from design import generate_design
 from iterations import generate_iterations, Iteration
 from cavity import CavityData
 from calc import generate_calc
+from settings import generate_settings
 
 import app
 import jsonpickle
@@ -62,8 +63,7 @@ def menu_item(item_name, current_item):
 
 def content_table(current_page):
     menu_list = ["Design", "Simulation", "Geometry", "Iterations", "MultiMode", "Calculator", "Settings"]
-    return Div(*[menu_item(x, current_page) for x in menu_list],
-                Div(F"{len(get_data_keys())}"),  cls="sideMenu")
+    return Div(*[menu_item(x, current_page) for x in menu_list], cls="sideMenu")
 
 def my_frame(current_page, content):
     return Div(
@@ -128,12 +128,13 @@ def make_page(data_obj):
                     Div(generate_iterations(data_obj), id="iterateFull"), style="width:1100px"))
         case "MultiMode":
             return my_frame("MultiMode", 
-                Div(
-                    Div(generate_multimode(data_obj, 1), cls="box", style="background-color: rgb(208 245 254);", id="fun"), style="width:1100px"))
+                Div(Div(generate_multimode(data_obj, 1), cls="box", style="background-color: rgb(208 245 254);", id="fun"), style="width:1100px"))
         case "Calculator":
             return my_frame("Calculator", 
-                Div(
-                    Div(generate_calc(data_obj, 1), cls="box", style="background-color: rgb(208 245 254);", id="calculator"), style="width:1100px"))
+                Div(Div(generate_calc(data_obj, 1), cls="box", style="background-color: rgb(208 245 254);", id="calculator"), style="width:1100px"))
+        case "Settings":
+            return my_frame("Settings", 
+                Div(Div(generate_settings(data_obj), cls="box", style="background-color: rgb(208 245 254);", id="settings"), style="width:1100px"))
         
         case _:
             return my_frame(current_tab, Div("not yet"))
@@ -625,6 +626,14 @@ async def doCalc(request: Request, tab: int, cmd: str, params: str, localId: str
     dataObj.calcData.doCalcCommand(cmd, params, dataObj)
 
     return generate_calc(dataObj, tab)
+
+@app.post("/settings/{cmd}/{params}")
+async def settings(cmd: str, params: str, localId: str):
+    match cmd:
+        case "delete":
+            clear_data_obj()
+
+    return generate_settings(None)
 
 @app.post("/removeComp/{comp_id}")
 def removeComp(session, comp_id: str, localId: str):

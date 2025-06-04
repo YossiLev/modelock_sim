@@ -172,9 +172,15 @@ def graphCanvas(id="graphCanvas", width=1000, height = 200, options=True):
                     Img(src="static/c12.png", alt="Select", width="16", height="16"),
                     cls="imgButton",
                     onclick=f"selectGraph('{id}');"
+                ),
+                Button(
+                    Img(src="static/degaussian.png", alt="Select", width="16", height="16"),
+                    cls="imgButton",
+                    onclick=f"degaussGraph('{id}');"
                 ),                
                 Span("1.0", id=f"{id}-zoomVal", style="display: none;"),
                 Span("0", id=f"{id}-selectVal", style="display: none;"),
+                Span("0", id=f"{id}-degaussVal", style="display: none;"),
                 style="position: absolute; float: left; z-index: 10;"
             ),
             Div(Span("", id=f"{id}-message", style=""),

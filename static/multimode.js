@@ -605,11 +605,23 @@ function drawVectorPar(v, id, params) {
     drawVector(v, clear, color, pixelWidth, allowChange, id, name, start, message, zoomX, backColor);
 }
 
+function calcDegauss(vec) {
+    let mx = Math.max(...vec);
+    return vec.map(v => {
+        if (v > 0) {
+            return Math.sqrt(- Math.log(v / mx));
+        } else {
+            return 0.0;
+        }
+    });
+}
 function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowChange = false, 
     id = "graphCanvas", name = "", start = drawSx, message = "", zoomX = 1, backColor = "white") {
     if (!drawOption) {
         return
     }
+
+    let degaussVal = parseInt(document.getElementById(`${id}-degaussVal`).innerHTML);
 
     let vectors = presentedVectors.get(id);
     if (clear || vectors == null) {
@@ -622,12 +634,22 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowCha
     const prevCompare = document.getElementById('cbxPrevCompare')?.checked;
     if (l > 0) {
         fac = Math.max(Math.abs(Math.max(...v)), Math.abs(Math.min(...v)));
-        let vecObj = {vec: math.clone(v), w: pixelWidth, ch:allowChange,  s: start, c: color, n: name, f: fac, m: message, z: zoomX};
+        let vecObj = {vecOrig: math.clone(v), w: pixelWidth, ch:allowChange,  s: start, c: color, n: name, f: fac, m: message, z: zoomX};
         vectors.push(vecObj);
         presentedVectors.set(id, vectors);
     } else {
         fac = 0;
     }
+    vectors.forEach((vv) => {
+        if (degaussVal == 1) {
+            vv.vec = calcDegauss(vv.vecOrig);
+        } else {
+            vv.vec = vv.vecOrig;
+        }
+        v = vv.vec;
+        vv.f = Math.max(Math.abs(Math.max(...v)), Math.abs(Math.min(...v)));
+    });
+
     l = vectors.reduce((p, c) => Math.max(p, c.vec.length), 0);
     start = vectors.reduce((p, c) => Math.max(p, c.s), 0);
     let change = vectors.reduce((p, c) => p || c.ch, false);
@@ -774,6 +796,12 @@ function zoomGraph(id, change) {
 function selectGraph(id) {
     val = parseInt(document.getElementById(`${id}-selectVal`).innerHTML);
     document.getElementById(`${id}-selectVal`).innerHTML = `${1 - val}`;
+    drawVectorPar([], id, {clear: false, allowChange: true, start: 0});
+}
+function degaussGraph(id) {
+    val = parseInt(document.getElementById(`${id}-degaussVal`).innerHTML);
+    document.getElementById(`${id}-degaussVal`).innerHTML = `${1 - val}`;
+    console.log(`val gauss = ${val}`);
     drawVectorPar([], id, {clear: false, allowChange: true, start: 0});
 }
 

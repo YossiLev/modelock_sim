@@ -6,7 +6,7 @@ from gen_data import *
 
 def generate_settings(data_obj):
                         
-    def InputCalcS(id, title, value, step=0.01, width = 150):
+    def InputSettingsS(id, title, value, step=0.01, width = 150):
         return Div(
                 Div(title, cls="floatRight", style="font-size: 10px; top:-3px; right:10px;background: #e7edb8;"),
                 Input(type="number", id=id, title=title,
@@ -16,7 +16,7 @@ def generate_settings(data_obj):
                     style=f"width:{width}px; margin:2px;"),
                 style="display: inline-block; position: relative;"
         )
-    def InputCalcM(id, title, value, step=0.01, width = 150):
+    def InputSettingsM(id, title, value, step=0.01, width = 150):
         return Div(
                 Div(title, cls="floatRight", style="font-size: 10px; top:-3px; right:10px;background: #e7edb8;"),
                 Input(type="number", id=id, title=title,
@@ -37,9 +37,14 @@ def generate_settings(data_obj):
         pass
 
     added = Div(
-        Div(f"Processor used {dev}"),
-        Div(Span(f"Server sessions {len(get_data_keys())}"), 
+        Div(f"Processor used: {dev}"),
+        Div(Span(f"Server sessions: {len(get_data_keys())}"), 
             Span(Button("Delete All", escapse=False, hx_post=f'/settings/delete/0', hx_target="#gen_settings", hx_vals='js:{localId: getLocalId()}'))
+        ),
+        Div(Span(f"User type: {'Administrator' if data_obj and data_obj.user_type == 1 else 'User'}"),
+            Input(type="password", id="password"),
+            Span(Button("Authenticate", escapse=False, hx_post=f'/settings/authenticate/1', hx_target="#gen_settings", hx_include="#password", hx_vals='js:{localId: getLocalId()}')),
+            Span(Button("Logout", escapse=False, hx_post=f'/settings/authenticate/0', hx_target="#gen_settings", hx_vals='js:{localId: getLocalId()}'))
         ),
         Div(Button("Restart site", escapse=False, hx_post=f'/settings/restart/0', hx_target="#gen_settings", hx_vals='js:{localId: getLocalId()}'))
     )

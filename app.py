@@ -628,12 +628,19 @@ async def doCalc(request: Request, tab: int, cmd: str, params: str, localId: str
     return generate_calc(dataObj, tab)
 
 @app.post("/settings/{cmd}/{params}")
-async def settings(cmd: str, params: str, localId: str):
+async def settings(cmd: str, params: str, localId: str, password: str | None = None):
+    dataObj = get_Data_obj(localId)
     match cmd:
         case "delete":
-            clear_data_obj()
+            clear_data_obj(localId)
+        case "authenticate":            
+            if params == "1" and password is not None:
+                rc = dataObj.authenticate(password)
+                print(F"authentication {rc}")
+            else:
+                dataObj.authenticate("stam")            
 
-    return generate_settings(None)
+    return generate_settings(dataObj)
 
 @app.post("/removeComp/{comp_id}")
 def removeComp(session, comp_id: str, localId: str):

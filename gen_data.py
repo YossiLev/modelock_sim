@@ -1,3 +1,4 @@
+import hashlib
 from cavity import CavityDataPartsKerr
 from multi_mode import MultiModeSimulation
 from calc import CalculatorData
@@ -8,6 +9,18 @@ class Data_object():
         self.count = 0
         self.run_state = False
         self.current_cavity_name = ""
+        self.user_type = 0
+        self.pass_hash = b'J\xdcv_\xf0Ge\x83\x1f\xc2\x9e\xa5\xd6\xbd\xd7\xa1'
+
+    def authenticate(self, password):
+        res = hashlib.md5(password.encode()).digest()
+        print(res)
+        if res == self.pass_hash:
+            self.user_type = 1
+            return True
+        else:
+            self.user_type = 0
+        return False
 
     def assure(self, part):
         match part:
@@ -29,10 +42,11 @@ def insert_data_obj(id, obj):
     global gen_data
     gen_data[id] = obj
 
-def clear_data_obj():
-    print("clear data obj")
-    global gen_data
-    gen_data = {}
+def clear_data_obj(id):
+    dataObj = get_Data_obj(id)
+    if dataObj.user_type == 1:
+        global gen_data
+        gen_data = {}
 
 def get_Data_obj(id):
     global gen_data

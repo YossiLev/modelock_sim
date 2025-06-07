@@ -34,7 +34,7 @@ cavities = [
             "E"
         ]
     },
-    { "name": "Malachi 1", "elements": 
+    { "name": "Mallachi 1", "elements": 
         [
             "S",
             "P 100mm",

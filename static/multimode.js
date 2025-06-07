@@ -1411,8 +1411,8 @@ function fullCavityMultiMode(mode = 1, startDist = 0.0) {
                 break;
             }
             vecQ.push(newQ);
-            vecW.push(width * Math.abs(dxf));
-            vecWaist.push(width * Math.abs(dxf) * 1.41421356237);
+            vecW.push(width * Math.abs(dx));
+            vecWaist.push(width * Math.abs(dx) * 1.41421356237);
         } else {
             vecQ.push(newQ);
             let waist = Math.sqrt(- lambda / (Math.PI * (math.divide(1, newQ).im)));

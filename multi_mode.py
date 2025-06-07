@@ -347,7 +347,6 @@ class MultiModeSimulation:
     # need fix (ok)
     def prepare_x(self):
         self.dx0 = self.initial_range / self.n_samples
-        print(f"++++ B dx0 = {self.dx0}")
 
         vec = (np.arange(self.n_samples) - np.asarray(self.n_samples / 2)) if self.beam_type == 0 else (np.arange(self.n_samples) + 0.5)
 

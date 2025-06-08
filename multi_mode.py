@@ -235,7 +235,7 @@ class MultiModeSimulation:
         # self.beam_type = 0 # 0 - 1D line, 1 - radial
         # self.modulation_gain_factor = np.asarray(0.0)
         # self.gain_factor = np.asarray(0.50)
-        # self.epsilon = np.asarray(1.8)
+        # self.epsilon = np.asarray(5.8)
         # self.dispersion_factor = np.asarray(0.45)
         # self.lensing_factor = np.asarray(1.0)
         # self.is_factor = np.asarray(15000)

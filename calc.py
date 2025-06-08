@@ -291,7 +291,7 @@ def generate_calc(data_obj, tab, offset = 0):
                     Button("Cavity into ABCD mat", escapse=False, hx_post=f'/doCalc/2/cavity/calc', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
                 ),
                 FlexN([
-                    Textarea(calcData.cavity_text, id="cavityText", style="min-height: 400px;",
+                    Textarea(calcData.cavity_text, id="cavityText", style="min-height: 400px;", spellcheck="false",
                             hx_trigger="input changed delay:1s", hx_post=f"/clUpdate/{tab}", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}', hx_include="#calcForm *",),
                     Div(
                         Div(*[Div(Button(f"Fixed {x[1].split(';')[0]}", escapse=False, 

@@ -240,7 +240,7 @@ class MultiModeSimulation:
         # self.lensing_factor = np.asarray(1.0)
         # self.is_factor = np.asarray(15000)
         # self.crystal_shift = np.asarray(0.0001)
-        # self.aperture = np.asarray(0.000056)
+        # self.aperture = np.asarray(0.000056)  ## shu down
         # self.diffraction_waist = np.asarray(0.000030)
         # self.initial_range = 0.001 # 0.00024475293
         
@@ -593,43 +593,43 @@ class MultiModeSimulation:
             #print(f"shapes = {a.shape[0]}, {b.shape[0]}")
             return np.concatenate((a[::-1], a))
         
-    def get_kerr_influence(self, batch, direction):
-        if (self.beam_type != 0):
-            return []
-        if self.n_rounds < 10:
-            return []
-        if len(self.multi_time_fronts_saves[batch].T) <= self.view_on_x:
-            return []
-        fr_original = self.multi_time_fronts_saves[batch].T[self.view_on_x]
+    # def get_kerr_influence(self, batch, direction):
+    #     if (self.beam_type != 0):
+    #         return []
+    #     if self.n_rounds < 10:
+    #         return []
+    #     if len(self.multi_time_fronts_saves[batch].T) <= self.view_on_x:
+    #         return []
+    #     fr_original = self.multi_time_fronts_saves[batch].T[self.view_on_x]
        
-        total_kerr_lensing = np.multiply(self.lensing_factor, self.ikl_times_i)
-        phase_shift1 = total_kerr_lensing * (np.abs(fr_original) ** 2)
-        fr_with_kerr = fr_original * np.exp(phase_shift1)
+    #     total_kerr_lensing = np.multiply(self.lensing_factor, self.ikl_times_i)
+    #     phase_shift1 = total_kerr_lensing * (np.abs(fr_original) ** 2)
+    #     fr_with_kerr = fr_original * np.exp(phase_shift1)
 
-        p_fr_original_before1 = np.sum(np.abs(fr_original)**2)
-        fr_original_after1 = fr_original * self.multi_time_aperture
-        p_fr_original_after1 = np.sum(np.abs(fr_original_after1)**2)
-        fr_original1 = fr_original_after1 * np.sqrt(p_fr_original_before1 / p_fr_original_after1)
-        p_fr_with_kerr_before1 = np.sum(np.abs(fr_with_kerr)**2)
-        fr_with_kerr_after1 = fr_with_kerr * self.multi_time_aperture
-        p_fr_with_kerr_after1 = np.sum(np.abs(fr_with_kerr_after1)**2)
-        fr_with_kerr1 = fr_with_kerr_after1 * np.sqrt(p_fr_with_kerr_before1 / p_fr_with_kerr_after1)
+    #     p_fr_original_before1 = np.sum(np.abs(fr_original)**2)
+    #     fr_original_after1 = fr_original * self.multi_time_aperture
+    #     p_fr_original_after1 = np.sum(np.abs(fr_original_after1)**2)
+    #     fr_original1 = fr_original_after1 * np.sqrt(p_fr_original_before1 / p_fr_original_after1)
+    #     p_fr_with_kerr_before1 = np.sum(np.abs(fr_with_kerr)**2)
+    #     fr_with_kerr_after1 = fr_with_kerr * self.multi_time_aperture
+    #     p_fr_with_kerr_after1 = np.sum(np.abs(fr_with_kerr_after1)**2)
+    #     fr_with_kerr1 = fr_with_kerr_after1 * np.sqrt(p_fr_with_kerr_before1 / p_fr_with_kerr_after1)
 
-        fr_after = []
-        for fr in [fr_original1, fr_with_kerr1]:
-            fr_next = np.copy(fr)
-            for fresnel_side_data in self.fresnel_data[direction]:
-                vec0 = fresnel_side_data['vecs'][0]
-                vecF = fresnel_side_data['vecs'][1]
-                dx = fresnel_side_data['dx']
-                fr_next = vecF * np.fft.fftshift(np.fft.fft(np.fft.fftshift(vec0 * fr_next))) * dx
+    #     fr_after = []
+    #     for fr in [fr_original1, fr_with_kerr1]:
+    #         fr_next = np.copy(fr)
+    #         for fresnel_side_data in self.fresnel_data[direction]:
+    #             vec0 = fresnel_side_data['vecs'][0]
+    #             vecF = fresnel_side_data['vecs'][1]
+    #             dx = fresnel_side_data['dx']
+    #             fr_next = vecF * np.fft.fftshift(np.fft.fft(np.fft.fftshift(vec0 * fr_next))) * dx
 
-            fr_after.append(cget(np.abs(fr_next)).tolist())
+    #         fr_after.append(cget(np.abs(fr_next)).tolist())
         
-        return [{"color": "black", "values": cget(np.abs(fr_original)).tolist(), "text": f"Start"},
-                {"color": "purple", "values": cget(np.abs(fr_original1)).tolist(), "text": f"squeeze({max(np.abs(fr_original1)):.2f})"},
-                {"color": "green", "values": fr_after[1], "text": f"with Kerr({max(fr_after[1]):.2f})"},
-                {"color": "red", "values": fr_after[0], "text": f"without Kerr({max(fr_after[0]):.2f})"}]
+    #     return [{"color": "black", "values": cget(np.abs(fr_original)).tolist(), "text": f"Start"},
+    #             {"color": "purple", "values": cget(np.abs(fr_original1)).tolist(), "text": f"squeeze({max(np.abs(fr_original1)):.2f})"},
+    #             {"color": "green", "values": fr_after[1], "text": f"with Kerr({max(fr_after[1]):.2f})"},
+    #             {"color": "red", "values": fr_after[0], "text": f"without Kerr({max(fr_after[0]):.2f})"}]
         
     def get_saturation_graph_data(self):
         return [{"color": "red", "values": cget(self.focus_front(self.pump_gain0)).tolist(), "text": f"pump_gain0"},

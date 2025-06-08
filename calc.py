@@ -143,7 +143,7 @@ class CalculatorData:
                         self.vf_in = np.exp(front_exp)
                     case "Live Front":
                         print("Live Front")
-                        if not hasattr(dataObj, 'mmData') is None:
+                        if not hasattr(dataObj, 'mmData'):
                             print("No mmData")
                             return
                         mmData = dataObj.mmData

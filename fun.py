@@ -16,7 +16,24 @@ elements = [
 
 current_cavity_name = "Yehuda"
 cavities = [
-    { "name": "Empty", "elements": []},  
+    { "name": "Empty", "elements": []},
+    { "name": "Eden", "elements": 
+        [ 
+            "S",
+            "P 22.12cm",
+            "L 7.5cm",
+            "P 9.51cm",
+            "L 0.8cm",
+            "P 0.9cm",
+            ">D ",
+            "P 0.83cm",
+            "L 0.8cm",
+            "P 10.0cm",
+            "L 7.5cm",
+            "P 21.5cm",
+            "E",
+        ]
+    },
     { "name": "Yehuda", "elements": 
         [
             "S",

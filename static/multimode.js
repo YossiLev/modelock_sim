@@ -757,16 +757,16 @@ function drawMatDecomposition(ix, clear = true, color = "red") {
         let newRange = ranges[0];
         for (let iMat = 0; iMat < mats.length; iMat++) {
             let [A, B, C, D] = [mats[iMat][0][0], mats[iMat][0][1], mats[iMat][1][0], mats[iMat][1][1]];
-            ctx.fillText(math.re(A).toFixed(6), px, 20);
-            ctx.fillText(math.re(B).toFixed(6), px + dx, 20);
-            ctx.fillText(math.re(C).toFixed(6), px, 40);
-            ctx.fillText(math.re(D).toFixed(6), px + dx, 40);
+            ctx.fillText(math.re(A).toFixed(6), px, 40);
+            ctx.fillText(math.re(B).toFixed(6), px + dx, 40);
+            ctx.fillText(math.re(C).toFixed(6), px, 60);
+            ctx.fillText(math.re(D).toFixed(6), px + dx, 60);
             newRange = calcNewRange(B, lambda, nSamples, newRange);
-            ctx.fillText(newRange.toFixed(6), px, 70);
+            ctx.fillText(newRange.toFixed(6), px, 90);
             if (iMat == 0) {
                 ctx.fillStyle = 'blue';
                 newRange = ranges[0];
-                px += 200 * (mats.length - 1)
+                px += 160 * (mats.length - 1)
             } else {
                 mMat = MMult(mats[iMat], mMat);
                 let [A, B, C, D] = [mMat[0][0], mMat[0][1], mMat[1][0], mMat[1][1]];
@@ -774,7 +774,7 @@ function drawMatDecomposition(ix, clear = true, color = "red") {
                 ctx.fillText(math.re(B).toFixed(6), px + dx, 120);
                 ctx.fillText(math.re(C).toFixed(6), px, 140);
                 ctx.fillText(math.re(D).toFixed(6), px + dx, 140);
-                px -= 200;
+                px -= 160;
             }
         }
 
@@ -1274,6 +1274,7 @@ function getMatricesAtDistFromStart(M, dStep, r0, mode) {
                 useDistFix = 2;
                 let mPush = [[1, 2 * spDist], [0, 1]];
                 MS = MMult(mPush, M);
+                mPush = [[1, spDist], [0, 1]];
                 while (Math.abs(MS[0][1]) < spDist) {
                     MS = MMult(mPush, MS);
                     useDistFix++;

@@ -42,6 +42,7 @@ app = FastHTML(htmx=False, ws_hdr=False, hdrs=(
         Script(src="static/fourier.js"),
         Script(src="static/multimode.js"),
         Script(src="static/multitime.js"),
+        Script(src="static/calculator.js"),
 
 ))
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -542,6 +543,22 @@ async def mmCenter(localId: str):
     
     return collectData(dataObj)
 
+@app.post("/mmSaveState")
+async def mmSaveState(localId: str):
+    dataObj = get_Data_obj(localId)
+    dataObj.assure('mmData')
+   
+    dataObj.mmData.saveState()
+    return collectData(dataObj)
+
+@app.post("/mmRestoreState")
+async def mmRestoreState(localId: str):
+    dataObj = get_Data_obj(localId)
+    dataObj.assure('mmData')
+   
+    dataObj.mmData.restoreState()
+    return collectData(dataObj)
+
 def collect_mat_data(M, form_data, name):
     updated = False
     try:
@@ -613,6 +630,10 @@ def doCalcUpdate(calcData, form_data):
         pushParam(calcData, "fresnel_dx_out", lambda: float(form_data.get("FresnelDXOut")))
         pushParam(calcData, "fresnel_waist", lambda: float(form_data.get("FresnelWaist")))
         pushParam(calcData, "select_front", lambda: form_data.get("CalcSelectFront"))
+    except:
+        pass
+    try:
+        pushParam(calcData, "harmony", lambda: int(form_data.get("pulseHarmony")))
     except:
         pass
 

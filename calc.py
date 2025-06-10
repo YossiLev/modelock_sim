@@ -78,6 +78,8 @@ class CalculatorData:
         self.vf_out = []
         self.distance_shifts = [-0.0002, -0.00015, -0.0001, -0.00005, 0.0000, 0.00005, 0.0001, 0.00015, 0.0002]
         self.select_front = "Gaussian"
+
+        self.harmony = 2
     '''
         position_lens = -0.00015 + crystal_shift  # -0.00015 shift needed due to conclusions from single lens usage in original simulation
         m_long = m_mult_v(m_dist(position_lens), m_dist(0.081818181), m_lens(0.075), m_dist(0.9),
@@ -341,12 +343,23 @@ def generate_calc(data_obj, tab, offset = 0):
                         cls="box", style="background-color: #008080;"
                     ) if internal_data else Div(),
                 ) if (len(calcData.vf_out) > 0 and len(calcData.vf_out[0]) > 0) else Div(),
-
-
-
             )
-        case 4: 
-            pass
+        case 4: # split pulse
+            added = Div(
+                FlexN(
+                    (Div(
+                        InputCalcS(f'pulseHarmony', "Harmony", f'{calcData.harmony}', width = 80, ),
+                        Button("Calc", escapse=False, onclick=f"drawPulseGraph();", hx_vals='js:{localId: getLocalId()}'), 
+                    ),
+                    Canvas(id=f"pulsesplit", width=800, height=1500, style="background: blue;",
+                    #    **{'onmousemove':f"mainCanvasMouseMove(event);",
+                    #       'onmousedown':f"mainCanvasMouseDown(event);",
+                    #       'onmouseup':f"mainCanvasMouseUp(event);",
+                    #       }
+                    ),
+                    )
+                ),
+            )
         case 5:
             pass
 
@@ -355,7 +368,7 @@ def generate_calc(data_obj, tab, offset = 0):
             TabMaker("Matrix", "/tabcalc/1", tab == 1, target="#gen_calc", inc="#calcForm *"),
             TabMaker("Cavity", "/tabcalc/2", tab == 2, target="#gen_calc", inc="#calcForm *"),
             TabMaker("Fresnel", "/tabcalc/3", tab == 3, target="#gen_calc", inc="#calcForm *"),
-            TabMaker("TBD3", "/tabcalc/4", tab == 4, target="#gen_calc", inc="#calcForm *"),
+            TabMaker("Split Pulse", "/tabcalc/4", tab == 4, target="#gen_calc", inc="#calcForm *"),
             TabMaker("TBD4", "/tabcalc/5", tab == 5, target="#gen_calc", inc="#calcForm *"),
         ),
         Div(added, id="calcForm"),

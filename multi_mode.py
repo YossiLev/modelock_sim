@@ -240,7 +240,7 @@ class MultiModeSimulation:
         # self.lensing_factor = np.asarray(1.0)
         # self.is_factor = np.asarray(15000)
         # self.crystal_shift = np.asarray(0.0001)
-        # self.aperture = np.asarray(0.000056)  ## shu down
+        # self.aperture = np.asarray(0.000056)  ## shut down
         # self.diffraction_waist = np.asarray(0.000030)
         # self.initial_range = 0.001 # 0.00024475293
         
@@ -271,6 +271,7 @@ class MultiModeSimulation:
         self.n_time_samples = 1024
         self.multi_time_fronts = []
         self.multi_time_fronts_saves = []
+        self.multi_time_fronts_records = [[]]
 
         self.intensity_saturation_level = 400000000000000.0
         self.intensity_total_by_ix = []
@@ -333,6 +334,13 @@ class MultiModeSimulation:
             if hasattr(self, key):
                 params[key] = getattr(self, cget(key)[0])
         return params
+
+    def saveState(self):
+        self.multi_time_fronts_records[0] = np.copy(self.multi_time_fronts)
+
+    def restoreState(self):
+        self.multi_time_fronts = np.copy(self.multi_time_fronts_records[0])    
+        self.multi_time_fronts_saves[0] = np.copy(self.multi_time_fronts_records[0])    
 
     def spectral_gain_dispersion(self):
         multi_frequency_fronts = np.fft.fftshift(np.fft.fft(np.fft.ifftshift(self.multi_time_fronts, axes=1), axis=1), axes=1) * self.frequency_total_mult_factor

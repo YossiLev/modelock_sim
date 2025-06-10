@@ -592,15 +592,26 @@ function drawVectorPar(v, id, params) {
     if (!drawOption) {
         return
     }
-    let clear = params.clear || true;
-    let color = params.color || "red";
-    let pixelWidth = params.pixelWidth || drawW;
-    let allowChange = params.allowChange || false;
-    let name = params.name || "";
-    let start = params.start || drawSx;
-    let message = params.message || "";
-    let zoomX = params.zoomX || 1;
-    let backColor = params.backColor || "white";
+    // let clear = params.params.clear || true;
+    // let color = params.color || "red";
+    // let pixelWidth = params.pixelWidth || drawW;
+    // let allowChange = params.allowChange || false;
+    // let name = params.name || "";
+    // let start = params.start || drawSx;
+    // let message = params.message || "";
+    // let zoomX = params.zoomX || 1;
+    // let backColor = params.backColor || "white";
+
+
+    let clear = params.hasOwnProperty("clear") ? params.clear : true;
+    let color = params.hasOwnProperty("color") ? params.color : "red";
+    let pixelWidth = params.hasOwnProperty("pixelWidth") ? params.pixelWidth : drawW;
+    let allowChange = params.hasOwnProperty("allowChange") ? params.allowChange : false;
+    let name = params.hasOwnProperty("name") ? params.name : "";
+    let start = params.hasOwnProperty("start") ? params.start : drawSx;
+    let message = params.hasOwnProperty("message") ? params.message : "";
+    let zoomX = params.hasOwnProperty("zoomX") ? params.zoomX : 1;
+    let backColor = params.hasOwnProperty("backColor") ? params.backColor : "white";
 
     drawVector(v, clear, color, pixelWidth, allowChange, id, name, start, message, zoomX, backColor);
 }
@@ -615,6 +626,16 @@ function calcDegauss(vec) {
         }
     });
 }
+function calcDeLorentz(vec) {
+    let mx = Math.max(...vec);
+    return vec.map(v => {
+        if (v > 0) {
+            return Math.sqrt(mx / v - 1);
+        } else {
+            return 0.0;
+        }
+    });
+}
 function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowChange = false, 
     id = "graphCanvas", name = "", start = drawSx, message = "", zoomX = 1, backColor = "white") {
     if (!drawOption) {
@@ -622,6 +643,7 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowCha
     }
 
     let degaussVal = parseInt(document.getElementById(`${id}-degaussVal`).innerHTML);
+    let deLorentzVal = parseInt(document.getElementById(`${id}-delorentzVal`).innerHTML);
 
     let vectors = presentedVectors.get(id);
     if (clear || vectors == null) {
@@ -643,6 +665,8 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowCha
     vectors.forEach((vv) => {
         if (degaussVal == 1) {
             vv.vec = calcDegauss(vv.vecOrig);
+        } else if (deLorentzVal == 1) {
+            vv.vec = calcDeLorentz(vv.vecOrig);
         } else {
             vv.vec = vv.vecOrig;
         }
@@ -801,7 +825,13 @@ function selectGraph(id) {
 function degaussGraph(id) {
     val = parseInt(document.getElementById(`${id}-degaussVal`).innerHTML);
     document.getElementById(`${id}-degaussVal`).innerHTML = `${1 - val}`;
-    console.log(`val gauss = ${val}`);
+    document.getElementById(`${id}-delorentzVal`).innerHTML = `0`;
+    drawVectorPar([], id, {clear: false, allowChange: true, start: 0});
+}
+function delorentzGraph(id) {
+    val = parseInt(document.getElementById(`${id}-delorentzVal`).innerHTML);
+    document.getElementById(`${id}-delorentzVal`).innerHTML = `${1 - val}`;
+    document.getElementById(`${id}-degaussVal`).innerHTML = `0`;
     drawVectorPar([], id, {clear: false, allowChange: true, start: 0});
 }
 

@@ -13,6 +13,8 @@
     V using Guassian Q parameter propogation
     - 
 
+V recored revert
+    V allow recording of current status
 
 
 ssh -f -N -L 13389:132.71.147.168:3389 -l levyose1 vpn.esc.biu.ac.il -p 2222

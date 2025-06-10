@@ -194,10 +194,16 @@ def graphCanvas(id="graphCanvas", width=1000, height = 200, options=True):
                     Img(src="static/degaussian.png", alt="Select", width="16", height="16"),
                     cls="imgButton",
                     onclick=f"degaussGraph('{id}');"
+                ),
+                Button(
+                    Img(src="static/delorentzian.png", alt="Select", width="16", height="16"),
+                    cls="imgButton",
+                    onclick=f"delorentzGraph('{id}');"
                 ),                
                 Span("1.0", id=f"{id}-zoomVal", style="display: none;"),
                 Span("0", id=f"{id}-selectVal", style="display: none;"),
                 Span("0", id=f"{id}-degaussVal", style="display: none;"),
+                Span("0", id=f"{id}-delorentzVal", style="display: none;"),
                 style="position: absolute; float: left; z-index: 10;"
             ),
             Div(Span("", id=f"{id}-message", style=""),
@@ -406,6 +412,10 @@ def generate_multi_on_server(data_obj):
             # Button("<", onclick="shiftFronts(5);"),
             # Button(">>", onclick="shiftFronts(- 50);"),
             # Button("<<", onclick="shiftFronts(50);"),
+        ),
+        Div(
+            Button("Save", hx_post=f"/mmSaveState", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML", hx_target="#numData"),
+            Button("Restore", hx_post=f"/mmRestoreState", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML", hx_target="#numData"),
         ),
         # Div(
         #     *[Element(el, i, 5) for i, el in enumerate(elements[2])],

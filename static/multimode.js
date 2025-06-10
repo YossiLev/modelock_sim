@@ -626,6 +626,16 @@ function calcDegauss(vec) {
         }
     });
 }
+function calcDeSech(vec) {
+    let mx = Math.max(...vec);
+    return vec.map(v => {
+        if (v > 0) {
+            return - Math.log(v / mx);
+        } else {
+            return 0.0;
+        }
+    });
+}
 function calcDeLorentz(vec) {
     let mx = Math.max(...vec);
     return vec.map(v => {
@@ -644,6 +654,7 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowCha
 
     let degaussVal = parseInt(document.getElementById(`${id}-degaussVal`).innerHTML);
     let deLorentzVal = parseInt(document.getElementById(`${id}-delorentzVal`).innerHTML);
+    let deSechVal = parseInt(document.getElementById(`${id}-desechVal`).innerHTML);
 
     let vectors = presentedVectors.get(id);
     if (clear || vectors == null) {
@@ -667,6 +678,8 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowCha
             vv.vec = calcDegauss(vv.vecOrig);
         } else if (deLorentzVal == 1) {
             vv.vec = calcDeLorentz(vv.vecOrig);
+        } else if (deSechVal == 1) {
+            vv.vec = calcDeSech(vv.vecOrig);
         } else {
             vv.vec = vv.vecOrig;
         }
@@ -826,12 +839,21 @@ function degaussGraph(id) {
     val = parseInt(document.getElementById(`${id}-degaussVal`).innerHTML);
     document.getElementById(`${id}-degaussVal`).innerHTML = `${1 - val}`;
     document.getElementById(`${id}-delorentzVal`).innerHTML = `0`;
+    document.getElementById(`${id}-desechVal`).innerHTML = `0`;
     drawVectorPar([], id, {clear: false, allowChange: true, start: 0});
 }
 function delorentzGraph(id) {
     val = parseInt(document.getElementById(`${id}-delorentzVal`).innerHTML);
     document.getElementById(`${id}-delorentzVal`).innerHTML = `${1 - val}`;
     document.getElementById(`${id}-degaussVal`).innerHTML = `0`;
+    document.getElementById(`${id}-desechVal`).innerHTML = `0`;
+    drawVectorPar([], id, {clear: false, allowChange: true, start: 0});
+}
+function desechGraph(id) {
+    val = parseInt(document.getElementById(`${id}-desechVal`).innerHTML);
+    document.getElementById(`${id}-desechVal`).innerHTML = `${1 - val}`;
+    document.getElementById(`${id}-degaussVal`).innerHTML = `0`;
+    document.getElementById(`${id}-delorentzVal`).innerHTML = `0`;
     drawVectorPar([], id, {clear: false, allowChange: true, start: 0});
 }
 

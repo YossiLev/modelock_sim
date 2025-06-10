@@ -199,11 +199,17 @@ def graphCanvas(id="graphCanvas", width=1000, height = 200, options=True):
                     Img(src="static/delorentzian.png", alt="Select", width="16", height="16"),
                     cls="imgButton",
                     onclick=f"delorentzGraph('{id}');"
+                ),
+                Button(
+                    Img(src="static/desech.png", alt="Select", width="16", height="16"),
+                    cls="imgButton",
+                    onclick=f"desechGraph('{id}');"
                 ),                
                 Span("1.0", id=f"{id}-zoomVal", style="display: none;"),
                 Span("0", id=f"{id}-selectVal", style="display: none;"),
                 Span("0", id=f"{id}-degaussVal", style="display: none;"),
                 Span("0", id=f"{id}-delorentzVal", style="display: none;"),
+                Span("0", id=f"{id}-desechVal", style="display: none;"),
                 style="position: absolute; float: left; z-index: 10;"
             ),
             Div(Span("", id=f"{id}-message", style=""),

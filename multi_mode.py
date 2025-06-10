@@ -268,6 +268,7 @@ class MultiModeSimulation:
         self.used_seed = 0
 
         self.steps_counter = 0
+        self.report_every_step = 250
         self.n_time_samples = 1024
         self.multi_time_fronts = []
         self.multi_time_fronts_saves = []

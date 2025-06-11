@@ -375,6 +375,7 @@ def generate_multi_on_server(data_obj):
             "modulationGainFactor": mmData.modulation_gain_factor,
             "isFactor": mmData.is_factor,
             "crystalShift": mmData.crystal_shift,
+            "reportEveryStep": mmData.report_every_step,
             "nRounds": mmData.n_rounds_per_full,
         }
     n_rounds_options = [1, 10, 100, 300, 1000, 2000, 5000, 10000]
@@ -405,10 +406,11 @@ def generate_multi_on_server(data_obj):
                 InputS('epsilon', "Gain Epsilon", f'{params["epsilon"]}', step=0.01, width = 50),
                 InputS("gainFactor", "Gain factor", f'{params["gainFactor"]}', step=0.01),
                 InputS("dispersionFactor", "Dispersion factor", f'{params["dispersionFactor"]}', step=0.01),
-                InputS("lensingFactor", "Kerr lensing factor", f'{params["lensingFactor"]}', step=0.01),
-                InputS("modulationGainFactor", "Modulation gain factor", f'{params["modulationGainFactor"]}', step=0.01),   
+                InputS("lensingFactor", "Kerr lensing factor", f'{params["lensingFactor"]}', step=0.01, width = 40),
+                InputS("modulationGainFactor", "Modulation gain factor", f'{params["modulationGainFactor"]}', step=0.01, width = 40),   
                 InputS("isFactor", "Intensity saturation factor", f'{params["isFactor"]}', step=0.01, width = 60),
-                InputS("crystalShift", "Crystal position shift (mm)", f'{params["crystalShift"]}', step=0.00001, width = 70),
+                InputS("crystalShift", "Crystal position shift (mm)", f'{params["crystalShift"]}', step=0.00001, width = 60),
+                InputS("reportEveryStep", "Report poeriod", f'{params["reportEveryStep"]}', step=0.00001, width = 50),
                 #Select(Option("256"), Option("512"), Option("1024"), Option("2048"), Option("4096"), id="nSamples",),
                 Input(type="text", id=f'stepsCounter', title="Number of roundtrips made", hx_trigger="input changed delay:1s", hx_post="/mmUpdate", hx_include="#multiTimeOptionsForm *", 
                     style="width:60px; text-align: right", value=f'0', **{'readonly':"readonly"},),

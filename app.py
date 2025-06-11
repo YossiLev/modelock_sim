@@ -418,6 +418,7 @@ async def mmInit(request: Request, localId: str):
         "crystal_shift": float(form_data.get("crystalShift")),
         "initial_range": float(form_data.get("initialRange")),
         "n_rounds_per_full": int(form_data.get("nRounds")),
+        "report_every_step": int(form_data.get("reportEveryStep")),
         "steps_sounter": 0,
     })
     dataObj.mmData.init_multi_time()
@@ -442,6 +443,7 @@ async def mmUpdate(request: Request, localId: str):
         "is_factor": float(form_data.get("isFactor")),
         "crystal_shift": float(form_data.get("crystalShift")),
         "initial_range": float(form_data.get("initialRange")),
+        "report_every_step": int(form_data.get("reportEveryStep")),
         "steps_sounter": int(form_data.get("stepsCounter")),
     })
     dataObj.mmData.update_helpData()
@@ -471,11 +473,11 @@ async def mmView(localId: str):
 
 @app.ws('/mmRun')
 async def mmRun(send, nRounds: str, gainFactor: str, aperture: str, diffractionWaist: str, epsilon: str, dispersionFactor: str,
-                 lensingFactor: str, modulationGainFactor: str, isFactor: str, crystalShift: str, initialRange: str, localId: str):
+                 lensingFactor: str, modulationGainFactor: str, isFactor: str, crystalShift: str, initialRange: str, reportEveryStep: str, localId: str):
     dataObj = get_Data_obj(localId)
     dataObj.assure('mmData')
-    
-    dataObj.mmData.set({
+    mmData = dataObj.mmData
+    mmData.set({
          "gain_factor": float(gainFactor),
          "aperture": float(aperture),
          "epsilon": float(epsilon),
@@ -486,10 +488,11 @@ async def mmRun(send, nRounds: str, gainFactor: str, aperture: str, diffractionW
          "is_factor": float(isFactor),
          "crystal_shift": float(crystalShift),
          "initial_range": float(initialRange),
+         "report_every_step": int(reportEveryStep),
          "n_rounds_per_full": int(nRounds),
     #     "steps_counter": int(form_data.get("stepsCounter")),
     })
-    dataObj.mmData.update_helpData()
+    mmData.update_helpData()
     last_sent = 0
 
     start_time = time.time()
@@ -498,8 +501,8 @@ async def mmRun(send, nRounds: str, gainFactor: str, aperture: str, diffractionW
     for i in range(count):
         if not dataObj.run_state:
             break       
-        dataObj.mmData.multi_time_round_trip()
-        if (i + 1) % 250 == 0:
+        mmData.multi_time_round_trip()
+        if (i + 1) % mmData.report_every_step == 0:
             try:
                 last_sent = i + 1
                 if last_sent >= count:

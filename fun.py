@@ -433,7 +433,10 @@ def generate_multi_on_server(data_obj):
                 id="saveParametersDialog", cls="pophelp", style="position: absolute; visibility: hidden"),
             Div(Div("Select the parameters set"),
                 Div("", id="restoreParametersList"),
+                Div("", id="copyParametersList"),
                 Button("Cancel", onclick="restoreMultiTimeParameters(-1)"),
+                Button("Export", onclick="exportMultiTimeParameters()"),
+                Button("Import", onclick="importMultiTimeParameters()"),
                 id="restoreParametersDialog", cls="pophelp", style="position: absolute; visibility: hidden"),
         ),
         # Div(

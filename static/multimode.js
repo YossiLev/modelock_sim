@@ -2260,3 +2260,24 @@ function deleteMultiTimeParameters(index) {
     deleteNamedObjectByIndex(index);
     document.getElementById("restoreParametersDialog").style.visibility = "hidden";
 }
+
+function exportMultiTimeParameters() {
+    const ser = localStorage.getItem("namedObjects");
+    let copy = document.getElementById("copyParametersList");
+    [...copy.children].forEach(c => c.remove());
+    let area = document.createElement("textarea");
+    area.value = ser;
+    area.style.width = "500px";
+    area.style.height = "400px";
+
+    //area.setAttribute("onclick",`restoreMultiTimeParameters(${iName})`);
+    copy.appendChild(area);
+}
+
+function importMultiTimeParameters() {
+    let copy = document.getElementById("copyParametersList");
+    [...copy.children].forEach(c => {
+        objs = JSON.parse(c.value);
+        mergeToNamedObject(objs);
+    });
+}

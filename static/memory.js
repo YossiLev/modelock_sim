@@ -33,6 +33,18 @@ function addNamedObject(obj) {
   saveToLocalStorage("namedObjects", namedObjects);
 }
 
+function mergeToNamedObject(objs) {
+  let namedObjects = loadFromLocalStorage("namedObjects");
+  if (namedObjects == null) {
+    namedObjects = {names:[], dates: [], objects: []};
+  }
+  namedObjects.names = namedObjects.names.concat(objs.names);
+  namedObjects.dates = namedObjects.dates.concat(objs.dates);
+  namedObjects.objects = namedObjects.objects.concat(objs.objects);
+
+  saveToLocalStorage("namedObjects", namedObjects);
+}
+
 function getNamedObjectsData() {
   let namedObjects = loadFromLocalStorage("namedObjects");
   if (namedObjects == null) {
@@ -60,7 +72,7 @@ function deleteNamedObjectByIndex(index) {
   namedObjects.names.splice(index, 1);
   namedObjects.dates.splice(index, 1);
   namedObjects.objects.splice(index, 1);
-  
+
   saveToLocalStorage("namedObjects", namedObjects);
 }
   

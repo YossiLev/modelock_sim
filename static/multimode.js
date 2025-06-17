@@ -2189,3 +2189,74 @@ function graphCanvasMouseDown(e) {
 function graphCanvasMouseUp(e) {
     isMouseDownOnGraph = false;
 }
+
+function saveMultiTimeParametersProcess() {
+    document.getElementById("saveParametersDialog").style.visibility = "visible";
+}
+function restoreMultiTimeParametersProcess() {
+    let list = document.getElementById("restoreParametersList");
+    [...list.children].forEach(c => c.remove());
+    let [names, dates] = getNamedObjectsData();
+    for (let iName in names) {
+        let child = document.createElement("div");
+        let text = document.createElement("span");
+        text.innerText = `-> ${names[iName]}`;
+        text.setAttribute("onclick",`restoreMultiTimeParameters(${iName})`);
+        child.appendChild(text);
+        let img = document.createElement("img");
+        img.src = "static/delete.png";
+        img.style.paddingLeft = "20px";
+        img.style.verticalAlign = "middle";
+        img.setAttribute("onclick",`deleteMultiTimeParameters(${iName})`);
+        child.appendChild(img);
+        list.appendChild(child);
+    }
+    document.getElementById("restoreParametersDialog").style.visibility = "visible";
+}
+
+function saveMultiTimeParameters(isSave) {
+    if (isSave) {
+        let obj = { name: document.getElementById("parametersName").value};
+        let form = document.getElementById("multiTimeOptionsForm");
+        for (let item of form.children) {
+            if (item instanceof HTMLInputElement) {
+                obj[item.id] = item.value;
+            } else if (item instanceof HTMLSelectElement) {
+                obj[item.id] = item.selectedIndex;
+            }  else if (item instanceof HTMLTextAreaElement) {
+                console.log(item.id, "TEXTAREA")
+            }  else {
+                console.log(item.id, "ERROR")
+            }
+        }
+        addNamedObject(obj);
+    }
+    document.getElementById("saveParametersDialog").style.visibility = "hidden";
+}
+
+function restoreMultiTimeParameters(index) {
+    if (index >= 0) { 
+        let obj = getNamedObjectByIndex(index);
+        console.log(obj)
+        let form = document.getElementById("multiTimeOptionsForm");
+        for (let item of form.children) {
+            if (obj.hasOwnProperty(item.id)) {
+                if (item instanceof HTMLInputElement) {
+                    item.value = obj[item.id];
+                } else if (item instanceof HTMLSelectElement) {
+                    item.selectedIndex = obj[item.id];
+                }  else if (item instanceof HTMLTextAreaElement) {
+                    console.log(item.id, "TEXTAREA")
+                }  else {
+                    console.log(item.id, "ERROR")
+                }
+            }
+        }
+    }
+    document.getElementById("restoreParametersDialog").style.visibility = "hidden";
+}
+
+function deleteMultiTimeParameters(index) {
+    deleteNamedObjectByIndex(index);
+    document.getElementById("restoreParametersDialog").style.visibility = "hidden";
+}

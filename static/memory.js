@@ -8,8 +8,8 @@ function saveToLocalStorage(key, object) {
     }
   }
   
-  // Retrieves an object from local storage using the provided key
-  function loadFromLocalStorage(key) {
+// Retrieves an object from local storage using the provided key
+function loadFromLocalStorage(key) {
     try {
       const serialized = localStorage.getItem(key);
       return serialized ? JSON.parse(serialized) : null;
@@ -17,7 +17,52 @@ function saveToLocalStorage(key, object) {
       console.error(`Failed to load key "${key}" from local storage:`, error);
       return null;
     }
+}
+
+function addNamedObject(obj) {
+  let namedObjects = loadFromLocalStorage("namedObjects");
+  if (namedObjects == null) {
+    namedObjects = {names:[], dates: [], objects: []};
   }
+  let objName = obj.name;
+  let objDate = Date.now();
+  namedObjects.names.push(objName);
+  namedObjects.dates.push(objDate);
+  namedObjects.objects.push(obj);
+
+  saveToLocalStorage("namedObjects", namedObjects);
+}
+
+function getNamedObjectsData() {
+  let namedObjects = loadFromLocalStorage("namedObjects");
+  if (namedObjects == null) {
+    namedObjects = {names:[], dates:[], objects: []};
+  }
+  return [namedObjects.names, namedObjects.dates];
+}
+
+function getNamedObjectByIndex(index) {
+  let namedObjects = loadFromLocalStorage("namedObjects");
+  if (namedObjects == null) {
+    namedObjects = {names:[], dates:[], objects: []};
+  }
+  if (namedObjects.objects.length < index) {
+    return null;
+  }
+  return namedObjects.objects[index];
+}
+
+function deleteNamedObjectByIndex(index) {
+  let namedObjects = loadFromLocalStorage("namedObjects");
+  if (namedObjects == null) {
+    namedObjects = {names:[], dates:[], objects: []};
+  }
+  namedObjects.names.splice(index, 1);
+  namedObjects.dates.splice(index, 1);
+  namedObjects.objects.splice(index, 1);
+  
+  saveToLocalStorage("namedObjects", namedObjects);
+}
   
 function AbcdMatCopy(name) {
     let A = document.getElementById(name + "_A").value;

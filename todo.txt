@@ -1,5 +1,5 @@
 - optimizations
-    - ignore week data vectors in both dimensions
+    - ignore weak data vectors in both dimensions
     - optimize number of samples (as a prep for full 2D modes)
     - shift to pytorch
     - shift to cuda
@@ -7,14 +7,27 @@
 - get mode picture at any place in the cavity (in both directions)
 - see how picture depends on the pump power
 
+- Auto seach for stable solution
+    - Set scores for state estimation (pulse width, peak power, pulse power)
+    - Allow selection 
+
 - compare physical parameters reality vs. simulation 
 
-- cavity building in calculator and using in other places
+V cavity building in calculator and using in other places
     V using Guassian Q parameter propogation
-    - 
 
 V recored revert
     V allow recording of current status
-
+    V save parameteres of good runs
 
 ssh -f -N -L 13389:132.71.147.168:3389 -l levyose1 vpn.esc.biu.ac.il -p 2222
+
+
+[{"name":"basic 1D","date":1750247576961,"state":0,"obj":{"name":"basic 1D","beamType":1,"initialRange":"0.001","seed":"34563","aperture":"0.000156","diffractionWaist":"3e-05","epsilon":"5.8","gainFactor":"0.5","dispersionFactor":"0.45","lensingFactor":"1.0","modulationGainFactor":"0.0","isFactor":"15000.0","crystalShift":"9.9e-05","reportEveryStep":"100","stepsCounter":"2000"}}]
+
+[{"name":"1D with 0.002 range","date":1750249339730,"state":0,"obj":{"name":"1D with 0.002 range","beamType":1,"initialRange":"0.002","seed":"34563","aperture":"0.000156","diffractionWaist":"3e-05","epsilon":"5.8","gainFactor":"0.5","dispersionFactor":"0.45","lensingFactor":"1.0","modulationGainFactor":"0.0","isFactor":"10000.0","crystalShift":"0.0001","reportEveryStep":"100","stepsCounter":"6000"}}]
+
+[{"name":"Basic Radial","date":1750257417095,"state":0,"obj":{"name":"Basic Radial","beamType":0,"initialRange":"0.0001","seed":"65688","aperture":"0.000156","diffractionWaist":"6e-05","epsilon":"5.8","gainFactor":"0.5","dispersionFactor":"1.5","lensingFactor":"1.0","modulationGainFactor":"0.0","isFactor":"10000.0","crystalShift":"9e-05","reportEveryStep":"250","stepsCounter":"5000"}}]
+
+
+

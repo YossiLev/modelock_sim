@@ -19,59 +19,45 @@ function loadFromLocalStorage(key) {
     }
 }
 
-function addNamedObject(obj) {
+function loadSafeNamedObjects() {
   let namedObjects = loadFromLocalStorage("namedObjects");
-  if (namedObjects == null) {
-    namedObjects = {names:[], dates: [], objects: []};
+  if (namedObjects == null || !Array.isArray(namedObjects)) {
+    namedObjects = [];
   }
-  let objName = obj.name;
-  let objDate = Date.now();
-  namedObjects.names.push(objName);
-  namedObjects.dates.push(objDate);
-  namedObjects.objects.push(obj);
+
+  return namedObjects;
+}
+
+function addNamedObject(obj) {
+  let namedObjects = loadSafeNamedObjects();
+
+  namedObjects.push({name: obj.name, date : Date.now(), state: 0, obj: obj});
 
   saveToLocalStorage("namedObjects", namedObjects);
 }
 
 function mergeToNamedObject(objs) {
-  let namedObjects = loadFromLocalStorage("namedObjects");
-  if (namedObjects == null) {
-    namedObjects = {names:[], dates: [], objects: []};
-  }
-  namedObjects.names = namedObjects.names.concat(objs.names);
-  namedObjects.dates = namedObjects.dates.concat(objs.dates);
-  namedObjects.objects = namedObjects.objects.concat(objs.objects);
+  let namedObjects = loadSafeNamedObjects();
+
+  namedObjects = namedObjects.concat(objs);
 
   saveToLocalStorage("namedObjects", namedObjects);
 }
 
-function getNamedObjectsData() {
-  let namedObjects = loadFromLocalStorage("namedObjects");
-  if (namedObjects == null) {
-    namedObjects = {names:[], dates:[], objects: []};
-  }
-  return [namedObjects.names, namedObjects.dates];
-}
 
 function getNamedObjectByIndex(index) {
-  let namedObjects = loadFromLocalStorage("namedObjects");
-  if (namedObjects == null) {
-    namedObjects = {names:[], dates:[], objects: []};
-  }
-  if (namedObjects.objects.length < index) {
+  let namedObjects = loadSafeNamedObjects();
+
+  if (namedObjects.length < index) {
     return null;
   }
-  return namedObjects.objects[index];
+  return namedObjects[index].obj;
 }
 
 function deleteNamedObjectByIndex(index) {
-  let namedObjects = loadFromLocalStorage("namedObjects");
-  if (namedObjects == null) {
-    namedObjects = {names:[], dates:[], objects: []};
-  }
-  namedObjects.names.splice(index, 1);
-  namedObjects.dates.splice(index, 1);
-  namedObjects.objects.splice(index, 1);
+  let namedObjects = loadSafeNamedObjects();
+
+  namedObjects.splice(index, 1);
 
   saveToLocalStorage("namedObjects", namedObjects);
 }

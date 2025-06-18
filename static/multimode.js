@@ -2196,18 +2196,22 @@ function saveMultiTimeParametersProcess() {
 function restoreMultiTimeParametersProcess() {
     let list = document.getElementById("restoreParametersList");
     [...list.children].forEach(c => c.remove());
-    let [names, dates] = getNamedObjectsData();
-    for (let iName in names) {
+    let namedObjects = loadSafeNamedObjects();
+    exportElement = document.getElementById("exportParametersListArea");
+    if (exportElement) {
+        exportElement.parentElement.removeChild(exportElement);
+    }
+    for (let iObj in namedObjects) {
         let child = document.createElement("div");
         let text = document.createElement("span");
-        text.innerText = `-> ${names[iName]}`;
-        text.setAttribute("onclick",`restoreMultiTimeParameters(${iName})`);
+        text.innerText = `-> ${namedObjects[iObj].name}`;
+        text.setAttribute("onclick",`restoreMultiTimeParameters(${iObj})`);
         child.appendChild(text);
         let img = document.createElement("img");
         img.src = "static/delete.png";
         img.style.paddingLeft = "20px";
         img.style.verticalAlign = "middle";
-        img.setAttribute("onclick",`deleteMultiTimeParameters(${iName})`);
+        img.setAttribute("onclick",`deleteMultiTimeParameters(${iObj})`);
         child.appendChild(img);
         list.appendChild(child);
     }
@@ -2267,6 +2271,7 @@ function exportMultiTimeParameters() {
     [...copy.children].forEach(c => c.remove());
     let area = document.createElement("textarea");
     area.value = ser;
+    area.id = "exportParametersListArea";
     area.style.width = "500px";
     area.style.height = "400px";
 
@@ -2280,4 +2285,6 @@ function importMultiTimeParameters() {
         objs = JSON.parse(c.value);
         mergeToNamedObject(objs);
     });
+
+    document.getElementById("restoreParametersDialog").style.visibility = "hidden";
 }

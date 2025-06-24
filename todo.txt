@@ -9,7 +9,16 @@
 
 - Auto seach for stable solution
     - Set scores for state estimation (pulse width, peak power, pulse power)
-    - Allow selection 
+    - Automatic process
+        - Select 1 parameter (dispersion, shift, kerr)
+        - Select shift (like 0.1)
+        - Select attempts (like 10 +/-)
+        - Select counts (like 1000) also report count (like 100)
+        - Select score (peak, width, power)
+        - Record current state and for each attempt
+            - restore saved beamType
+            - 
+
 
 - compare physical parameters reality vs. simulation 
 

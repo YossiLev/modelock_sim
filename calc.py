@@ -80,6 +80,15 @@ class CalculatorData:
         self.select_front = "Gaussian"
 
         self.harmony = 2
+
+        self.diode_intensity = "Pulse"
+        self.diode_alpha = 0.001
+        self.diode_gamma0 = 0.02
+        self.diode_saturation = 10000
+        self.diode_t_list = []
+        self.diode_pulse = []
+        self.diode_accum_pulse = []
+        self.diode_gain = []
     '''
         position_lens = -0.00015 + crystal_shift  # -0.00015 shift needed due to conclusions from single lens usage in original simulation
         m_long = m_mult_v(m_dist(position_lens), m_dist(0.081818181), m_lens(0.075), m_dist(0.9),
@@ -189,6 +198,13 @@ class CalculatorData:
                         [res] = linear_fresnel_propogate(fresnel_data, np.asarray([self.vf_in]))
                     self.vf_out.append(res)
 
+            case "diode":
+                N = 400
+                self.diode_t_list = np.arange(N, dtype=np.float64)
+                self.diode_pulse = np.exp(-np.square(self.diode_t_list - 150.0) / 20.0)
+                self.diode_accum_pulse = np.add.accumulate(self.diode_pulse)
+
+                self.diode_gain = self.diode_gamma0 - self.diode_alpha * self.diode_accum_pulse
 
     def exec_cavity_command(self, com):
         if len(com) == 0:
@@ -360,16 +376,42 @@ def generate_calc(data_obj, tab, offset = 0):
                     )
                 ),
             )
-        case 5:
-            pass
+        case 5: # "Diode Dynamics"
+            internal_data = False
+            try:
+                if len(calcData.vf_out) > 0 and len(calcData.vf_out[0]) > 0:
+                    s = calcData.kernel.shape[0]
+                    skip = int(64 * calcData.fresnel_factor)
+                    internal_data = True
+            except:
+                pass
+            added = Div(
+                Div(
+                    SelectCalcS(f'CalcDiodeSelectIntensity', "Intensity", ["Pulse"], calcData.diode_intensity, width = 150),
+                    Button("Calculate", hx_post=f'/doCalc/5/diode/calc', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
+                ),
+                Div(
+                    InputCalcS(f'DiodeAlpha', "Alpha", f'{calcData.diode_alpha}', width = 80),
+                    InputCalcS(f'DiodeGamma0', "Gamma", f'{calcData.diode_gamma0}', width = 80),
+                    InputCalcS(f'DiodeSaturation', "U-Sat", f'{calcData.diode_saturation}', width = 80),
+                ),
+                Div(
+                    Div(
+                        generate_chart([cget(calcData.diode_t_list).tolist()], [cget(calcData.diode_pulse).tolist()], [""], "Pulse", color="#227700", marker="."),
+                        generate_chart([cget(calcData.diode_t_list).tolist()], [cget(calcData.diode_accum_pulse).tolist()], [""], "Accumulate Pulse", color="#227700", marker="."),
+                        generate_chart([cget(calcData.diode_t_list).tolist()], [cget(calcData.diode_gain).tolist()], [""], "Pulse", color="#227700", marker="."),
 
+                        cls="box", style="background-color: #008080;"
+                    ),
+                ) if (len(calcData.diode_pulse) > 0 and len(calcData.diode_gain) > 0) else Div(),
+            )
     return Div(
         Div(
             TabMaker("Matrix", "/tabcalc/1", tab == 1, target="#gen_calc", inc="#calcForm *"),
             TabMaker("Cavity", "/tabcalc/2", tab == 2, target="#gen_calc", inc="#calcForm *"),
             TabMaker("Fresnel", "/tabcalc/3", tab == 3, target="#gen_calc", inc="#calcForm *"),
             TabMaker("Split Pulse", "/tabcalc/4", tab == 4, target="#gen_calc", inc="#calcForm *"),
-            TabMaker("TBD4", "/tabcalc/5", tab == 5, target="#gen_calc", inc="#calcForm *"),
+            TabMaker("Diode Dynamics", "/tabcalc/5", tab == 5, target="#gen_calc", inc="#calcForm *"),
         ),
         Div(added, id="calcForm"),
 

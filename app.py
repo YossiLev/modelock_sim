@@ -591,6 +591,7 @@ def collect_mat_data(M, form_data, name):
 def pushParam(target, name, extractor):
     try:
         value = extractor()
+        print(name, value)
         if value is not None:
             target.set({name: value})
     except:
@@ -639,6 +640,15 @@ def doCalcUpdate(calcData, form_data):
         pushParam(calcData, "harmony", lambda: int(form_data.get("pulseHarmony")))
     except:
         pass
+    try:
+        pushParam(calcData, "diode_pulse_width", lambda: float(form_data.get("DiodePulseWidth")))
+        pushParam(calcData, "diode_alpha", lambda: float(form_data.get("DiodeAlpha")))
+        pushParam(calcData, "diode_gamma0", lambda: float(form_data.get("DiodeGamma0")))
+        pushParam(calcData, "diode_saturation", lambda: float(form_data.get("DiodeSaturation")))
+        pushParam(calcData, "absorber_half_time", lambda: float(form_data.get("AbsorberHalfTime")))
+        pushParam(calcData, "gain_half_time", lambda: float(form_data.get("GainHalfTime")))
+    except:
+        pass
 
 @app.post("/doCalc/{tab}/{cmd}/{params}")
 async def doCalc(request: Request, tab: int, cmd: str, params: str, localId: str):
@@ -660,7 +670,6 @@ async def settings(cmd: str, params: str, localId: str, password: str | None = N
         case "authenticate":            
             if params == "1" and password is not None:
                 rc = dataObj.authenticate(password)
-                print(F"authentication {rc}")
             else:
                 dataObj.authenticate("stam")            
 

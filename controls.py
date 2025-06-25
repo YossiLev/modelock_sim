@@ -34,9 +34,9 @@ def PickerDivs(id, count, sel, style=""):
 
 def generate_chart(x, y, l, t, w=11, h=2, color="blue", marker=None):
     fig = plt.figure(figsize=(w, h))
-    for i in range(len(x)):
-        plt.plot(x[i], y[i], label=l[i], marker=marker, color=color)
-    
+    for i in range(len(y)):
+        plt.plot(x[0], y[i], label=l[0], marker=marker, color=color[i] if isinstance(color, list) else color)
+
     if (len(x) > 0):
         fig.axes[0].set_title(t)
         if (len([n for n in l if len(n) > 0])):

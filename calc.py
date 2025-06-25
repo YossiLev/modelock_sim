@@ -2,8 +2,10 @@ try:
     import cupy
     if cupy.cuda.is_available():
         np = cupy
+        from cupyx.scipy.signal import fftconvolve
     else:
         import numpy as np
+        from scipy.signal import fftconvolve
 except ImportError:
     import numpy as np
 import re
@@ -82,13 +84,19 @@ class CalculatorData:
         self.harmony = 2
 
         self.diode_intensity = "Pulse"
-        self.diode_alpha = 0.001
-        self.diode_gamma0 = 0.02
+        self.diode_pulse_width = 100.0
+        self.diode_alpha = 0.2
+        self.diode_gamma0 = 5.0
         self.diode_saturation = 10000
+        self.absorber_half_time = 10.
+        self.gain_half_time = 1500.
         self.diode_t_list = []
         self.diode_pulse = []
+        self.diode_pulse_after = []
         self.diode_accum_pulse = []
         self.diode_gain = []
+        self.diode_loss = []
+        self.diode_net_gain = []
     '''
         position_lens = -0.00015 + crystal_shift  # -0.00015 shift needed due to conclusions from single lens usage in original simulation
         m_long = m_mult_v(m_dist(position_lens), m_dist(0.081818181), m_lens(0.075), m_dist(0.9),
@@ -199,12 +207,27 @@ class CalculatorData:
                     self.vf_out.append(res)
 
             case "diode":
-                N = 400
+                N = 256
                 self.diode_t_list = np.arange(N, dtype=np.float64)
-                self.diode_pulse = np.exp(-np.square(self.diode_t_list - 150.0) / 20.0)
-                self.diode_accum_pulse = np.add.accumulate(self.diode_pulse)
+                match params:
+                    case "calc":
+                        pusleVal = np.arange(1, 0.3, - 0.1)
+                        X, Y = np.meshgrid(pusleVal, self.diode_t_list, indexing='ij')
+                        self.diode_pulse = X * np.exp(-np.square(Y - 200.0) / self.diode_pulse_width)
+                    case "recalc":
+                        self.diode_pulse = np.copy(self.diode_pulse_after)
+                #self.diode_pulse = np.exp(-np.square(self.diode_t_list - 150.0) / 20.0)
+                self.diode_accum_pulse = np.add.accumulate(self.diode_pulse, axis=1)
 
-                self.diode_gain = self.diode_gamma0 - self.diode_alpha * self.diode_accum_pulse
+                kernel = np.exp(- (1.0 / self.gain_half_time) * self.diode_t_list)
+                self.diode_gain = np.asarray(list(map(lambda row: self.diode_gamma0 - self.diode_alpha * fftconvolve(row, kernel)[:N], self.diode_pulse)))
+                #self.diode_gain = self.diode_gamma0 - self.diode_alpha * self.diode_accum_pulse
+
+                kernel = 0.04 * np.exp(- (1.0 / self.absorber_half_time) * self.diode_t_list)
+                self.diode_loss = np.asarray(list(map(lambda row: 5.1 - fftconvolve(row, kernel)[:N], self.diode_pulse)))
+
+                self.diode_net_gain = np.exp(self.diode_gain - self.diode_loss)
+                self.diode_pulse_after = self.diode_pulse * self.diode_net_gain
 
     def exec_cavity_command(self, com):
         if len(com) == 0:
@@ -329,6 +352,7 @@ def generate_calc(data_obj, tab, offset = 0):
                     internal_data = True
             except:
                 pass
+
             added = Div(
                 Div(
                     SelectCalcS(f'CalcSelectFront', "Initial Front", ["Gaussian", "Live Front", "From Output"], calcData.select_front, width = 150),
@@ -377,29 +401,30 @@ def generate_calc(data_obj, tab, offset = 0):
                 ),
             )
         case 5: # "Diode Dynamics"
-            internal_data = False
-            try:
-                if len(calcData.vf_out) > 0 and len(calcData.vf_out[0]) > 0:
-                    s = calcData.kernel.shape[0]
-                    skip = int(64 * calcData.fresnel_factor)
-                    internal_data = True
-            except:
-                pass
+            colors = ["#ff0000", "#ff8800", "#aaaa00", "#008800", "#0000ff", "#ff00ff", "#110011"]
             added = Div(
                 Div(
                     SelectCalcS(f'CalcDiodeSelectIntensity', "Intensity", ["Pulse"], calcData.diode_intensity, width = 150),
                     Button("Calculate", hx_post=f'/doCalc/5/diode/calc', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
+                    Button("Recalculate", hx_post=f'/doCalc/5/diode/recalc', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
                 ),
                 Div(
+                    InputCalcS(f'DiodePulseWidth', "Width", f'{calcData.diode_pulse_width}', width = 80),
                     InputCalcS(f'DiodeAlpha', "Alpha", f'{calcData.diode_alpha}', width = 80),
                     InputCalcS(f'DiodeGamma0', "Gamma", f'{calcData.diode_gamma0}', width = 80),
                     InputCalcS(f'DiodeSaturation', "U-Sat", f'{calcData.diode_saturation}', width = 80),
+                    InputCalcS(f'AbsorberHalfTime', "Helf time Abs", f'{calcData.absorber_half_time}', width = 80),
+                    InputCalcS(f'GainHalfTime', "Helf time Gain", f'{calcData.gain_half_time}', width = 80),
                 ),
                 Div(
                     Div(
-                        generate_chart([cget(calcData.diode_t_list).tolist()], [cget(calcData.diode_pulse).tolist()], [""], "Pulse", color="#227700", marker="."),
-                        generate_chart([cget(calcData.diode_t_list).tolist()], [cget(calcData.diode_accum_pulse).tolist()], [""], "Accumulate Pulse", color="#227700", marker="."),
-                        generate_chart([cget(calcData.diode_t_list).tolist()], [cget(calcData.diode_gain).tolist()], [""], "Pulse", color="#227700", marker="."),
+                        generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_pulse).tolist(), [""], "Pulse", h=3, color=colors, marker="."),
+                        #generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_accum_pulse).tolist(), [""], "Accumulate Pulse", h=3, color=colors, marker="."),
+                        generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_gain).tolist(), [""], "Gain", color=colors, h=3, marker="."),
+                        generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_loss).tolist(), [""], "Loss", color=colors, h=3, marker="."),
+                        generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_net_gain).tolist(), [""], "Net gain", color=colors, h=3, marker="."),
+                        #generate_chart([cget(calcData.diode_t_list).tolist()], [cget(calcData.diode_gain).tolist(), cget(calcData.diode_loss).tolist()], [""], "combine", color="#227700", marker="."),
+                        generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_pulse_after).tolist(), [""], "Pulse after", h=3, color=colors, marker="."),
 
                         cls="box", style="background-color: #008080;"
                     ),

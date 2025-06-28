@@ -8,6 +8,8 @@ try:
         from scipy.signal import fftconvolve
 except ImportError:
     import numpy as np
+    from scipy.signal import fftconvolve
+
 import re
 from fasthtml.common import *
 from controls import *
@@ -85,9 +87,9 @@ class CalculatorData:
 
         self.diode_intensity = "Pulse"
         self.diode_pulse_width = 100.0
-        self.diode_alpha = 0.2
+        self.diode_alpha = 0.01
         self.diode_gamma0 = 5.0
-        self.diode_saturation = 10000
+        self.diode_saturation = 2000
         self.absorber_half_time = 10.
         self.gain_half_time = 1500.
         self.diode_t_list = []
@@ -207,26 +209,27 @@ class CalculatorData:
                     self.vf_out.append(res)
 
             case "diode":
-                N = 256
+                N = 1024
                 self.diode_t_list = np.arange(N, dtype=np.float64)
                 match params:
                     case "calc":
                         pusleVal = np.arange(1, 0.3, - 0.1)
                         X, Y = np.meshgrid(pusleVal, self.diode_t_list, indexing='ij')
-                        self.diode_pulse = X * np.exp(-np.square(Y - 200.0) / self.diode_pulse_width)
+                        self.diode_pulse = X * np.exp(-np.square(Y - 512.0) / self.diode_pulse_width)
                     case "recalc":
                         self.diode_pulse = np.copy(self.diode_pulse_after)
                 #self.diode_pulse = np.exp(-np.square(self.diode_t_list - 150.0) / 20.0)
                 self.diode_accum_pulse = np.add.accumulate(self.diode_pulse, axis=1)
-
                 kernel = np.exp(- (1.0 / self.gain_half_time) * self.diode_t_list)
-                self.diode_gain = np.asarray(list(map(lambda row: self.diode_gamma0 - self.diode_alpha * fftconvolve(row, kernel)[:N], self.diode_pulse)))
+                sum_pulse =  np.sum(np.square(self.diode_pulse), axis=1)
+                sat_gamma0 = list(map(lambda u: self.diode_gamma0 / (1.0 + u / self.diode_saturation), sum_pulse))
+                self.diode_gain = np.asarray(list(map(lambda row, g0: g0 - self.diode_alpha * fftconvolve(row, kernel)[:N], self.diode_pulse, sat_gamma0)))
                 #self.diode_gain = self.diode_gamma0 - self.diode_alpha * self.diode_accum_pulse
 
                 kernel = 0.04 * np.exp(- (1.0 / self.absorber_half_time) * self.diode_t_list)
-                self.diode_loss = np.asarray(list(map(lambda row: 5.1 - fftconvolve(row, kernel)[:N], self.diode_pulse)))
+                self.diode_loss = np.asarray(list(map(lambda row: np.clip(5.1 - fftconvolve(row, kernel)[:N], a_min = 0.0, a_max = None), self.diode_pulse)))
 
-                self.diode_net_gain = np.exp(self.diode_gain - self.diode_loss)
+                self.diode_net_gain = np.exp(self.diode_gain) / np.exp(self.diode_loss)
                 self.diode_pulse_after = self.diode_pulse * self.diode_net_gain
 
     def exec_cavity_command(self, com):

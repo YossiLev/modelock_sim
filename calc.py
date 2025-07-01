@@ -211,22 +211,45 @@ class CalculatorData:
                     self.vf_out.append(res)
 
             case "diode":
-                N = 1024
+                def compute_new_levels(A, S, x1, x2, x3):
+                    n_seq, n_steps = S.shape
+                    for i in range(n_steps - 1):
+                        A[:, i + 1] = x1 * A[:,  i] * S[:,  i] + (1 + x2) * A[:,  i] + x3
+                    A[:, 0]         = x1 * A[:, -1] * S[:, -1] + (1 + x2) * A[:, -1] + x3
+                    return
+
+                N = 256
                 self.diode_t_list = np.arange(N, dtype=np.float64)
                 smooth = np.asarray([1, 6, 15, 20, 15, 6, 1], dtype=np.float32) / 64.0
-                for i in range(1 if params == "calc" else 120):
+                for i in range(1 if params == "calc" else 1):
                     match params:
                         case "calc":
-                            pusleVal = np.arange(1, 0.3, - 0.9)
-                            #pusleVal = np.arange(1.0)
+                            n_seq, n_steps = N, 2
+                            pusleVal = np.arange(1, 0.3, - 0.5)
                             X, Y = np.meshgrid(pusleVal, self.diode_t_list, indexing='ij')
-                            self.diode_pulse = X * np.exp(-np.square(Y - 512.0) / self.diode_pulse_width)
-                            self.chart_GI_gain = []
-                            self.chart_GI_intensity = []
+                            self.diode_pulse = X * np.exp(-np.square(Y - 130.0) / 150.0) #self.diode_pulse_width)
+                            self.diode_gain = np.zeros_like(self.diode_pulse)
+                            self.diode_loss = np.zeros_like(self.diode_pulse)
+                            #self.chart_GI_gain = []
+                            #self.chart_GI_intensity = []
                         case "recalc":
-                            self.chart_GI_gain.append(np.max(self.diode_net_gain).get())
-                            self.chart_GI_intensity.append(np.max(self.diode_pulse[0]).get())
+                            #self.chart_GI_gain.append(np.max(self.diode_net_gain).get())
+                            #self.chart_GI_intensity.append(np.max(self.diode_pulse[0]).get())
                             self.diode_pulse = np.copy(self.diode_pulse_after)
+
+                    x1 = - 0.05 # - a1 * Xsi1 / V1 
+                    x2 = - 0.01 # - 1 / Ts
+                    x3 = 0.07 # I / (e * V1)
+                    compute_new_levels(self.diode_gain, self.diode_pulse, x1, x2, x3)
+
+                    x1 = - 0.091 # - a1 * Xsi1 / V1 
+                    x2 = - 0.18 # - 1 / Ts
+                    x3 = 1.2 # no current
+                    compute_new_levels(self.diode_loss, self.diode_pulse, x1, x2, x3)
+                    self.diode_pulse_after = self.diode_pulse * np.exp(0.1 * (self.diode_gain - self.diode_loss))
+                    self.diode_pulse_after = np.asarray(list(map(lambda row: np.convolve(row, smooth, mode='same'), self.diode_pulse_after)))
+
+                    '''
                     #self.diode_pulse = np.exp(-np.square(self.diode_t_list - 150.0) / 20.0)
                     self.diode_accum_pulse = np.add.accumulate(self.diode_pulse, axis=1)
                     kernel = np.exp(- (1.0 / self.gain_half_time) * self.diode_t_list)
@@ -242,6 +265,7 @@ class CalculatorData:
                     self.diode_net_gain = np.exp(self.diode_gain) / np.exp(self.diode_loss)
                     s = 0.9
                     self.diode_pulse_after = np.asarray(list(map(lambda row: np.convolve(row, smooth, mode='same'), self.diode_pulse * (s + (1-s) * self.diode_net_gain))))
+                    '''
     def exec_cavity_command(self, com):
         if len(com) == 0:
             return
@@ -435,12 +459,15 @@ def generate_calc(data_obj, tab, offset = 0):
                         #generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_accum_pulse).tolist(), [""], "Accumulate Pulse", h=3, color=colors, marker="."),
                         generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_gain).tolist(), [""], "Gain", color=colors, h=2, marker="."),
                         generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_loss).tolist(), [""], "Loss", color=colors, h=2, marker="."),
+                        generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_gain - calcData.diode_loss).tolist(), [""], "Gain - Loss", color=colors, h=2, marker="."),
+                        generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_pulse_after).tolist(), [""], "Pulse after", h=2, color=colors, marker="."),
+
+                        cls="box", style="background-color: #008080;"
+                        '''
                         generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_net_gain).tolist(), [""], "Net gain", color=colors, h=2, marker="."),
                         #generate_chart([cget(calcData.diode_t_list).tolist()], [cget(calcData.diode_gain).tolist(), cget(calcData.diode_loss).tolist()], [""], "combine", color="#227700", marker="."),
-                        generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_pulse_after).tolist(), [""], "Pulse after", h=2, color=colors, marker="."),
                         generate_chart([calcData.chart_GI_gain], [calcData.chart_GI_intensity], [""], "Gain vs. Intensity", w=4, h=4, color=colors, marker="."),
-                        cls="box", style="background-color: #008080;"
-                    ),
+                        '''                    ),
                 ) if (len(calcData.diode_pulse) > 0 and len(calcData.diode_gain) > 0) else Div(),
             )
     return Div(

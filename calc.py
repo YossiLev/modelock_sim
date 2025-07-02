@@ -101,6 +101,8 @@ class CalculatorData:
         self.diode_net_gain = []
         self.chart_GI_gain = []
         self.chart_GI_intensity = []
+        self.diode_mark_n0a = []
+        self.diode_mark_n0b = []
     '''
         position_lens = -0.00015 + crystal_shift  # -0.00015 shift needed due to conclusions from single lens usage in original simulation
         m_long = m_mult_v(m_dist(position_lens), m_dist(0.081818181), m_lens(0.075), m_dist(0.9),
@@ -211,44 +213,88 @@ class CalculatorData:
                     self.vf_out.append(res)
 
             case "diode":
-                def compute_new_levels(A, S, x1, x2, x3):
+                def compute_new_levels(A, S, x1, x2, x3, x4, dt):
                     n_seq, n_steps = S.shape
+                    print(x1, x2, x3, x4)
                     for i in range(n_steps - 1):
-                        A[:, i + 1] = x1 * A[:,  i] * S[:,  i] + (1 + x2) * A[:,  i] + x3
-                    A[:, 0]         = x1 * A[:, -1] * S[:, -1] + (1 + x2) * A[:, -1] + x3
+                        A[:, i + 1] = A[:,  i] + dt * (x1 * A[:,  i] * S[:,  i] + x2 * A[:,  i] + x3 * S[:,  i] + x4)
+                    A[:, 0] = A[:, -1] + dt * (x1 * A[:, -1] * S[:, -1] + x2 * A[:, -1] + x3 * S[:, -1] + x4)
+
                     return
 
                 N = 256
                 self.diode_t_list = np.arange(N, dtype=np.float64)
                 smooth = np.asarray([1, 6, 15, 20, 15, 6, 1], dtype=np.float32) / 64.0
+                self.Ga = 0.000000005
+                self.Gb = self.Ga * 7
+                self.N0a = 10000000 - 0.05 / self.Ga
+                self.N0b = 1000000 + 0.05 / self.Gb
+                Ta = 0.001
+                Tb = 0.001
+                Pa = 140000000
+                Pb = -100000000                
                 for i in range(1 if params == "calc" else 1):
                     match params:
                         case "calc":
                             n_seq, n_steps = N, 2
-                            pusleVal = np.arange(1, 0.3, - 0.5)
+                            pusleVal = np.arange(1, 0.3, - 0.5) * 10000000000
                             X, Y = np.meshgrid(pusleVal, self.diode_t_list, indexing='ij')
                             self.diode_pulse = X * np.exp(-np.square(Y - 130.0) / 150.0) #self.diode_pulse_width)
-                            self.diode_gain = np.zeros_like(self.diode_pulse)
-                            self.diode_loss = np.zeros_like(self.diode_pulse)
+                            self.diode_gain = np.full_like(self.diode_pulse, 1000000)
+                            self.diode_loss = np.full_like(self.diode_pulse, 100000)
+                            self.diode_mark_n0a = np.full_like(self.diode_pulse, self.N0a)
+                            self.diode_mark_n0b = np.full_like(self.diode_pulse, self.N0b)
                             #self.chart_GI_gain = []
                             #self.chart_GI_intensity = []
                         case "recalc":
+                            pass
                             #self.chart_GI_gain.append(np.max(self.diode_net_gain).get())
                             #self.chart_GI_intensity.append(np.max(self.diode_pulse[0]).get())
-                            self.diode_pulse = np.copy(self.diode_pulse_after)
+                            #self.diode_pulse = np.copy(self.diode_pulse_after)
 
+                    # Conditions for self-sustained pulsation and bistability in semiconductor lasers - Masayasu Ueno and Roy Lang
+                    # d Na / dt = - Na / Ta - Ga(Na - N0a) * N + Pa
+                    # d Nb / dt = - Nb / Tb - Gb(Nb - N0b) * N + Pb
+                    # d N  / dt = [(1 - h) * Ga(Na - N0a) + h * Gb(Nb - N0b) - GAMMA] * N
+
+
+                    dt = 0.000001
+
+                    # calculate change in Na
+                    x1 = - self.Ga # multiplier of Na * N
+                    x2 = - 1 / Ta # mutiplier of Na
+                    x3 = self.Ga * self.N0a # multplier of N
+                    x4 = Pa # free addition
+                    print(x1, x2, x3, x4, dt)
+                    compute_new_levels(self.diode_gain, self.diode_pulse, x1, x2, x3, x4, dt)
+ 
+                    # calculate change in Nb
+                    x1 = - self.Gb # multiplier of Nb * N
+                    x2 = - 1 / Tb # mutiplier of Nb
+                    x3 = self.Gb * self.N0b # multplier of N
+                    x4 = Pb # free addition
+                    compute_new_levels(self.diode_loss, self.diode_pulse, x1, x2, x3, x4, dt)
+
+                    #calcualte change in photons
+                    #self.diode_pulse_after = self.diode_pulse * np.exp(0.1 * (self.diode_gain - self.diode_loss))
+                    h = 0.1
+                    cavity_loss = 0.02
+                    self.diode_net_gain = (((1 - h) * self.Ga * (self.diode_gain - self.N0a) + h * self.Gb * (self.diode_loss - self.N0b)) - cavity_loss)
+                    self.diode_pulse_after = self.diode_pulse * np.exp(self.diode_net_gain)
+
+                    '''
                     x1 = - 0.05 # - a1 * Xsi1 / V1 
                     x2 = - 0.01 # - 1 / Ts
                     x3 = 0.07 # I / (e * V1)
                     compute_new_levels(self.diode_gain, self.diode_pulse, x1, x2, x3)
 
                     x1 = - 0.091 # - a1 * Xsi1 / V1 
-                    x2 = - 0.18 # - 1 / Ts
+                    x2 = - 0.18 # - 1 / Ts - Ga(Na - N0a) * N + Pa
                     x3 = 1.2 # no current
                     compute_new_levels(self.diode_loss, self.diode_pulse, x1, x2, x3)
                     self.diode_pulse_after = self.diode_pulse * np.exp(0.1 * (self.diode_gain - self.diode_loss))
                     self.diode_pulse_after = np.asarray(list(map(lambda row: np.convolve(row, smooth, mode='same'), self.diode_pulse_after)))
-
+                    '''
                     '''
                     #self.diode_pulse = np.exp(-np.square(self.diode_t_list - 150.0) / 20.0)
                     self.diode_accum_pulse = np.add.accumulate(self.diode_pulse, axis=1)
@@ -457,9 +503,11 @@ def generate_calc(data_obj, tab, offset = 0):
                     Div(
                         generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_pulse).tolist(), [""], "Pulse", h=2, color=colors, marker="."),
                         #generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_accum_pulse).tolist(), [""], "Accumulate Pulse", h=3, color=colors, marker="."),
-                        generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_gain).tolist(), [""], "Gain", color=colors, h=2, marker="."),
-                        generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_loss).tolist(), [""], "Loss", color=colors, h=2, marker="."),
-                        generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_gain - calcData.diode_loss).tolist(), [""], "Gain - Loss", color=colors, h=2, marker="."),
+                        generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_gain).tolist(), [""], "Gain carriers", color=colors, h=2, marker="."),
+                        generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.Ga * (calcData.diode_gain - calcData.N0a)).tolist(), [""], "Gain", color=colors, h=2, marker="."),
+                        generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_loss).tolist(), [""], "Absorber carriers", color=colors, h=2, marker="."),
+                        generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.Gb * (calcData.diode_loss - calcData.N0b)).tolist(), [""], "Loss", color=colors, h=2, marker="."),
+                        generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_net_gain).tolist(), [""], "Net gain", color=colors, h=2, marker="."),
                         generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_pulse_after).tolist(), [""], "Pulse after", h=2, color=colors, marker="."),
 
                         cls="box", style="background-color: #008080;"

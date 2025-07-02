@@ -103,6 +103,17 @@ class CalculatorData:
         self.chart_GI_intensity = []
         self.diode_mark_n0a = []
         self.diode_mark_n0b = []
+        self.Ta = 0.001
+        self.Tb = 0.001
+        self.Pa = 1020000000.0
+        self.Pb = -6000000.0
+        self.Ga = 0.000000005
+        self.Gb = self.Ga * 7
+        self.N0a = 10000000 - 0.05 / self.Ga
+        self.N0b = 1000000 + 0.05 / self.Gb
+        self.dt = 0.000001
+        self.cavity_loss = 0.02
+        self.h = 0.1
     '''
         position_lens = -0.00015 + crystal_shift  # -0.00015 shift needed due to conclusions from single lens usage in original simulation
         m_long = m_mult_v(m_dist(position_lens), m_dist(0.081818181), m_lens(0.075), m_dist(0.9),
@@ -224,15 +235,7 @@ class CalculatorData:
 
                 N = 256
                 self.diode_t_list = np.arange(N, dtype=np.float64)
-                smooth = np.asarray([1, 6, 15, 20, 15, 6, 1], dtype=np.float32) / 64.0
-                self.Ga = 0.000000005
-                self.Gb = self.Ga * 7
-                self.N0a = 10000000 - 0.05 / self.Ga
-                self.N0b = 1000000 + 0.05 / self.Gb
-                Ta = 0.001
-                Tb = 0.001
-                Pa = 140000000
-                Pb = -100000000                
+                smooth = np.asarray([1, 6, 15, 20, 15, 6, 1], dtype=np.float32) / 64.0            
                 for i in range(1 if params == "calc" else 1):
                     match params:
                         case "calc":
@@ -257,29 +260,25 @@ class CalculatorData:
                     # d Nb / dt = - Nb / Tb - Gb(Nb - N0b) * N + Pb
                     # d N  / dt = [(1 - h) * Ga(Na - N0a) + h * Gb(Nb - N0b) - GAMMA] * N
 
-
-                    dt = 0.000001
-
                     # calculate change in Na
                     x1 = - self.Ga # multiplier of Na * N
-                    x2 = - 1 / Ta # mutiplier of Na
+                    x2 = - 1 / self.Ta # mutiplier of Na
                     x3 = self.Ga * self.N0a # multplier of N
-                    x4 = Pa # free addition
-                    print(x1, x2, x3, x4, dt)
-                    compute_new_levels(self.diode_gain, self.diode_pulse, x1, x2, x3, x4, dt)
+                    x4 = self.Pa # free addition
+                    print(x1, x2, x3, x4, self.dt)
+                    compute_new_levels(self.diode_gain, self.diode_pulse, x1, x2, x3, x4, self.dt)
  
                     # calculate change in Nb
                     x1 = - self.Gb # multiplier of Nb * N
-                    x2 = - 1 / Tb # mutiplier of Nb
+                    x2 = - 1 / self.Tb # mutiplier of Nb
                     x3 = self.Gb * self.N0b # multplier of N
-                    x4 = Pb # free addition
-                    compute_new_levels(self.diode_loss, self.diode_pulse, x1, x2, x3, x4, dt)
+                    x4 = self.Pb # free addition
+                    compute_new_levels(self.diode_loss, self.diode_pulse, x1, x2, x3, x4, self.dt)
 
                     #calcualte change in photons
                     #self.diode_pulse_after = self.diode_pulse * np.exp(0.1 * (self.diode_gain - self.diode_loss))
-                    h = 0.1
-                    cavity_loss = 0.02
-                    self.diode_net_gain = (((1 - h) * self.Ga * (self.diode_gain - self.N0a) + h * self.Gb * (self.diode_loss - self.N0b)) - cavity_loss)
+
+                    self.diode_net_gain = (((1 - self.h) * self.Ga * (self.diode_gain - self.N0a) + self.h * self.Gb * (self.diode_loss - self.N0b)) - self.cavity_loss)
                     self.diode_pulse_after = self.diode_pulse * np.exp(self.diode_net_gain)
 
                     '''
@@ -498,6 +497,20 @@ def generate_calc(data_obj, tab, offset = 0):
                     InputCalcS(f'DiodeSaturation', "U-Sat", f'{calcData.diode_saturation}', width = 80),
                     InputCalcS(f'AbsorberHalfTime', "Helf time Abs", f'{calcData.absorber_half_time}', width = 80),
                     InputCalcS(f'GainHalfTime', "Helf time Gain", f'{calcData.gain_half_time}', width = 80),
+                ),
+                Div(
+                    InputCalcS(f'Ta', "Ta", f'{calcData.Ta}', width = 50),
+                    InputCalcS(f'Tb', "Tb", f'{calcData.Tb}', width = 50),
+                    InputCalcS(f'Pa', "Pa", f'{calcData.Pa}', width = 80),
+                    InputCalcS(f'Pb', "Pb", f'{calcData.Pb}', width = 80),
+                    InputCalcS(f'Ga', "Ga", f'{calcData.Ga}', width = 80),
+                    InputCalcS(f'Gb', "Gb", f'{calcData.Gb}', width = 80),
+                    InputCalcS(f'N0a', "N0a", f'{calcData.N0a}', width = 80),
+                    InputCalcS(f'N0b', "N0b", f'{calcData.N0b}', width = 90),
+                    InputCalcS(f'dt', "dt", f'{calcData.dt}', width = 60),
+                    InputCalcS(f'cavity_loss', "cavity_loss", f'{calcData.cavity_loss}', width = 80),
+                    InputCalcS(f'h', "h", f'{calcData.h}', width = 30),
+
                 ),
                 Div(
                     Div(

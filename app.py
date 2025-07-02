@@ -647,6 +647,20 @@ def doCalcUpdate(calcData, form_data):
         pushParam(calcData, "diode_saturation", lambda: float(form_data.get("DiodeSaturation")))
         pushParam(calcData, "absorber_half_time", lambda: float(form_data.get("AbsorberHalfTime")))
         pushParam(calcData, "gain_half_time", lambda: float(form_data.get("GainHalfTime")))
+
+        pushParam(calcData, "Ta", lambda: float(form_data.get("Ta")))
+        pushParam(calcData, "Tb", lambda: float(form_data.get("Tb")))
+        pushParam(calcData, "Pa", lambda: float(form_data.get("Pa")))
+        pushParam(calcData, "Pb", lambda: float(form_data.get("Pb")))
+        pushParam(calcData, "Ga", lambda: float(form_data.get("Ga")))
+        pushParam(calcData, "Gb", lambda: float(form_data.get("Gb")))
+        pushParam(calcData, "N0a", lambda: float(form_data.get("N0a")))
+        pushParam(calcData, "N0b", lambda: float(form_data.get("N0b")))
+        pushParam(calcData, "dt", lambda: float(form_data.get("dt")))
+        pushParam(calcData, "cavity_loss", lambda: float(form_data.get("cavity_loss")))
+        pushParam(calcData, "h", lambda: float(form_data.get("h")))
+
+
     except:
         pass
 

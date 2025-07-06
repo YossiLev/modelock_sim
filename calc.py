@@ -103,16 +103,16 @@ class CalculatorData:
         self.chart_GI_intensity = []
         self.diode_mark_n0a = []
         self.diode_mark_n0b = []
-        self.Ta = 0.001
-        self.Tb = 0.001
-        self.Pa = 1020000000.0
-        self.Pb = -6000000.0
-        self.Ga = 0.000000005
-        self.Gb = self.Ga * 7
-        self.N0a = 10000000 - 0.05 / self.Ga
-        self.N0b = 1000000 + 0.05 / self.Gb
-        self.dt = 0.000001
-        self.cavity_loss = 0.02
+        self.Ta = 3000
+        self.Tb = 1000
+        self.Pa = 20000000.0
+        self.Pb = 0
+        self.Ga = 0.00000001435
+        self.Gb = 0.0000000252
+        self.N0a = 67200000
+        self.N0b = 90000000
+        self.dt = 0.000000000001
+        self.cavity_loss = 0.00
         self.h = 0.1
     '''
         position_lens = -0.00015 + crystal_shift  # -0.00015 shift needed due to conclusions from single lens usage in original simulation
@@ -226,25 +226,44 @@ class CalculatorData:
             case "diode":
                 def compute_new_levels(A, S, x1, x2, x3, x4, dt):
                     n_seq, n_steps = S.shape
-                    print(x1, x2, x3, x4)
                     for i in range(n_steps - 1):
                         A[:, i + 1] = A[:,  i] + dt * (x1 * A[:,  i] * S[:,  i] + x2 * A[:,  i] + x3 * S[:,  i] + x4)
                     A[:, 0] = A[:, -1] + dt * (x1 * A[:, -1] * S[:, -1] + x2 * A[:, -1] + x3 * S[:, -1] + x4)
 
                     return
 
-                N = 256
+                N = 4096
                 self.diode_t_list = np.arange(N, dtype=np.float64)
-                smooth = np.asarray([1, 6, 15, 20, 15, 6, 1], dtype=np.float32) / 64.0            
+                smooth = np.asarray([1, 6, 15, 20, 15, 6, 1], dtype=np.float32) / 64.0         
+
+                # Conditions for self-sustained pulsation and bistability in semiconductor lasers - Masayasu Ueno and Roy Lang
+                # d Na / dt = - Na / Ta - Ga(Na - N0a) * N + Pa
+                # d Nb / dt = - Nb / Tb - Gb(Nb - N0b) * N + Pb
+                # d N  / dt = [(1 - h) * Ga(Na - N0a) + h * Gb(Nb - N0b) - GAMMA] * N
+
+                # calculate change in Na
+                x1 = - self.Ga # multiplier of Na * N
+                x2 = - 1 / self.Ta # mutiplier of Na
+                x3 = self.Ga * self.N0a # multplier of N
+                x4 = self.Pa # free addition
+                print(f"Na: x1={x1}, x2={x2}, x3={x3}, x4={x4}")
+
+                # calculate change in Nb
+                y1 = - self.Gb # multiplier of Nb * N
+                y2 = - 1 / self.Tb # mutiplier of Nb
+                y3 = self.Gb * self.N0b # multplier of N
+                y4 = self.Pb # free addition
+                print(f"Nb: y1={y1}, y2={y2}, y3={y3}, y4={y4}")
+
                 for i in range(1 if params == "calc" else 1):
                     match params:
                         case "calc":
                             n_seq, n_steps = N, 2
-                            pusleVal = np.arange(1, 0.3, - 0.5) * 10000000000
+                            pusleVal = np.arange(1, 0.3, - 0.9) * 1000000
                             X, Y = np.meshgrid(pusleVal, self.diode_t_list, indexing='ij')
-                            self.diode_pulse = X * np.exp(-np.square(Y - 130.0) / 150.0) #self.diode_pulse_width)
-                            self.diode_gain = np.full_like(self.diode_pulse, 1000000)
-                            self.diode_loss = np.full_like(self.diode_pulse, 100000)
+                            self.diode_pulse = X * np.exp(-np.square(Y - 2000.0) / 10000.0) #self.diode_pulse_width)
+                            self.diode_gain = np.full_like(self.diode_pulse, self.Pa * self.Ta)
+                            self.diode_loss = np.full_like(self.diode_pulse, self.N0b * 0.9)
                             self.diode_mark_n0a = np.full_like(self.diode_pulse, self.N0a)
                             self.diode_mark_n0b = np.full_like(self.diode_pulse, self.N0b)
                             #self.chart_GI_gain = []
@@ -253,27 +272,11 @@ class CalculatorData:
                             pass
                             #self.chart_GI_gain.append(np.max(self.diode_net_gain).get())
                             #self.chart_GI_intensity.append(np.max(self.diode_pulse[0]).get())
-                            #self.diode_pulse = np.copy(self.diode_pulse_after)
+                            self.diode_pulse = np.copy(self.diode_pulse_after)
 
-                    # Conditions for self-sustained pulsation and bistability in semiconductor lasers - Masayasu Ueno and Roy Lang
-                    # d Na / dt = - Na / Ta - Ga(Na - N0a) * N + Pa
-                    # d Nb / dt = - Nb / Tb - Gb(Nb - N0b) * N + Pb
-                    # d N  / dt = [(1 - h) * Ga(Na - N0a) + h * Gb(Nb - N0b) - GAMMA] * N
-
-                    # calculate change in Na
-                    x1 = - self.Ga # multiplier of Na * N
-                    x2 = - 1 / self.Ta # mutiplier of Na
-                    x3 = self.Ga * self.N0a # multplier of N
-                    x4 = self.Pa # free addition
-                    print(x1, x2, x3, x4, self.dt)
                     compute_new_levels(self.diode_gain, self.diode_pulse, x1, x2, x3, x4, self.dt)
  
-                    # calculate change in Nb
-                    x1 = - self.Gb # multiplier of Nb * N
-                    x2 = - 1 / self.Tb # mutiplier of Nb
-                    x3 = self.Gb * self.N0b # multplier of N
-                    x4 = self.Pb # free addition
-                    compute_new_levels(self.diode_loss, self.diode_pulse, x1, x2, x3, x4, self.dt)
+                    compute_new_levels(self.diode_loss, self.diode_pulse, y1, y2, y3, y4, self.dt)
 
                     #calcualte change in photons
                     #self.diode_pulse_after = self.diode_pulse * np.exp(0.1 * (self.diode_gain - self.diode_loss))

@@ -23,6 +23,7 @@ class Data_object():
         return False
 
     def assure(self, part):
+        print(f"Assuring part: {part} for Data_object with id: {self.id}")
         match part:
             case 'cavityData':
                 if not hasattr(self, 'cavityData'):
@@ -33,7 +34,8 @@ class Data_object():
                 if not hasattr(self, 'mmData'):
                     self.mmData = MultiModeSimulation()
             case 'calcData':
-                if not hasattr(self, 'calcData'):
+                if not hasattr(self, 'calcData') or self.calcData is None:
+                    print("Creating new CalculatorData instance")
                     self.calcData = CalculatorData()
 
 gen_data = {}

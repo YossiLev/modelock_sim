@@ -20,7 +20,7 @@ import app
 import jsonpickle
 import dataset   
 
-current_tab = "Simulation"
+current_tab = "Calculator"
 db_path = "sqlite:///data/mydatabase.db"
 
 app = FastHTML(htmx=False, ws_hdr=False, hdrs=(
@@ -132,7 +132,7 @@ def make_page(data_obj):
                 Div(Div(generate_multimode(data_obj, 1), cls="box", style="background-color: rgb(208 245 254);", id="fun"), style="width:1100px"))
         case "Calculator":
             return my_frame("Calculator", 
-                Div(Div(generate_calc(data_obj, 1), cls="box", style="background-color: rgb(208 245 254);", id="calculator"), style="width:1100px"))
+                Div(Div(generate_calc(data_obj, 5), cls="box", style="background-color: rgb(208 245 254);", id="calculator"), style="width:1100px"))
         case "Settings":
             return my_frame("Settings", 
                 Div(Div(generate_settings(data_obj), cls="box", style="background-color: rgb(208 245 254);", id="settings"), style="width:1100px"))
@@ -144,9 +144,12 @@ def make_page(data_obj):
 @app.get("/")
 def home():
     global current_tab
-    current_tab = "Simulation"
+    current_tab = "Calculator"
 
-    return Body(make_page(None))
+    localId = "init"
+    dataObj = get_Data_obj(localId)
+
+    return Body(make_page(dataObj))
    
 
 @app.post("/parnum/{id}")
@@ -593,6 +596,7 @@ def pushParam(target, name, extractor):
         value = extractor()
         print(name, value)
         if value is not None:
+            print(f"pushParam Setting {name} to {value} {target}")
             target.set({name: value})
     except:
         pass
@@ -666,8 +670,12 @@ def doCalcUpdate(calcData, form_data):
 
 @app.post("/doCalc/{tab}/{cmd}/{params}")
 async def doCalc(request: Request, tab: int, cmd: str, params: str, localId: str):
+    print(f"doCalc: {tab}, {cmd}, {params}, {localId}")
     dataObj = get_Data_obj(localId)
+    dataObj.assure('calcData')
     calcData = dataObj.calcData
+
+    print(f"calcData after assure: {calcData}")
     form_data = await request.form()
     doCalcUpdate(calcData, form_data)
 

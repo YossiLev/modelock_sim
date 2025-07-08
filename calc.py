@@ -103,15 +103,15 @@ class CalculatorData:
         self.chart_GI_intensity = []
         self.diode_mark_n0a = []
         self.diode_mark_n0b = []
+        self.dt = 0.000000000001
         self.Ta = 3000
         self.Tb = 1000
-        self.Pa = 20000000.0
+        self.Pa = 100000.0 / self.dt # 4 * 10^9 / 4000
         self.Pb = 0
-        self.Ga = 0.00000001435
+        self.Ga = 0.000000002
         self.Gb = 0.0000000252
-        self.N0a = 67200000
-        self.N0b = 90000000
-        self.dt = 0.000000000001
+        self.N0a = 20000000
+        self.N0b = 9000000
         self.cavity_loss = 0.00
         self.h = 0.1
     '''
@@ -246,6 +246,7 @@ class CalculatorData:
                 x2 = - 1 / self.Ta # mutiplier of Na
                 x3 = self.Ga * self.N0a # multplier of N
                 x4 = self.Pa # free addition
+                print("------", self.Pa)
                 print(f"Na: x1={x1}, x2={x2}, x3={x3}, x4={x4}")
 
                 # calculate change in Nb
@@ -259,10 +260,10 @@ class CalculatorData:
                     match params:
                         case "calc":
                             n_seq, n_steps = N, 2
-                            pusleVal = np.arange(1, 0.3, - 0.9) * 1000000
+                            pusleVal = np.arange(1, 0.3, - 0.9) * 60000 / self.dt
                             X, Y = np.meshgrid(pusleVal, self.diode_t_list, indexing='ij')
                             self.diode_pulse = X * np.exp(-np.square(Y - 2000.0) / 10000.0) #self.diode_pulse_width)
-                            self.diode_gain = np.full_like(self.diode_pulse, self.Pa * self.Ta)
+                            self.diode_gain = np.full_like(self.diode_pulse, 9000000000)
                             self.diode_loss = np.full_like(self.diode_pulse, self.N0b * 0.9)
                             self.diode_mark_n0a = np.full_like(self.diode_pulse, self.N0a)
                             self.diode_mark_n0b = np.full_like(self.diode_pulse, self.N0b)
@@ -274,6 +275,7 @@ class CalculatorData:
                             #self.chart_GI_intensity.append(np.max(self.diode_pulse[0]).get())
                             self.diode_pulse = np.copy(self.diode_pulse_after)
 
+                    self.diode_accum_pulse = np.add.accumulate(self.diode_pulse, axis=1) * self.dt
                     compute_new_levels(self.diode_gain, self.diode_pulse, x1, x2, x3, x4, self.dt)
  
                     compute_new_levels(self.diode_loss, self.diode_pulse, y1, y2, y3, y4, self.dt)
@@ -518,7 +520,7 @@ def generate_calc(data_obj, tab, offset = 0):
                 Div(
                     Div(
                         generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_pulse).tolist(), [""], "Pulse", h=2, color=colors, marker="."),
-                        #generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_accum_pulse).tolist(), [""], "Accumulate Pulse", h=3, color=colors, marker="."),
+                        generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_accum_pulse).tolist(), [""], "Accumulate Pulse", h=3, color=colors, marker="."),
                         generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_gain).tolist(), [""], "Gain carriers", color=colors, h=2, marker="."),
                         generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.Ga * (calcData.diode_gain - calcData.N0a)).tolist(), [""], "Gain", color=colors, h=2, marker="."),
                         generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_loss).tolist(), [""], "Absorber carriers", color=colors, h=2, marker="."),

@@ -37,7 +37,11 @@ def generate_chart(x, y, l, t, w=11, h=2, color="blue", marker=None):
     ax = plt.gca()
     ax.yaxis.set_major_formatter(plt.ScalarFormatter(useOffset=False))
     for i in range(len(y)):
-        plt.plot(x[0], y[i], label=l[0], marker=marker, color=color[i] if isinstance(color, list) else color)
+        if len(x) == len(y):
+            xi = i
+        else:
+            xi = 0
+        plt.plot(x[xi], y[i], label=l[0], marker=marker, color=color[i] if isinstance(color, list) else color)
 
     if (len(x) > 0):
         fig.axes[0].set_title(t)

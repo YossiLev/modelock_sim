@@ -664,6 +664,7 @@ def doCalcUpdate(calcData, form_data):
         pushParam(calcData, "cavity_loss", lambda: float(form_data.get("cavity_loss")))
         pushParam(calcData, "h", lambda: float(form_data.get("h")))
         pushParam(calcData, "diode_update_pulse", lambda: form_data.get("CalcDiodeUpdatePulse"))
+        pushParam(calcData, "diode_intensity", lambda: form_data.get("CalcDiodeSelectIntensity"))
 
 
     except:

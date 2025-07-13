@@ -106,9 +106,9 @@ class CalculatorData:
         self.diode_mark_n0a = []
         self.diode_mark_n0b = []
         self.dt = 0.000000000001
-        self.Ta = 3000
-        self.Tb = 1000
-        self.Pa = 4.5e+16
+        self.Ta = 80
+        self.Tb = 3000
+        self.Pa = 760000
         self.Pb = 0
         self.Ga = 0.000000002
         self.Gb = 0.0000000252
@@ -264,7 +264,11 @@ class CalculatorData:
                             n_seq, n_steps = N, 2
                             pusleVal = np.arange(1, 0.3, - 0.9) * 60000 / self.dt
                             X, Y = np.meshgrid(pusleVal, self.diode_t_list, indexing='ij')
-                            self.diode_pulse = X * np.exp(-np.square(Y - 2000.0) / 10000.0) #self.diode_pulse_width)
+                            match self.diode_intensity:
+                                case "Pulse":
+                                    self.diode_pulse = X * np.exp(-np.square(Y - 2000.0) / (self.diode_pulse_width * self.diode_pulse_width))
+                                case "Flat":
+                                    self.diode_pulse = np.full_like(X, 0)
                             self.diode_pulse_original = np.copy(self.diode_pulse)
                             self.diode_gain = np.full_like(self.diode_pulse, 2000000000)
                             self.diode_loss = np.full_like(self.diode_pulse, self.N0b * 0.9)
@@ -498,7 +502,7 @@ def generate_calc(data_obj, tab, offset = 0):
             vb = [calcData.Gb * (0 - calcData.N0b), 0]
             added = Div(
                 Div(
-                    SelectCalcS(f'CalcDiodeSelectIntensity', "Intensity", ["Pulse"], calcData.diode_intensity, width = 150),
+                    SelectCalcS(f'CalcDiodeSelectIntensity', "Intensity", ["Pulse", "Flat"], calcData.diode_intensity, width = 150),
                     Button("Calculate", hx_post=f'/doCalc/5/diode/calc', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
                     Button("Recalculate", hx_post=f'/doCalc/5/diode/recalc', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
                 ),
@@ -511,16 +515,16 @@ def generate_calc(data_obj, tab, offset = 0):
                     InputCalcS(f'GainHalfTime', "Helf time Gain", f'{calcData.gain_half_time}', width = 80),
                 ),
                 Div(
-                    InputCalcS(f'Ta', "Ta", f'{calcData.Ta}', width = 50),
-                    InputCalcS(f'Pa', "Pa", f'{calcData.Pa}', width = 80),
-                    InputCalcS(f'Ga', "Ga", f'{calcData.Ga}', width = 80),
-                    InputCalcS(f'N0a', "N0a", f'{calcData.N0a}', width = 80),
+                    InputCalcS(f'Ta', "Ta", f'{calcData.Ta}', width = 100),
+                    InputCalcS(f'Pa', "Pa", f'{calcData.Pa}', width = 100),
+                    InputCalcS(f'Ga', "Ga", f'{calcData.Ga}', width = 100),
+                    InputCalcS(f'N0a', "N0a", f'{calcData.N0a}', width = 100),
                 ),
                 Div(
-                    InputCalcS(f'Tb', "Tb", f'{calcData.Tb}', width = 50),
-                    InputCalcS(f'Pb', "Pb", f'{calcData.Pb}', width = 80),
-                    InputCalcS(f'Gb', "Gb", f'{calcData.Gb}', width = 80),
-                    InputCalcS(f'N0b', "N0b", f'{calcData.N0b}', width = 90),
+                    InputCalcS(f'Tb', "Tb", f'{calcData.Tb}', width = 100),
+                    InputCalcS(f'Pb', "Pb", f'{calcData.Pb}', width = 100),
+                    InputCalcS(f'Gb', "Gb", f'{calcData.Gb}', width = 100),
+                    InputCalcS(f'N0b', "N0b", f'{calcData.N0b}', width = 100),
                 ),
                 Div(
                     InputCalcS(f'dt', "dt", f'{calcData.dt}', width = 60),
@@ -530,9 +534,9 @@ def generate_calc(data_obj, tab, offset = 0):
                 ),
                 Div(
                     Div(
-                        generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_pulse_original).tolist(), [""], "Original Pulse", h=2, color=colors, marker="."),
-                        generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_pulse).tolist(), [""], "Pulse", h=2, color=colors, marker="."),
-                        generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_accum_pulse).tolist(), [""], "Accumulate Pulse", h=1.5, color=colors, marker="."),
+                        generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_pulse_original).tolist(), [""], "Original Pulse (photons/sec)", h=2, color=colors, marker="."),
+                        generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_pulse).tolist(), [""], "Pulse (photons/sec)", h=2, color=colors, marker="."),
+                        generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_accum_pulse).tolist(), [""], "Accumulate Pulse (photons)", h=1.5, color=colors, marker="."),
                         generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_gain).tolist(), [""], "Gain carriers", color=colors, h=2, marker="."),
                         generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.Ga * (calcData.diode_gain - calcData.N0a)).tolist(), [""], "Gain", color=colors, h=2, marker="."),
                         generate_chart([cget(calcData.diode_t_list).tolist()], cget(calcData.diode_loss).tolist(), [""], "Absorber carriers", color=colors, h=2, marker="."),

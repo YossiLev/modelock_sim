@@ -105,8 +105,10 @@ class CalculatorData:
         self.chart_GI_intensity = []
         self.diode_mark_n0a = []
         self.diode_mark_n0b = []
+        self.start_gain = 2000000000
+        self.start_absorber = 360000000
         self.dt = 0.000000000001
-        self.Ta = 80
+        self.Ta = 3000
         self.Tb = 3000
         self.Pa = 760000
         self.Pb = 0
@@ -270,8 +272,8 @@ class CalculatorData:
                                 case "Flat":
                                     self.diode_pulse = np.full_like(X, 0)
                             self.diode_pulse_original = np.copy(self.diode_pulse)
-                            self.diode_gain = np.full_like(self.diode_pulse, 2000000000)
-                            self.diode_loss = np.full_like(self.diode_pulse, self.N0b * 0.9)
+                            self.diode_gain = np.full_like(self.diode_pulse, self.start_gain)
+                            self.diode_loss = np.full_like(self.diode_pulse, self.start_absorber)
                             self.diode_mark_n0a = np.full_like(self.diode_pulse, self.N0a)
                             self.diode_mark_n0b = np.full_like(self.diode_pulse, self.N0b)
                             #self.chart_GI_gain = []
@@ -342,7 +344,7 @@ def generate_calc(data_obj, tab, offset = 0):
                         
     def InputCalcS(id, title, value, step=0.01, width = 150):
         return Div(
-                Div(title, cls="floatRight", style="font-size: 10px; top:-3px; right:10px;background: #e7edb8;"),
+                Div(title, cls="floatRight", style="font-size: 10px; top:-1px; right:10px; padding: 0px 4px; background: #e7f0f0;"),
                 Input(type="number", id=id, title=title,
                     value=value, step=f"{step}", 
                     # hx_trigger="input changed delay:1s", hx_post=f"/clUpdate/{tab}", hx_target="#gen_calc", 
@@ -515,22 +517,25 @@ def generate_calc(data_obj, tab, offset = 0):
                     InputCalcS(f'GainHalfTime', "Helf time Gain", f'{calcData.gain_half_time}', width = 80),
                 ),
                 Div(
-                    InputCalcS(f'Ta', "Ta", f'{calcData.Ta}', width = 100),
-                    InputCalcS(f'Pa', "Pa", f'{calcData.Pa}', width = 100),
-                    InputCalcS(f'Ga', "Ga", f'{calcData.Ga}', width = 100),
-                    InputCalcS(f'N0a', "N0a", f'{calcData.N0a}', width = 100),
+                    InputCalcS(f'Ta', "Gain Half-life", f'{calcData.Ta}', width = 100),
+                    InputCalcS(f'Pa', "Gain current", f'{calcData.Pa}', width = 100),
+                    InputCalcS(f'Ga', "Gain diff gain", f'{calcData.Ga}', width = 100),
+                    InputCalcS(f'N0a', "Gain N0(tr)", f'{calcData.N0a}', width = 100),
+                    InputCalcS(f'start_gain', "Gain start val", f'{calcData.start_gain}', width = 100),
+
                 ),
                 Div(
-                    InputCalcS(f'Tb', "Tb", f'{calcData.Tb}', width = 100),
-                    InputCalcS(f'Pb', "Pb", f'{calcData.Pb}', width = 100),
-                    InputCalcS(f'Gb', "Gb", f'{calcData.Gb}', width = 100),
-                    InputCalcS(f'N0b', "N0b", f'{calcData.N0b}', width = 100),
+                    InputCalcS(f'Tb', "Abs half-life", f'{calcData.Tb}', width = 100),
+                    InputCalcS(f'Pb', "Abs current", f'{calcData.Pb}', width = 100),
+                    InputCalcS(f'Gb', "Abs diff gain", f'{calcData.Gb}', width = 100),
+                    InputCalcS(f'N0b', "Abs N0(tr)", f'{calcData.N0b}', width = 100),
+                    InputCalcS(f'start_absorber', "Abs start val", f'{calcData.start_absorber}', width = 100),
                 ),
                 Div(
                     InputCalcS(f'dt', "dt", f'{calcData.dt}', width = 60),
                     InputCalcS(f'cavity_loss', "cavity_loss", f'{calcData.cavity_loss}', width = 50),
                     SelectCalcS(f'CalcDiodeUpdatePulse', "UpdatePulse", ["Update Pulse", "Unchanged Pulse"], calcData.diode_update_pulse, width = 120),
-                    InputCalcS(f'h', "h", f'{calcData.h}', width = 50),
+                    InputCalcS(f'h', "Abs ratio", f'{calcData.h}', width = 50),
                 ),
                 Div(
                     Div(

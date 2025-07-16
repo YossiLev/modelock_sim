@@ -645,6 +645,7 @@ def doCalcUpdate(calcData, form_data):
     except:
         pass
     try:
+        pushParam(calcData, "calculation_rounds", lambda: int(form_data.get("DiodeRounds")))
         pushParam(calcData, "diode_pulse_width", lambda: float(form_data.get("DiodePulseWidth")))
         pushParam(calcData, "diode_alpha", lambda: float(form_data.get("DiodeAlpha")))
         pushParam(calcData, "diode_gamma0", lambda: float(form_data.get("DiodeGamma0")))
@@ -661,6 +662,7 @@ def doCalcUpdate(calcData, form_data):
         pushParam(calcData, "N0a", lambda: float(form_data.get("N0a")))
         pushParam(calcData, "N0b", lambda: float(form_data.get("N0b")))
         pushParam(calcData, "dt", lambda: float(form_data.get("dt")))
+        pushParam(calcData, "volume", lambda: float(form_data.get("volume")))
         pushParam(calcData, "cavity_loss", lambda: float(form_data.get("cavity_loss")))
         pushParam(calcData, "h", lambda: float(form_data.get("h")))
         pushParam(calcData, "diode_update_pulse", lambda: form_data.get("CalcDiodeUpdatePulse"))

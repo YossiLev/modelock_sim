@@ -23,7 +23,6 @@ class Data_object():
         return False
 
     def assure(self, part):
-        print(f"Assuring part: {part} for Data_object with id: {self.id}")
         match part:
             case 'cavityData':
                 if not hasattr(self, 'cavityData'):

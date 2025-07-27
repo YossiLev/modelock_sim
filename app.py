@@ -594,9 +594,9 @@ def collect_mat_data(M, form_data, name):
 def pushParam(target, name, extractor):
     try:
         value = extractor()
-        print(name, value)
+        #print(name, value)
         if value is not None:
-            print(f"pushParam Setting {name} to {value} {target}")
+            #print(f"pushParam Setting {name} to {value} {target}")
             target.set({name: value})
     except:
         pass

@@ -257,15 +257,15 @@ class CalculatorData:
                 x2 = - 1 / (self.Ta * 1E-12) # mutiplier of Na
                 x3 = self.Ga * self.N0a # multplier of N
                 x4 = self.Pa # free addition
-                print("------", self.Pa)
-                print(f"Na: x1={x1}, x2={x2}, x3={x3}, x4={x4}")
+                #print("------", self.Pa)
+                #print(f"Na: x1={x1}, x2={x2}, x3={x3}, x4={x4}")
 
                 # calculate change in Nb
                 y1 = - self.Gb # multiplier of Nb * N
                 y2 = - 1 / (self.Tb * 1E-12) # mutiplier of Nb
                 y3 = self.Gb * self.N0b # multplier of N
                 y4 = self.Pb # free addition
-                print(f"Nb: y1={y1}, y2={y2}, y3={y3}, y4={y4}")
+                #print(f"Nb: y1={y1}, y2={y2}, y3={y3}, y4={y4}")
 
                 for i in range(1 if params == "calc" else self.calculation_rounds):
                     print(f"Round {i + 1} of {self.calculation_rounds}")

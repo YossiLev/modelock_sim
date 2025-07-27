@@ -677,12 +677,11 @@ def doCalcUpdate(calcData, form_data):
 
 @app.post("/doCalc/{tab}/{cmd}/{params}")
 async def doCalc(request: Request, tab: int, cmd: str, params: str, localId: str):
-    print(f"doCalc: {tab}, {cmd}, {params}, {localId}")
+    #print(f"doCalc: {tab}, {cmd}, {params}, {localId}")
     dataObj = get_Data_obj(localId)
     dataObj.assure('calcData')
     calcData = dataObj.calcData
 
-    print(f"calcData after assure: {calcData}")
     form_data = await request.form()
     doCalcUpdate(calcData, form_data)
 

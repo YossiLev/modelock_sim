@@ -155,7 +155,6 @@ class CalculatorData:
         self.diode_accum_pulse = []
         self.diode_accum_pulse_after = []
         self.diode_gain = np.array([1])
-        self.diode_gain_keep = np.array([1])
         self.diode_loss = np.array([1])
         self.diode_gain_value = np.array([1])
         self.diode_loss_value = np.array([1])
@@ -310,7 +309,6 @@ class CalculatorData:
 
                     self.diode_pulse_after = np.copy(self.diode_pulse)
 
-                    self.diode_gain_keep = np.copy(self.diode_gain)
                     self.diode_accum_pulse = np.add.accumulate(self.diode_pulse) * self.dt * self.volume
                     pulse_photons = self.diode_accum_pulse[-1]
                     self.summary_photons_before = self.diode_accum_pulse[-1]
@@ -318,8 +316,8 @@ class CalculatorData:
                     self.gain_factor = 0.46 
                     self.loss_factor = 0.010 # rrrrrr
 
-                    xh1 = self.Ga * 4468377122.5 * self.gain_factor * 16.5
-                    xh2 = self.Ga * 4468377122.5 * self.gain_factor * 0.32 * np.exp(0.000000000041*14E+10)
+                    #xh1 = self.Ga * 4468377122.5 * self.gain_factor * 16.5
+                    #xh2 = self.Ga * 4468377122.5 * self.gain_factor * 0.32 * np.exp(0.000000000041*14E+10)
                     # gain medium calculations
                     c_pulse = self.diode_pulse.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
                     c_gain = self.diode_gain.ctypes.data_as(ctypes.POINTER(ctypes.c_double))

@@ -292,6 +292,12 @@ class CalculatorData:
                                     pulse_photons = self.diode_accum_pulse[-1]
                                     self.diode_accum_pulse = np.multiply(self.diode_accum_pulse, self.initial_photons / pulse_photons)
                                     self.diode_pulse = np.multiply(self.diode_pulse, self.initial_photons / pulse_photons)
+                                case "CW":
+                                    self.diode_pulse = np.random.random(self.diode_t_list.shape)
+                                    self.diode_accum_pulse = np.add.accumulate(self.diode_pulse) * self.dt * self.volume
+                                    pulse_photons = self.diode_accum_pulse[-1]
+                                    self.diode_accum_pulse = np.multiply(self.diode_accum_pulse, self.initial_photons / pulse_photons)
+                                    self.diode_pulse = np.multiply(self.diode_pulse, self.initial_photons / pulse_photons)
                                 case "Flat":
                                     self.diode_pulse = np.full_like(self.diode_t_list, 0)
                             self.diode_pulse_original = np.copy(self.diode_pulse)
@@ -555,7 +561,7 @@ def generate_calc(data_obj, tab, offset = 0):
             added = Div(FlexN(
                 (Div(
                     Div(
-                        SelectCalcS(f'CalcDiodeSelectIntensity', "Intensity", ["Pulse", "Flat"], calcData.diode_intensity, width = 150),
+                        SelectCalcS(f'CalcDiodeSelectIntensity', "Intensity", ["Pulse", "CW", "Flat"], calcData.diode_intensity, width = 150),
                         Button("Calculate", hx_post=f'/doCalc/5/diode/calc', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
                         Button("Recalculate", hx_post=f'/doCalc/5/diode/recalc', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
                         InputCalcS(f'DiodeRounds', "Rounds", f'{calcData.calculation_rounds}', width = 80),

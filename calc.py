@@ -1,19 +1,51 @@
-try:
-    import cupy
-    if cupy.cuda.is_available():
-        np = cupy
-        from cupyx.scipy.signal import fftconvolve
-    else:
-        import numpy as np
-        from scipy.signal import fftconvolve
-except ImportError:
-    import numpy as np
-    from scipy.signal import fftconvolve
+# try:
+#     import cupy
+#     if cupy.cuda.is_available():
+#         np = cupy
+#         from cupyx.scipy.signal import fftconvolve
+#     else:
+#         import numpy as np
+#         from scipy.signal import fftconvolve
+# except ImportError:
+import numpy as np
+from scipy.signal import fftconvolve
 
 import re
 from fasthtml.common import *
 from controls import *
 from multi_mode import cget, cylindrical_fresnel_prepare, prepare_linear_fresnel_calc_data, prepare_linear_fresnel_straight_calc_data, linear_fresnel_propogate
+import ctypes
+
+lib_diode = ctypes.CDLL("./cfuncs/libs/libdiode.so")
+
+lib_diode.diode_gain.argtypes = [
+    ctypes.POINTER(ctypes.c_double), 
+    ctypes.POINTER(ctypes.c_double), 
+    ctypes.POINTER(ctypes.c_double),
+    ctypes.POINTER(ctypes.c_double),
+    ctypes.c_int,
+    ctypes.c_double, 
+    ctypes.c_double, 
+    ctypes.c_double, 
+    ctypes.c_double,
+    ctypes.c_double
+]
+lib_diode.diode_gain.restype = None
+
+lib_diode.diode_loss.argtypes = [
+    ctypes.POINTER(ctypes.c_double), 
+    ctypes.POINTER(ctypes.c_double), 
+    ctypes.POINTER(ctypes.c_double),
+    ctypes.c_int,
+    ctypes.c_double, 
+    ctypes.c_double, 
+    ctypes.c_double, 
+    ctypes.c_double,
+    ctypes.c_double
+]
+lib_diode.diode_loss.restype = None
+
+
 
 def MMult(M1, M2):
     res = [[
@@ -111,7 +143,7 @@ class CalculatorData:
 
         self.dt = 1e-12  # 1 pico second
         self.volume = 1 #0.46 * 0.03 * 2E-05
-        self.cavity_loss = 4.2
+        self.cavity_loss = 4.5
         self.diode_update_pulse = "Update Pulse"
         self.h = 0.1
 
@@ -249,7 +281,7 @@ class CalculatorData:
                 # d N  / dt = [(1 - h) * Ga(Na - N0a) + h * Gb(Nb - N0b) - GAMMA] * N
 
                 for i in range(1 if params == "calc" else self.calculation_rounds):
-                    print(f"Round {i + 1} of {self.calculation_rounds}")
+                    #print(f"Round {i + 1} of {self.calculation_rounds}")
                     match params:
                         case "calc":
                             pusleVal = 60000 / self.dt / self.volume
@@ -283,28 +315,42 @@ class CalculatorData:
                     xh1 = self.Ga * 4468377122.5 * self.gain_factor * 16.5
                     xh2 = self.Ga * 4468377122.5 * self.gain_factor * 0.32 * np.exp(0.000000000041*14E+10)
                     # gain medium calculations
-                    for i in range(N):
-                        iN = i + 1 if i < N - 1 else 0
-                        #gGain = self.Ga * self.gain_factor * (self.diode_gain[i] - self.N0a) * self.diode_pulse[i]
-                        #gGain = self.Ga * 4468377122.5 * self.gain_factor * (16.5-0.32*np.exp(-0.000000000041*(self.diode_gain[i]-14E+10)))
-                        gGain = xh1 - xh2 * np.exp(-0.000000000041 * self.diode_gain[i])
-                        #print(f"i={i}, gGain={gGain}, gGaint={gGaint}")
-                        self.diode_gain_value[i] = 1 + gGain
-                        gGain *= self.diode_pulse[i]
-                        self.diode_pulse_after[i] = self.diode_pulse[i] + gGain
-                        self.diode_gain[iN] = self.diode_gain[i] + self.dt * (- gGain + self.Pa - self.diode_gain[i] / (self.Ta * 1E-12))
+                    c_pulse = self.diode_pulse.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+                    c_gain = self.diode_gain.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+                    c_gain_value = self.diode_gain_value.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+                    c_loss = self.diode_loss.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+                    c_loss_value = self.diode_loss_value.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+                    c_pulse_after = self.diode_pulse_after.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+
+                    # Call the C function
+                    lib_diode.diode_gain(c_pulse, c_gain, c_gain_value, c_pulse_after, 
+                                         N, self.dt, self.Pa, self.Ta, self.Ga, self.gain_factor)
+
+                    # for i in range(N):
+                    #     iN = i + 1 if i < N - 1 else 0
+                    #     #gGain = self.Ga * self.gain_factor * (self.diode_gain[i] - self.N0a) * self.diode_pulse[i]
+                    #     #gGain = self.Ga * 4468377122.5 * self.gain_factor * (16.5-0.32*np.exp(-0.000000000041*(self.diode_gain[i]-14E+10)))
+                    #     gGain = xh1 - xh2 * np.exp(-0.000000000041 * self.diode_gain[i])
+                    #     #print(f"i={i}, gGain={gGain}, gGaint={gGaint}")
+                    #     self.diode_gain_value[i] = 1 + gGain
+                    #     gGain *= self.diode_pulse[i]
+                    #     self.diode_pulse_after[i] = self.diode_pulse[i] + gGain
+                    #     self.diode_gain[iN] = self.diode_gain[i] + self.dt * (- gGain + self.Pa - self.diode_gain[i] / (self.Ta * 1E-12))
 
 
                     self.summary_photons_after_gain = np.sum(self.diode_pulse_after) * self.dt * self.volume
 
                     # absorber calculations
-                    for i in range(N):
-                        iN = i + 1 if i < N - 1 else 0
-                        gAbs = self.Gb * self.loss_factor * (self.diode_loss[i] - self.N0b)
-                        self.diode_loss_value[i] = 1 + gAbs
-                        gAbs *= self.diode_pulse_after[i]
-                        self.diode_loss[iN] = self.diode_loss[i] + self.dt * (- gAbs + self.Pb - self.diode_loss[i] / (self.Tb * 1E-12))
-                        self.diode_pulse_after[i] += gAbs
+
+                    lib_diode.diode_loss(c_loss, c_loss_value, c_pulse_after,
+                                N, self.dt, self.Pb, self.Tb, self.Gb, self.N0b)
+                    # for i in range(N):
+                    #     iN = i + 1 if i < N - 1 else 0
+                    #     gAbs = self.Gb * self.loss_factor * (self.diode_loss[i] - self.N0b)
+                    #     self.diode_loss_value[i] = 1 + gAbs
+                    #     gAbs *= self.diode_pulse_after[i]
+                    #     self.diode_loss[iN] = self.diode_loss[i] + self.dt * (- gAbs + self.Pb - self.diode_loss[i] / (self.Tb * 1E-12))
+                    #     self.diode_pulse_after[i] += gAbs
 
                     self.summary_photons_after_absorber = np.sum(self.diode_pulse_after) * self.dt * self.volume
 
@@ -315,7 +361,7 @@ class CalculatorData:
                     self.diode_accum_pulse_after = np.add.accumulate(self.diode_pulse_after) * self.dt * self.volume
 
                     pulse_photons_after = self.diode_accum_pulse_after[-1] 
-                    print(f"Pulse photons: {pulse_photons}, after: {pulse_photons_after}, {'{:.3e}'.format(pulse_photons_after - pulse_photons)} Gain factor: {self.gain_factor}")
+                    #print(f"Pulse photons: {pulse_photons}, after: {pulse_photons_after}, {'{:.3e}'.format(pulse_photons_after - pulse_photons)} Gain factor: {self.gain_factor}")
 
     def exec_cavity_command(self, com):
         if len(com) == 0:
@@ -496,9 +542,9 @@ def generate_calc(data_obj, tab, offset = 0):
             xLoss = [minN, maxN / 2]
             yGain = list(map(lambda x : calcData.Ga * (x - calcData.N0a), xGain))
             yLoss = list(map(lambda x : calcData.Gb * (x - calcData.N0b), xLoss))
-            xGainRange = [np.min(calcData.diode_gain).get() * calcData.volume, np.max(calcData.diode_gain).get() * calcData.volume]
+            xGainRange = [cget(np.min(calcData.diode_gain)) * calcData.volume, cget(np.max(calcData.diode_gain)) * calcData.volume]
             yGainRange = list(map(lambda x : calcData.Ga * (x - calcData.N0a), xGainRange))
-            xLossRange = [np.min(calcData.diode_loss).get() * calcData.volume, np.max(calcData.diode_loss).get() * calcData.volume]
+            xLossRange = [cget(np.min(calcData.diode_loss)) * calcData.volume, cget(np.max(calcData.diode_loss)) * calcData.volume]
             yLossRange = list(map(lambda x : calcData.Gb * (x - calcData.N0b), xLossRange))
             xVec = [xGain, xLoss, xGainRange, xLossRange]
             yVec = [yGain, yLoss, yGainRange, yLossRange]

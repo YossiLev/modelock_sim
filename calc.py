@@ -15,8 +15,15 @@ from fasthtml.common import *
 from controls import *
 from multi_mode import cget, cylindrical_fresnel_prepare, prepare_linear_fresnel_calc_data, prepare_linear_fresnel_straight_calc_data, linear_fresnel_propogate
 import ctypes
+import platform
 
-lib_diode = ctypes.CDLL("./cfuncs/libs/libdiode.so")
+lib_suffix = {
+    "Linux": "so",
+    "Darwin": "dylib",
+    "Windows": "dll"
+}.get(platform.system(), "so") 
+
+lib_diode = ctypes.CDLL(os.path.abspath(f"./cfuncs/libs/libdiode.{lib_suffix}"))
 
 lib_diode.diode_gain.argtypes = [
     ctypes.POINTER(ctypes.c_double), 
@@ -44,8 +51,6 @@ lib_diode.diode_loss.argtypes = [
     ctypes.c_double
 ]
 lib_diode.diode_loss.restype = None
-
-
 
 def MMult(M1, M2):
     res = [[
@@ -328,7 +333,7 @@ class CalculatorData:
 
                     # Call the C function
                     lib_diode.diode_gain(c_pulse, c_gain, c_gain_value, c_pulse_after, 
-                                         N, self.dt, self.Pa, self.Ta, self.Ga, self.gain_factor)
+                                        N, self.dt, self.Pa, self.Ta, self.Ga, self.gain_factor)
 
                     # for i in range(N):
                     #     iN = i + 1 if i < N - 1 else 0
@@ -341,13 +346,12 @@ class CalculatorData:
                     #     self.diode_pulse_after[i] = self.diode_pulse[i] + gGain
                     #     self.diode_gain[iN] = self.diode_gain[i] + self.dt * (- gGain + self.Pa - self.diode_gain[i] / (self.Ta * 1E-12))
 
-
                     self.summary_photons_after_gain = np.sum(self.diode_pulse_after) * self.dt * self.volume
 
                     # absorber calculations
 
                     lib_diode.diode_loss(c_loss, c_loss_value, c_pulse_after,
-                                N, self.dt, self.Pb, self.Tb, self.Gb, self.N0b)
+                                        N, self.dt, self.Pb, self.Tb, self.Gb, self.N0b)
                     # for i in range(N):
                     #     iN = i + 1 if i < N - 1 else 0
                     #     gAbs = self.Gb * self.loss_factor * (self.diode_loss[i] - self.N0b)
@@ -597,10 +601,11 @@ def generate_calc(data_obj, tab, offset = 0):
 
                 Div(
                     Table(
-                        Tr(Td(f"{calcData.summary_photons_before:.3e}"), Td("t2"), Td("t3")), 
-                        Tr(Td(f"{calcData.summary_photons_after_gain:.3e}"), Td(f"{(calcData.summary_photons_after_gain - calcData.summary_photons_before):.3e}"), Td("t6")), 
-                        Tr(Td(f"{calcData.summary_photons_after_absorber:.3e}"), Td(f"{(calcData.summary_photons_after_absorber - calcData.summary_photons_before):.3e}"), Td("t9"), Td("t10")),
-                        Tr(Td(f"{calcData.summary_photons_after_cavity_loss:.3e}"), Td(f"{(calcData.summary_photons_after_cavity_loss - calcData.summary_photons_before):.3e}"), Td("t12"), Td("t13")),
+                        Tr(Td(""), Td("Value"), Td("Change")), 
+                        Tr(Td("Begore gain"), Td(f"{calcData.summary_photons_before:.3e}"), Td("")), 
+                        Tr(Td("After gain"), Td(f"{calcData.summary_photons_after_gain:.3e}"), Td(f"{(calcData.summary_photons_after_gain - calcData.summary_photons_before):.3e}")), 
+                        Tr(Td("After absorber"), Td(f"{calcData.summary_photons_after_absorber:.3e}"), Td(f"{(calcData.summary_photons_after_absorber - calcData.summary_photons_before):.3e}")),
+                        Tr(Td("After OC"), Td(f"{calcData.summary_photons_after_cavity_loss:.3e}"), Td(f"{(calcData.summary_photons_after_cavity_loss - calcData.summary_photons_before):.3e}")),
                         ),
                 ))),
 

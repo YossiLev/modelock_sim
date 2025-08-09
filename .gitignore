@@ -136,3 +136,4 @@ env.bak/
 venv.bak/
 .sesskey
 launch.json
+cfuncs/libs/libdiode.dylib

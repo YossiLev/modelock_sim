@@ -1,9 +1,15 @@
 #include <stdio.h>
 #include <math.h>
 
-
+// for linux compilation:
 // gcc -shared -o ./cfuncs/libs/libdiode.so -fPIC ./cfuncs/diode_actions.c
 //
+// for windows compilation:
+// gcc -shared -o ./cfuncs/libs/libdiode.dll -Wl
+//
+// ffor macos compilation:
+// gcc -shared -o ./cfuncs/libs/libdiode.dylib -fPIC ./cfuncs/diode_actions.c
+
 void diode_gain(double *pulse, double *gain, double *gain_value, double *pulse_after, 
     int N, double dt, double Pa, double Ta, double Ga, double gain_factor) {
    
@@ -23,15 +29,15 @@ void diode_gain(double *pulse, double *gain, double *gain_value, double *pulse_a
     }
 }
 
-        // iN = i + 1 if i < N - 1 else 0
-        // #gGain = self.Ga * self.gain_factor * (self.diode_gain[i] - self.N0a) * self.diode_pulse[i]
-        // #gGain = self.Ga * 4468377122.5 * self.gain_factor * (16.5-0.32*np.exp(-0.000000000041*(self.diode_gain[i]-14E+10)))
-        // gGain = xh1 - xh2 * np.exp(-0.000000000041 * self.diode_gain[i])
-        // #print(f"i={i}, gGain={gGain}, gGaint={gGaint}")
-        // self.diode_gain_value[i] = 1 + gGain
-        // gGain *= self.diode_pulse[i]
-        // self.diode_pulse_after[i] = self.diode_pulse[i] + gGain
-        // self.diode_gain[iN] = self.diode_gain[i] + self.dt * (- gGain + self.Pa - self.diode_gain[i] / (self.Ta * 1E-12))
+    // iN = i + 1 if i < N - 1 else 0
+    // #gGain = self.Ga * self.gain_factor * (self.diode_gain[i] - self.N0a) * self.diode_pulse[i]
+    // #gGain = self.Ga * 4468377122.5 * self.gain_factor * (16.5-0.32*np.exp(-0.000000000041*(self.diode_gain[i]-14E+10)))
+    // gGain = xh1 - xh2 * np.exp(-0.000000000041 * self.diode_gain[i])
+    // #print(f"i={i}, gGain={gGain}, gGaint={gGaint}")
+    // self.diode_gain_value[i] = 1 + gGain
+    // gGain *= self.diode_pulse[i]
+    // self.diode_pulse_after[i] = self.diode_pulse[i] + gGain
+    // self.diode_gain[iN] = self.diode_gain[i] + self.dt * (- gGain + self.Pa - self.diode_gain[i] / (self.Ta * 1E-12))
 
 void diode_loss(double *loss, double *loss_value, double *pulse_after,
                 int N, double dt, double Pb, double Tb, double Gb, double N0b) {
@@ -46,7 +52,7 @@ void diode_loss(double *loss, double *loss_value, double *pulse_after,
         loss_value[i] = 1 + gAbs;
         gAbs *= pulse_after[i];
         loss[iN] = loss[i] + dt * (- gAbs + Pb - loss[i] / (Tb * 1E-12));
-        pulse_after[i] += gAbs;
+        pulse_after[i] += gAbs; // + dt * loss[i] / (Tb * 1E-12);
     }
 }
 

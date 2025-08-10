@@ -560,6 +560,9 @@ def generate_calc(data_obj, tab, offset = 0):
             max_gain = np.max(calcData.diode_gain) * calcData.volume
             min_loss = np.min(calcData.diode_loss) * calcData.volume# * 0.04 / 0.46
             max_loss = np.max(calcData.diode_loss) * calcData.volume# * 0.04 / 0.46
+            output_photons = calcData.summary_photons_after_absorber - calcData.summary_photons_after_cavity_loss
+            energy_of_1064_photon = 1.885E-19 # Joule
+
             added = Div(FlexN(
                 (Div(
                     Div(
@@ -606,13 +609,14 @@ def generate_calc(data_obj, tab, offset = 0):
                         Tr(Td("After gain"), Td(f"{calcData.summary_photons_after_gain:.3e}"), Td(f"{(calcData.summary_photons_after_gain - calcData.summary_photons_before):.3e}")), 
                         Tr(Td("After absorber"), Td(f"{calcData.summary_photons_after_absorber:.3e}"), Td(f"{(calcData.summary_photons_after_absorber - calcData.summary_photons_before):.3e}")),
                         Tr(Td("After OC"), Td(f"{calcData.summary_photons_after_cavity_loss:.3e}"), Td(f"{(calcData.summary_photons_after_cavity_loss - calcData.summary_photons_before):.3e}")),
+                        Tr(Td("Output"), Td(f"{output_photons:.3e}"), Td(f"{(output_photons * energy_of_1064_photon * 10E+9):.3e}nJ")),
                         ),
                 ))),
 
                 Div(
                     Div(
                         generate_chart([cget(calcData.diode_t_list).tolist()], 
-                                       [cget(calcData.diode_pulse_original).tolist(), cget(calcData.diode_pulse_after).tolist()], [""], 
+                                       [cget(calcData.diode_pulse_original).tolist(), cget(np.log(calcData.diode_pulse_after)).tolist()], [""], 
                                        "Original Pulse and Pulse after (photons/sec)", h=2, color=colors, marker=None, twinx=True),
 
                         generate_chart([cget(calcData.diode_t_list).tolist()], [cget(calcData.diode_pulse).tolist()], [""], 

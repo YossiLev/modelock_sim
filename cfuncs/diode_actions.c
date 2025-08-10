@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
 
 // for linux compilation:
@@ -18,13 +19,14 @@ void diode_gain(double *pulse, double *gain, double *gain_value, double *pulse_a
     double xh1 = Ga * 4468377122.5 * gain_factor * 16.5;
     double xh2 = Ga * 4468377122.5 * gain_factor * 0.32 * exp(0.000000000041*14E+10);
 
+    double rand_factor = 0.00000000005 * dt / (Ta * 1E-12)  / (double)RAND_MAX;
     // gain medium calculations
     for (i = 0; i < N; i++) {
         int iN = (i + 1) % N; // wrap around for circular array behavior
         double gGain = xh1 - xh2 * exp(-0.000000000041 * gain[i]);
         gain_value[i] = 1 + gGain;
         gGain *= pulse[i];
-        pulse_after[i] = pulse[i] + gGain;
+        pulse_after[i] = pulse[i] + gGain + rand_factor * gain[i] * (double)rand();
         gain[iN] = gain[i] + dt * (-gGain + Pa - gain[i] / (Ta * 1E-12));
     }
 }
@@ -48,11 +50,11 @@ void diode_loss(double *loss, double *loss_value, double *pulse_after,
 
     for (i = 0; i < N; i++) {
         int iN = (i + 1) % N; // wrap around for circular array behavior
-        gAbs = Gb * 0.01 * (loss[i] - N0b);
+        gAbs = Gb * 0.02 * (loss[i] - N0b);
         loss_value[i] = 1 + gAbs;
         gAbs *= pulse_after[i];
         loss[iN] = loss[i] + dt * (- gAbs + Pb - loss[i] / (Tb * 1E-12));
-        pulse_after[i] += gAbs; // + dt * loss[i] / (Tb * 1E-12);
+        pulse_after[i] += gAbs;// + 0.25 * dt * loss[i] / (Tb * 1E-12);
     }
 }
 

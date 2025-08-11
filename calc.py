@@ -296,8 +296,14 @@ class CalculatorData:
                                     pulse_photons = self.diode_accum_pulse[-1]
                                     self.diode_accum_pulse = np.multiply(self.diode_accum_pulse, self.initial_photons / pulse_photons)
                                     self.diode_pulse = np.multiply(self.diode_pulse, self.initial_photons / pulse_photons)
-                                case "CW":
+                                case "Noise":
                                     self.diode_pulse = np.random.random(self.diode_t_list.shape)
+                                    self.diode_accum_pulse = np.add.accumulate(self.diode_pulse) * self.dt * self.volume
+                                    pulse_photons = self.diode_accum_pulse[-1]
+                                    self.diode_accum_pulse = np.multiply(self.diode_accum_pulse, self.initial_photons / pulse_photons)
+                                    self.diode_pulse = np.multiply(self.diode_pulse, self.initial_photons / pulse_photons)
+                                case "CW":
+                                    self.diode_pulse = np.full_like(self.diode_t_list, 1)
                                     self.diode_accum_pulse = np.add.accumulate(self.diode_pulse) * self.dt * self.volume
                                     pulse_photons = self.diode_accum_pulse[-1]
                                     self.diode_accum_pulse = np.multiply(self.diode_accum_pulse, self.initial_photons / pulse_photons)
@@ -562,11 +568,15 @@ def generate_calc(data_obj, tab, offset = 0):
             max_loss = np.max(calcData.diode_loss) * calcData.volume# * 0.04 / 0.46
             output_photons = calcData.summary_photons_after_absorber - calcData.summary_photons_after_cavity_loss
             energy_of_1064_photon = 1.885E-19 # Joule
+            # if len(calcData.diode_pulse) > 0:
+            #     print(np.shape(calcData.diode_pulse_after))
+            #     diode_pulse_fftr = np.fft.rfft(np.sqrt(np.asarray(calcData.diode_pulse_after)))
+            #     diode_pulse_fft = np.concatenate((diode_pulse_fftr[::-1][1:- 1], diode_pulse_fftr))
 
             added = Div(FlexN(
                 (Div(
                     Div(
-                        SelectCalcS(f'CalcDiodeSelectIntensity', "Intensity", ["Pulse", "CW", "Flat"], calcData.diode_intensity, width = 150),
+                        SelectCalcS(f'CalcDiodeSelectIntensity', "Intensity", ["Pulse", "Noise", "CW", "Flat"], calcData.diode_intensity, width = 150),
                         Button("Calculate", hx_post=f'/doCalc/5/diode/calc', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
                         Button("Recalculate", hx_post=f'/doCalc/5/diode/recalc', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
                         InputCalcS(f'DiodeRounds', "Rounds", f'{calcData.calculation_rounds}', width = 80),
@@ -620,7 +630,7 @@ def generate_calc(data_obj, tab, offset = 0):
                                        "Original Pulse and Pulse after (photons/sec)", h=2, color=colors, marker=None, twinx=True),
 
                         generate_chart([cget(calcData.diode_t_list).tolist()], [cget(calcData.diode_pulse).tolist()], [""], 
-                                       "Pulse (photons/sec)", h=2, color=colors, marker=None),
+                                       "Pulse (photons/sec)", h=2, color=colors, marker=None, twinx=True),
                         generate_chart([cget(calcData.diode_t_list).tolist()], 
                                        [cget(calcData.diode_accum_pulse).tolist(), cget(calcData.diode_accum_pulse_after).tolist()], [""], 
                                        f"Accumulate Pulse AND after (photons) [difference: {(calcData.diode_accum_pulse_after[-1] - calcData.diode_accum_pulse[-1]):.2e}]", 

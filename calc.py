@@ -52,6 +52,30 @@ lib_diode.diode_loss.argtypes = [
 ]
 lib_diode.diode_loss.restype = None
 
+lib_diode.diode_round_trip.argtypes = [
+    ctypes.POINTER(ctypes.c_double), 
+    ctypes.POINTER(ctypes.c_double), 
+    ctypes.POINTER(ctypes.c_double),
+    ctypes.POINTER(ctypes.c_double),
+    ctypes.POINTER(ctypes.c_double),
+    ctypes.POINTER(ctypes.c_double),
+    ctypes.c_int,
+    ctypes.c_int,
+    ctypes.c_int,
+    ctypes.c_int,
+    ctypes.c_int,
+    ctypes.c_double,
+    ctypes.c_double,
+    ctypes.c_double,
+    ctypes.c_double,
+    ctypes.c_double,
+    ctypes.c_double,
+    ctypes.c_double,
+    ctypes.c_double,
+    ctypes.c_double
+]
+lib_diode.diode_round_trip.restype = None
+
 def MMult(M1, M2):
     res = [[
         M1[0][0] * M2[0][0] + M1[0][1] * M2[1][0],
@@ -129,6 +153,10 @@ class CalculatorData:
         self.diode_alpha = 0.01
         self.diode_gamma0 = 5.0
         self.diode_saturation = 2000
+        self.loss_shift = 2048
+        self.gain_distance = 3
+        self.oc_shift = 1500
+        self.oc_val = 0.02
 
         self.start_gain = 7.44E+10
         self.start_absorber = 0.0 #18200000000.0
@@ -284,98 +312,126 @@ class CalculatorData:
                 # d Nb / dt = - Nb / Tb - Gb(Nb - N0b) * N + Pb
                 # d N  / dt = [(1 - h) * Ga(Na - N0a) + h * Gb(Nb - N0b) - GAMMA] * N
 
-                for i in range(1 if params == "calc" else self.calculation_rounds):
-                    #print(f"Round {i + 1} of {self.calculation_rounds}")
-                    match params:
-                        case "calc":
-                            pusleVal = 60000 / self.dt / self.volume
-                            match self.diode_intensity:
-                                case "Pulse":
-                                    self.diode_pulse = pusleVal * np.exp(-np.square(self.diode_t_list - 2000.0) / (self.diode_pulse_width * self.diode_pulse_width))
-                                    self.diode_accum_pulse = np.add.accumulate(self.diode_pulse) * self.dt * self.volume
-                                    pulse_photons = self.diode_accum_pulse[-1]
-                                    self.diode_accum_pulse = np.multiply(self.diode_accum_pulse, self.initial_photons / pulse_photons)
-                                    self.diode_pulse = np.multiply(self.diode_pulse, self.initial_photons / pulse_photons)
-                                case "Noise":
-                                    self.diode_pulse = np.random.random(self.diode_t_list.shape)
-                                    self.diode_accum_pulse = np.add.accumulate(self.diode_pulse) * self.dt * self.volume
-                                    pulse_photons = self.diode_accum_pulse[-1]
-                                    self.diode_accum_pulse = np.multiply(self.diode_accum_pulse, self.initial_photons / pulse_photons)
-                                    self.diode_pulse = np.multiply(self.diode_pulse, self.initial_photons / pulse_photons)
-                                case "CW":
-                                    self.diode_pulse = np.full_like(self.diode_t_list, 1)
-                                    self.diode_accum_pulse = np.add.accumulate(self.diode_pulse) * self.dt * self.volume
-                                    pulse_photons = self.diode_accum_pulse[-1]
-                                    self.diode_accum_pulse = np.multiply(self.diode_accum_pulse, self.initial_photons / pulse_photons)
-                                    self.diode_pulse = np.multiply(self.diode_pulse, self.initial_photons / pulse_photons)
-                                case "Flat":
-                                    self.diode_pulse = np.full_like(self.diode_t_list, 0)
-                            self.diode_pulse_original = np.copy(self.diode_pulse)
-                            self.diode_gain = np.full_like(self.diode_pulse, self.start_gain)
-                            self.diode_loss = np.full_like(self.diode_pulse, self.start_absorber)
+                #print(f"Round {i + 1} of {self.calculation_rounds}")
+                match params:
+                    case "calc":
+                        pusleVal = 60000 / self.dt / self.volume
+                        match self.diode_intensity:
+                            case "Pulse":
+                                self.diode_pulse = pusleVal * np.exp(-np.square(self.diode_t_list - 1000.0) / (self.diode_pulse_width * self.diode_pulse_width))
+                                self.diode_accum_pulse = np.add.accumulate(self.diode_pulse) * self.dt * self.volume
+                                pulse_photons = self.diode_accum_pulse[-1]
+                                self.diode_accum_pulse = np.multiply(self.diode_accum_pulse, self.initial_photons / pulse_photons)
+                                self.diode_pulse = np.multiply(self.diode_pulse, self.initial_photons / pulse_photons)
+                            case "Noise":
+                                self.diode_pulse = np.random.random(self.diode_t_list.shape)
+                                self.diode_accum_pulse = np.add.accumulate(self.diode_pulse) * self.dt * self.volume
+                                pulse_photons = self.diode_accum_pulse[-1]
+                                self.diode_accum_pulse = np.multiply(self.diode_accum_pulse, self.initial_photons / pulse_photons)
+                                self.diode_pulse = np.multiply(self.diode_pulse, self.initial_photons / pulse_photons)
+                            case "CW":
+                                self.diode_pulse = np.full_like(self.diode_t_list, 1)
+                                self.diode_accum_pulse = np.add.accumulate(self.diode_pulse) * self.dt * self.volume
+                                pulse_photons = self.diode_accum_pulse[-1]
+                                self.diode_accum_pulse = np.multiply(self.diode_accum_pulse, self.initial_photons / pulse_photons)
+                                self.diode_pulse = np.multiply(self.diode_pulse, self.initial_photons / pulse_photons)
+                            case "Flat":
+                                self.diode_pulse = np.full_like(self.diode_t_list, 0)
+                        self.diode_pulse_original = np.copy(self.diode_pulse)
+                        self.diode_gain = np.full_like(self.diode_pulse, self.start_gain)
+                        self.diode_loss = np.full_like(self.diode_pulse, self.start_absorber)
 
-                        case "recalc":
-                            if self.diode_update_pulse == "Update Pulse":
-                                self.diode_pulse = np.copy(self.diode_pulse_after)
+                    case "recalc":
+                        if self.diode_update_pulse == "Update Pulse":
+                            self.diode_pulse = np.copy(self.diode_pulse_after)
 
-                    self.diode_pulse_after = np.copy(self.diode_pulse)
 
-                    self.diode_accum_pulse = np.add.accumulate(self.diode_pulse) * self.dt * self.volume
-                    pulse_photons = self.diode_accum_pulse[-1]
-                    self.summary_photons_before = self.diode_accum_pulse[-1]
+                #self.diode_round_trip_old()
+                self.diode_round_trip_new()
 
-                    self.gain_factor = 0.46 
-                    self.loss_factor = 0.010 # rrrrrr
+    def diode_round_trip_new(self):
+        N = len(self.diode_t_list)
+        self.oc_val = np.exp(- self.cavity_loss)
+        self.diode_pulse_after = np.copy(self.diode_pulse)
 
-                    #xh1 = self.Ga * 4468377122.5 * self.gain_factor * 16.5
-                    #xh2 = self.Ga * 4468377122.5 * self.gain_factor * 0.32 * np.exp(0.000000000041*14E+10)
-                    # gain medium calculations
-                    c_pulse = self.diode_pulse.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-                    c_gain = self.diode_gain.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-                    c_gain_value = self.diode_gain_value.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-                    c_loss = self.diode_loss.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-                    c_loss_value = self.diode_loss_value.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-                    c_pulse_after = self.diode_pulse_after.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
 
-                    # Call the C function
-                    lib_diode.diode_gain(c_pulse, c_gain, c_gain_value, c_pulse_after, 
-                                        N, self.dt, self.Pa, self.Ta, self.Ga, self.gain_factor)
+        c_pulse = self.diode_pulse.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+        c_gain = self.diode_gain.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+        c_gain_value = self.diode_gain_value.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+        c_loss = self.diode_loss.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+        c_loss_value = self.diode_loss_value.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+        c_pulse_after = self.diode_pulse_after.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
 
-                    # for i in range(N):
-                    #     iN = i + 1 if i < N - 1 else 0
-                    #     #gGain = self.Ga * self.gain_factor * (self.diode_gain[i] - self.N0a) * self.diode_pulse[i]
-                    #     #gGain = self.Ga * 4468377122.5 * self.gain_factor * (16.5-0.32*np.exp(-0.000000000041*(self.diode_gain[i]-14E+10)))
-                    #     gGain = xh1 - xh2 * np.exp(-0.000000000041 * self.diode_gain[i])
-                    #     #print(f"i={i}, gGain={gGain}, gGaint={gGaint}")
-                    #     self.diode_gain_value[i] = 1 + gGain
-                    #     gGain *= self.diode_pulse[i]
-                    #     self.diode_pulse_after[i] = self.diode_pulse[i] + gGain
-                    #     self.diode_gain[iN] = self.diode_gain[i] + self.dt * (- gGain + self.Pa - self.diode_gain[i] / (self.Ta * 1E-12))
+        lib_diode.diode_round_trip(c_gain, c_loss, c_gain_value, c_loss_value,
+                                    c_pulse, c_pulse_after,
+                                    self.calculation_rounds, N, self.loss_shift, self.oc_shift, self.gain_distance,
+                                    self.dt, self.Pa, self.Ta, self.Ga, self.Pb, self.Tb, self.Gb, self.N0b, self.oc_val)
 
-                    self.summary_photons_after_gain = np.sum(self.diode_pulse_after) * self.dt * self.volume
+        self.diode_accum_pulse_after = np.add.accumulate(self.diode_pulse_after) * self.dt * self.volume
 
-                    # absorber calculations
 
-                    lib_diode.diode_loss(c_loss, c_loss_value, c_pulse_after,
-                                        N, self.dt, self.Pb, self.Tb, self.Gb, self.N0b)
-                    # for i in range(N):
-                    #     iN = i + 1 if i < N - 1 else 0
-                    #     gAbs = self.Gb * self.loss_factor * (self.diode_loss[i] - self.N0b)
-                    #     self.diode_loss_value[i] = 1 + gAbs
-                    #     gAbs *= self.diode_pulse_after[i]
-                    #     self.diode_loss[iN] = self.diode_loss[i] + self.dt * (- gAbs + self.Pb - self.diode_loss[i] / (self.Tb * 1E-12))
-                    #     self.diode_pulse_after[i] += gAbs
+    def diode_round_trip_old(self):
+        N = 4096
 
-                    self.summary_photons_after_absorber = np.sum(self.diode_pulse_after) * self.dt * self.volume
+        for i in range(self.calculation_rounds):
 
-                    #cavity loss
-                    self.diode_pulse_after *= np.exp(- self.cavity_loss)
-                    self.summary_photons_after_cavity_loss = np.sum(self.diode_pulse_after) * self.dt * self.volume
+            self.diode_pulse_after = np.copy(self.diode_pulse)
 
-                    self.diode_accum_pulse_after = np.add.accumulate(self.diode_pulse_after) * self.dt * self.volume
+            self.diode_accum_pulse = np.add.accumulate(self.diode_pulse) * self.dt * self.volume
+            self.summary_photons_before = self.diode_accum_pulse[-1]
 
-                    pulse_photons_after = self.diode_accum_pulse_after[-1] 
-                    #print(f"Pulse photons: {pulse_photons}, after: {pulse_photons_after}, {'{:.3e}'.format(pulse_photons_after - pulse_photons)} Gain factor: {self.gain_factor}")
+            self.gain_factor = 0.46 
+            self.loss_factor = 0.010 # rrrrrr
+
+            #xh1 = self.Ga * 4468377122.5 * self.gain_factor * 16.5
+            #xh2 = self.Ga * 4468377122.5 * self.gain_factor * 0.32 * np.exp(0.000000000041*14E+10)
+            # gain medium calculations
+            c_pulse = self.diode_pulse.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+            c_gain = self.diode_gain.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+            c_gain_value = self.diode_gain_value.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+            c_loss = self.diode_loss.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+            c_loss_value = self.diode_loss_value.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+            c_pulse_after = self.diode_pulse_after.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+
+            # Call the C function
+            lib_diode.diode_gain(c_pulse, c_gain, c_gain_value, c_pulse_after, 
+                                N, self.dt, self.Pa, self.Ta, self.Ga, self.gain_factor)
+
+            # for i in range(N):
+            #     iN = i + 1 if i < N - 1 else 0
+            #     #gGain = self.Ga * self.gain_factor * (self.diode_gain[i] - self.N0a) * self.diode_pulse[i]
+            #     #gGain = self.Ga * 4468377122.5 * self.gain_factor * (16.5-0.32*np.exp(-0.000000000041*(self.diode_gain[i]-14E+10)))
+            #     gGain = xh1 - xh2 * np.exp(-0.000000000041 * self.diode_gain[i])
+            #     #print(f"i={i}, gGain={gGain}, gGaint={gGaint}")
+            #     self.diode_gain_value[i] = 1 + gGain
+            #     gGain *= self.diode_pulse[i]
+            #     self.diode_pulse_after[i] = self.diode_pulse[i] + gGain
+            #     self.diode_gain[iN] = self.diode_gain[i] + self.dt * (- gGain + self.Pa - self.diode_gain[i] / (self.Ta * 1E-12))
+
+            self.summary_photons_after_gain = np.sum(self.diode_pulse_after) * self.dt * self.volume
+
+            # absorber calculations
+
+            lib_diode.diode_loss(c_loss, c_loss_value, c_pulse_after,
+                                N, self.dt, self.Pb, self.Tb, self.Gb, self.N0b)
+            # for i in range(N):
+            #     iN = i + 1 if i < N - 1 else 0
+            #     gAbs = self.Gb * self.loss_factor * (self.diode_loss[i] - self.N0b)
+            #     self.diode_loss_value[i] = 1 + gAbs
+            #     gAbs *= self.diode_pulse_after[i]
+            #     self.diode_loss[iN] = self.diode_loss[i] + self.dt * (- gAbs + self.Pb - self.diode_loss[i] / (self.Tb * 1E-12))
+            #     self.diode_pulse_after[i] += gAbs
+
+            self.summary_photons_after_absorber = np.sum(self.diode_pulse_after) * self.dt * self.volume
+
+            #cavity loss
+            self.diode_pulse_after *= np.exp(- self.cavity_loss)
+            self.summary_photons_after_cavity_loss = np.sum(self.diode_pulse_after) * self.dt * self.volume
+
+            self.diode_accum_pulse_after = np.add.accumulate(self.diode_pulse_after) * self.dt * self.volume
+
+            #pulse_photons_after = self.diode_accum_pulse_after[-1] 
+            #print(f"Pulse photons: {pulse_photons}, after: {pulse_photons_after}, {'{:.3e}'.format(pulse_photons_after - pulse_photons)} Gain factor: {self.gain_factor}")
 
     def exec_cavity_command(self, com):
         if len(com) == 0:

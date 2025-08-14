@@ -76,7 +76,7 @@ void diode_round_trip(double *gain, double *loss, double *gain_value, double *lo
 
     double xh1 = Ga * 4468377122.5 * 0.46 * 16.5;
     double xh2 = Ga * 4468377122.5 * 0.46 * 0.32 * exp(0.000000000041*14E+10);
-    double rand_factor = 0.00000000005 * dt / (Ta * 1E-12)  / (double)RAND_MAX;
+    double rand_factor = 0.000000000005 * dt / (Ta * 1E-12)  / (double)RAND_MAX;
 
     for (int i_round = 0; i_round < n_rounds; i_round++) {
         for (i = 0; i < N; i++) {
@@ -91,7 +91,7 @@ void diode_round_trip(double *gain, double *loss, double *gain_value, double *lo
             pulse_intensity[i] *= loss_value[i];
             pulse_intensity[i_match_loss] *= loss_value[i];
 
-            ;// + 0.25 * dt * loss[i] / (Tb * 1E-12);
+            //;// + 0.25 * dt * loss[i] / (Tb * 1E-12);
 
             // gain calculation
             int i_gain = (i + gain_distance) % N;
@@ -104,12 +104,15 @@ void diode_round_trip(double *gain, double *loss, double *gain_value, double *lo
             gain[iN] = gain[i] + dt * (-gGain * intensity_gain + Pa - gain[i] / (Ta * 1E-12));
             pulse_intensity[i_gain] *= gain_value[i];
             pulse_intensity[i_match_gain] *= gain_value[i];
+            pulse_intensity[i_gain] += rand_factor * gain[i] * (double)rand();
+            pulse_intensity[i_match_gain] += rand_factor * gain[i] * (double)rand();
 
-            pulse_intensity[(oc_shift + i) % N] *= oc_val;
+            int oc_loc = (oc_shift + i) % N;
+            pulse_intensity[oc_loc] *= oc_val;
 
             //pulse_intensity[i] += rand_factor * gain[i] * (double)rand();
 
-            pulse_intensity_after[i] = pulse_intensity[i];
+            pulse_intensity_after[oc_loc] = pulse_intensity[oc_loc];
         }
         // print pulse_intensity after 10 in one line
         // for (int i = 0; i < N; i++) {

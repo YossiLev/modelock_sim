@@ -685,7 +685,8 @@ def generate_calc(data_obj, tab, offset = 0):
                                        [cget(calcData.diode_pulse_original).tolist(), cget(np.log(calcData.diode_pulse_after)).tolist()], [""], 
                                        "Original Pulse and Pulse after (photons/sec)", h=2, color=colors, marker=None, twinx=True),
 
-                        generate_chart([cget(calcData.diode_t_list).tolist()], [cget(calcData.diode_pulse).tolist()], [""], 
+                        generate_chart([cget(calcData.diode_t_list).tolist()], 
+                                       [cget(calcData.diode_pulse).tolist(), cget(calcData.diode_pulse_after).tolist()], [""], 
                                        "Pulse (photons/sec)", h=2, color=colors, marker=None, twinx=True),
                         generate_chart([cget(calcData.diode_t_list).tolist()], 
                                        [cget(calcData.diode_accum_pulse).tolist(), cget(calcData.diode_accum_pulse_after).tolist()], [""], 

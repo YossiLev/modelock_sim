@@ -32,6 +32,16 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
+
+# Compile the parts written in C language  into libraries that can be used by the main python code
+# for linux compilation:
+gcc -shared -o ./cfuncs/libs/libdiode.so -fPIC ./cfuncs/diode_actions.c
+
+# for windows compilation:
+gcc -shared -o ./cfuncs/libs/libdiode.dll -Wl ./cfuncs/diode_actions.c
+
+# for macos compilation:
+gcc -shared -o ./cfuncs/libs/libdiode.dylib -fPIC ./cfuncs/diode_actions.c
 ```
 
 ## ▶️ Activation

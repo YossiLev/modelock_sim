@@ -345,13 +345,13 @@ class CalculatorData:
                         if self.diode_update_pulse == "Update Pulse":
                             self.diode_pulse = np.copy(self.diode_pulse_after)
 
-
-                self.diode_round_trip_old()
-                #self.diode_round_trip_new()
+                #self.diode_round_trip_old()
+                self.diode_round_trip_new()
 
     def diode_round_trip_new(self):
         N = len(self.diode_t_list)
         self.oc_val = np.exp(- self.cavity_loss)
+        print(f"oc_val: {self.oc_val}")
         self.diode_pulse_after = np.copy(self.diode_pulse)
 
 
@@ -689,8 +689,11 @@ def generate_calc(data_obj, tab, offset = 0):
                                        "Original Pulse and Pulse after (photons/sec)", h=2, color=colors, marker=None, twinx=True),
 
                         generate_chart([cget(calcData.diode_t_list).tolist()], 
-                                       [cget(calcData.diode_pulse).tolist(), cget(calcData.diode_pulse_after).tolist()], [""], 
-                                       "Pulse (photons/sec)", h=2, color=colors, marker=None, twinx=True),
+                                       [cget(calcData.diode_pulse).tolist()], [""], 
+                                       "Pulse in (photons/sec)", h=2, color=colors, marker=None, twinx=True),
+                        generate_chart([cget(calcData.diode_t_list).tolist()], 
+                                       [cget(calcData.diode_pulse_after).tolist()], [""], 
+                                       "Pulse out (photons/sec)", h=2, color=colors, marker=None, twinx=True),
                         generate_chart([cget(calcData.diode_t_list).tolist()], 
                                        [cget(calcData.diode_accum_pulse).tolist(), cget(calcData.diode_accum_pulse_after).tolist()], [""], 
                                        f"Accumulate Pulse AND after (photons) [difference: {(calcData.diode_accum_pulse_after[-1] - calcData.diode_accum_pulse[-1]):.2e}]", 

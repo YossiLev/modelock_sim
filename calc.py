@@ -346,8 +346,8 @@ class CalculatorData:
                             self.diode_pulse = np.copy(self.diode_pulse_after)
 
 
-                #self.diode_round_trip_old()
-                self.diode_round_trip_new()
+                self.diode_round_trip_old()
+                #self.diode_round_trip_new()
 
     def diode_round_trip_new(self):
         N = len(self.diode_t_list)
@@ -373,9 +373,12 @@ class CalculatorData:
     def diode_round_trip_old(self):
         N = 4096
 
+        self.diode_pulse_after = np.copy(self.diode_pulse)
+
         for i in range(self.calculation_rounds):
 
-            self.diode_pulse_after = np.copy(self.diode_pulse)
+            if self.diode_update_pulse == "Update Pulse":
+                self.diode_pulse = np.copy(self.diode_pulse_after)
 
             self.diode_accum_pulse = np.add.accumulate(self.diode_pulse) * self.dt * self.volume
             self.summary_photons_before = self.diode_accum_pulse[-1]

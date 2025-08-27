@@ -110,12 +110,18 @@ void diode_round_trip(double *gain, double *loss, double *gain_value, double *lo
             // ---------- gain calculation
             // gain[i] is the number of charge carrier in the gain medium at step i. the allows us to calculate the gain at the gain medium (gGain)
             double gGain = xh1 - xh2 * exp(-0.000000000041 * gain[i]);
+            if (gGain < 0) {
+                printf("Negative gain detected at index %d: %f %f\n", i, gGain, gain[i]);
+            }
             // gain_value[i] is the factor on the intensity of a beam segment passsing through the gain medium at step i.
             gain_value[i] = 1 + gGain;
             //gain_value[i] = 2;
             //pulse[i] = pulse[i] + gGain;// + rand_factor * gain[i] * (double)rand();
             // make the change to the charge carriers in the gain medium
             gain[iN] = gain[i] + dt * (-gGain * intensity_gain + Pa - gain[i] / (Ta * 1E-12));
+            if (gain[iN] < 0) {
+                printf("Negative gain carrier detected at index %d: %f %f %f\n", i, gain[iN], gain[i], intensity_gain);
+            }
             // update the pulse intensity of the two beams after the gain medium
             pulse_intensity[i_gain] *= gain_value[i];
             pulse_intensity[i_match_gain] *= gain_value[i];

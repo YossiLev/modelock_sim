@@ -146,6 +146,7 @@ class CalculatorData:
 
         self.harmony = 2
 
+        self.diode_N = 4096 * 4
         self.diode_intensity = "Pulse"
         self.calculation_rounds = 1
 
@@ -153,8 +154,8 @@ class CalculatorData:
         self.diode_alpha = 0.01
         self.diode_gamma0 = 5.0
         self.diode_saturation = 2000
-        self.loss_shift = 2048
-        self.gain_distance = 3
+        self.loss_shift = self.diode_N // 2
+        self.gain_distance = 150
         self.oc_shift = 1500
         self.oc_val = 0.02
 
@@ -300,9 +301,8 @@ class CalculatorData:
                     self.vf_out.append(res)
 
             case "diode":
-                N = 4096
 
-                self.diode_t_list = np.arange(N, dtype=np.float64)
+                self.diode_t_list = np.arange(self.diode_N, dtype=np.float64)
                 self.diode_gain_value = np.full_like(self.diode_t_list, 0.0)
                 self.diode_loss_value = np.full_like(self.diode_t_list, 0.0)
                 smooth = np.asarray([1, 6, 15, 20, 15, 6, 1], dtype=np.float32) / 64.0         
@@ -349,7 +349,6 @@ class CalculatorData:
                 self.diode_round_trip_new()
 
     def diode_round_trip_new(self):
-        N = len(self.diode_t_list)
         self.oc_val = np.exp(- self.cavity_loss)
         print(f"oc_val: {self.oc_val}")
         self.diode_pulse_after = np.copy(self.diode_pulse)
@@ -364,14 +363,13 @@ class CalculatorData:
 
         lib_diode.diode_round_trip(c_gain, c_loss, c_gain_value, c_loss_value,
                                     c_pulse, c_pulse_after,
-                                    self.calculation_rounds, N, self.loss_shift, self.oc_shift, self.gain_distance,
+                                    self.calculation_rounds, self.diode_N, self.loss_shift, self.oc_shift, self.gain_distance,
                                     self.dt, self.Pa, self.Ta, self.Ga, self.Pb, self.Tb, self.Gb, self.N0b, self.oc_val)
 
         self.diode_accum_pulse_after = np.add.accumulate(self.diode_pulse_after) * self.dt * self.volume
 
 
     def diode_round_trip_old(self):
-        N = 4096
 
         self.diode_pulse_after = np.copy(self.diode_pulse)
 
@@ -398,7 +396,7 @@ class CalculatorData:
 
             # Call the C function
             lib_diode.diode_gain(c_pulse, c_gain, c_gain_value, c_pulse_after, 
-                                N, self.dt, self.Pa, self.Ta, self.Ga, self.gain_factor)
+                                self.diode_N, self.dt, self.Pa, self.Ta, self.Ga, self.gain_factor)
 
             # for i in range(N):
             #     iN = i + 1 if i < N - 1 else 0
@@ -416,7 +414,7 @@ class CalculatorData:
             # absorber calculations
 
             lib_diode.diode_loss(c_loss, c_loss_value, c_pulse_after,
-                                N, self.dt, self.Pb, self.Tb, self.Gb, self.N0b)
+                                self.diode_N, self.dt, self.Pb, self.Tb, self.Gb, self.N0b)
             # for i in range(N):
             #     iN = i + 1 if i < N - 1 else 0
             #     gAbs = self.Gb * self.loss_factor * (self.diode_loss[i] - self.N0b)

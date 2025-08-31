@@ -20,6 +20,9 @@ import app
 import jsonpickle
 import dataset   
 
+import warnings
+warnings.filterwarnings("ignore", message=".*resp has no type annotation.*")
+
 current_tab = "Calculator"
 db_path = "sqlite:///data/mydatabase.db"
 

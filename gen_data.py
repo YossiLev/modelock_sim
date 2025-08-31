@@ -34,7 +34,6 @@ class Data_object():
                     self.mmData = MultiModeSimulation()
             case 'calcData':
                 if not hasattr(self, 'calcData') or self.calcData is None:
-                    print("Creating new CalculatorData instance")
                     self.calcData = CalculatorData()
 
 gen_data = {}

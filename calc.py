@@ -179,6 +179,7 @@ class CalculatorData:
 
         self.harmony = 2
 
+        self.diode_mode = "Amplitude"
         self.diode_pulse_dtype = np.float64 #, np.complex128
         self.diode_cavity_time = 4E-09
         self.diode_N = 4096 # * 4
@@ -351,14 +352,21 @@ class CalculatorData:
                 #print(f"Round {i + 1} of {self.calculation_rounds}")
                 match params:
                     case "calc":
+                        self.diode_pulse_dtype = np.complex128 if self.diode_mode == "Amplitude" else np.float64 
+                        self.diode_pulse = np.array([], dtype=self.diode_pulse_dtype)
+                        self.diode_pulse_original = np.array([], dtype=self.diode_pulse_dtype)
+                        self.diode_pulse_after = np.array([], dtype=self.diode_pulse_dtype)
+                    
                         pulseVal = np.array([60000 / self.diode_dt / self.volume], dtype=self.diode_pulse_dtype)
                         match self.diode_intensity:
                             case "Pulse":
                                 self.diode_pulse = pulseVal * np.exp(-np.square(self.diode_t_list - 1000.0) / (self.diode_pulse_width * self.diode_pulse_width))
                                 self.diode_accum_pulse = np.add.accumulate(intens(self.diode_pulse)) * self.diode_dt * self.volume
-                                pulse_photons = self.diode_accum_pulse[-1]
-                                self.diode_accum_pulse = np.multiply(self.diode_accum_pulse, self.initial_photons / pulse_photons)
-                                self.diode_pulse = np.multiply(self.diode_pulse, np.sqrt(self.initial_photons / pulse_photons))
+                                pulse_ratio = self.initial_photons / self.diode_accum_pulse[-1]
+                                self.diode_accum_pulse = np.multiply(self.diode_accum_pulse, pulse_ratio)
+                                if self.diode_pulse_dtype == np.complex128:
+                                    pulse_ratio = np.sqrt(pulse_ratio)
+                                self.diode_pulse = np.multiply(self.diode_pulse, pulse_ratio)
                             case "Noise":
                                 self.diode_pulse = np.random.random(self.diode_t_list.shape)
                                 self.diode_accum_pulse = np.add.accumulate(self.diode_pulse) * self.diode_dt * self.volume
@@ -367,12 +375,15 @@ class CalculatorData:
                                 self.diode_pulse = np.multiply(self.diode_pulse, self.initial_photons / pulse_photons)
                             case "CW":
                                 self.diode_pulse = np.full_like(self.diode_t_list, 1)
-                                self.diode_accum_pulse = np.add.accumulate(self.diode_pulse) * self.diode_dt * self.volume
-                                pulse_photons = self.diode_accum_pulse[-1]
-                                self.diode_accum_pulse = np.multiply(self.diode_accum_pulse, self.initial_photons / pulse_photons)
-                                self.diode_pulse = np.multiply(self.diode_pulse, self.initial_photons / pulse_photons)
+                                self.diode_accum_pulse = np.add.accumulate(intens(self.diode_pulse)) * self.diode_dt * self.volume
+                                pulse_ratio = self.initial_photons / self.diode_accum_pulse[-1]
+                                self.diode_accum_pulse = np.multiply(self.diode_accum_pulse, pulse_ratio)
+                                if self.diode_pulse_dtype == np.complex128:
+                                    pulse_ratio = np.sqrt(pulse_ratio)
+                                self.diode_pulse = np.multiply(self.diode_pulse, pulse_ratio)
                             case "Flat":
                                 self.diode_pulse = np.full_like(self.diode_t_list, 0)
+                                
                         self.diode_pulse_original = np.copy(self.diode_pulse)
                         self.diode_gain = np.full_like(self.diode_t_list, self.start_gain)
                         self.diode_loss = np.full_like(self.diode_t_list, self.start_absorber)
@@ -448,9 +459,6 @@ class CalculatorData:
             self.summary_photons_after_cavity_loss = np.sum(intens(self.diode_pulse_after)) * self.diode_dt * self.volume
 
             self.diode_accum_pulse_after = np.add.accumulate(intens(self.diode_pulse_after)) * self.diode_dt * self.volume
-
-            #pulse_photons_after = self.diode_accum_pulse_after[-1] 
-            #print(f"Pulse photons: {pulse_photons}, after: {pulse_photons_after}, {'{:.3e}'.format(pulse_photons_after - pulse_photons)} Gain factor: {self.gain_factor}")
 
     def exec_cavity_command(self, com):
         if len(com) == 0:
@@ -654,6 +662,7 @@ def generate_calc(data_obj, tab, offset = 0):
             added = Div(FlexN(
                 (Div(
                     Div(
+                        SelectCalcS(f'CalcDiodeSelectMode', "mode", ["Intensity", "Amplitude"], calcData.diode_mode, width = 150),
                         SelectCalcS(f'CalcDiodeSelectIntensity', "Intensity", ["Pulse", "Noise", "CW", "Flat"], calcData.diode_intensity, width = 150),
                         Button("Calculate", hx_post=f'/doCalc/5/diode/calc', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
                         Button("Recalculate", hx_post=f'/doCalc/5/diode/recalc', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 

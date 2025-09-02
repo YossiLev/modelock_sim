@@ -671,6 +671,7 @@ def doCalcUpdate(calcData, form_data):
         pushParam(calcData, "h", lambda: float(form_data.get("h")))
         pushParam(calcData, "diode_update_pulse", lambda: form_data.get("CalcDiodeUpdatePulse"))
         pushParam(calcData, "diode_intensity", lambda: form_data.get("CalcDiodeSelectIntensity"))
+        pushParam(calcData, "diode_mode", lambda: form_data.get("CalcDiodeSelectMode"))
         pushParam(calcData, "start_gain", lambda: float(form_data.get("start_gain")))
         pushParam(calcData, "start_absorber", lambda: float(form_data.get("start_absorber")))
 

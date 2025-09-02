@@ -12,6 +12,10 @@
 // for macos compilation:
 // gcc -shared -o ./cfuncs/libs/libdiode.dylib -fPIC ./cfuncs/diode_actions.c
 
+double abs_square(double _Complex z) {
+    return creal(z) * creal(z) + cimag(z) * cimag(z);
+}
+
 void diode_gain(double *pulse, double *gain, double *gain_value, double *pulse_after, 
     int N, double dt, double Pa, double Ta, double Ga, double gain_factor) {
    
@@ -32,6 +36,25 @@ void diode_gain(double *pulse, double *gain, double *gain_value, double *pulse_a
     }
 }
 
+void cmp_diode_gain(double _Complex *pulse, double *gain, double *gain_value, double _Complex *pulse_after, 
+    int N, double dt, double Pa, double Ta, double Ga, double gain_factor) {
+   
+    int i;
+
+    double xh1 = Ga * 4468377122.5 * gain_factor * 16.5;
+    double xh2 = Ga * 4468377122.5 * gain_factor * 0.32 * exp(0.000000000041*14E+10);
+
+    double rand_factor = 0.00000000005 * dt / (Ta * 1E-12)  / (double)RAND_MAX;
+    // gain medium calculations
+    for (i = 0; i < N; i++) {
+        int iN = (i + 1) % N; // wrap around for circular array behavior
+        double gGain = xh1 - xh2 * exp(-0.000000000041 * gain[i]);
+        gain_value[i] = 1 + 0.5 * gGain;// * cabs(pulse[i]);
+        gain[iN] = gain[i] + dt * (- gGain * abs_square(pulse[i]) + Pa - gain[i] / (Ta * 1E-12));
+        pulse_after[i] = pulse[i] * gain_value[i] + rand_factor * gain[i] * (double)rand();
+    }
+}
+
 void diode_loss(double *loss, double *loss_value, double *pulse_after,
                 int N, double dt, double Pb, double Tb, double Gb, double N0b) {
 
@@ -49,29 +72,6 @@ void diode_loss(double *loss, double *loss_value, double *pulse_after,
     }
 }
 
-double abs_square(double _Complex z) {
-    return creal(z) * creal(z) + cimag(z) * cimag(z);
-}
-
-void cmp_diode_gain(double _Complex *pulse, double *gain, double *gain_value, double _Complex *pulse_after, 
-    int N, double dt, double Pa, double Ta, double Ga, double gain_factor) {
-   
-    int i;
-
-    double xh1 = Ga * 4468377122.5 * gain_factor * 16.5;
-    double xh2 = Ga * 4468377122.5 * gain_factor * 0.32 * exp(0.000000000041*14E+10);
-
-    double rand_factor = 0.00000000005 * dt / (Ta * 1E-12)  / (double)RAND_MAX;
-    // gain medium calculations
-    for (i = 0; i < N; i++) {
-        int iN = (i + 1) % N; // wrap around for circular array behavior
-        double gGain = xh1 - xh2 * exp(-0.000000000041 * gain[i]);
-        gain_value[i] = 1 + 0.5 * gGain * cabs(pulse[i]);
-        gain[iN] = gain[i] + dt * (- gGain * abs_square(pulse[i]) + Pa - gain[i] / (Ta * 1E-12));
-        pulse_after[i] = pulse[i] * gain_value[i] + rand_factor * gain[i] * (double)rand();
-    }
-}
-
 void cmp_diode_loss(double *loss, double *loss_value, double _Complex *pulse_after,
                 int N, double dt, double Pb, double Tb, double Gb, double N0b) {
 
@@ -82,7 +82,7 @@ void cmp_diode_loss(double *loss, double *loss_value, double _Complex *pulse_aft
     for (i = 0; i < N; i++) {
         int iN = (i + 1) % N; // wrap around for circular array behavior
         gAbs = Gb * 0.02 * (loss[i] - N0b);
-        loss_value[i] = 1 + 0.5 * gAbs * cabs(pulse_after[i]);
+        loss_value[i] = 1 + 0.5 * gAbs;// * cabs(pulse_after[i]);
         loss[iN] = loss[i] + dt * (- gAbs * abs_square(pulse_after[i]) + Pb - loss[i] / (Tb * 1E-12));
         pulse_after[i] *= loss_value[i];
     }

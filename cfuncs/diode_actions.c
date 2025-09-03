@@ -49,7 +49,7 @@ void cmp_diode_gain(double _Complex *pulse, double *gain, double *gain_value, do
     for (i = 0; i < N; i++) {
         int iN = (i + 1) % N; // wrap around for circular array behavior
         double gGain = xh1 - xh2 * exp(-0.000000000041 * gain[i]);
-        gain_value[i] = 1 + 0.5 * gGain;// * cabs(pulse[i]);
+        gain_value[i] = 1 + 0.5 * gGain;
         gain[iN] = gain[i] + dt * (- gGain * abs_square(pulse[i]) + Pa - gain[i] / (Ta * 1E-12));
         pulse_after[i] = pulse[i] * gain_value[i] + rand_factor * gain[i] * (double)rand();
     }
@@ -82,7 +82,7 @@ void cmp_diode_loss(double *loss, double *loss_value, double _Complex *pulse_aft
     for (i = 0; i < N; i++) {
         int iN = (i + 1) % N; // wrap around for circular array behavior
         gAbs = Gb * 0.02 * (loss[i] - N0b);
-        loss_value[i] = 1 + 0.5 * gAbs;// * cabs(pulse_after[i]);
+        loss_value[i] = 1 + 0.5 * gAbs;
         loss[iN] = loss[i] + dt * (- gAbs * abs_square(pulse_after[i]) + Pb - loss[i] / (Tb * 1E-12));
         pulse_after[i] *= loss_value[i];
     }

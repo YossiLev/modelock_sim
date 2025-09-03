@@ -180,6 +180,7 @@ class CalculatorData:
         self.harmony = 2
 
         self.diode_mode = "Amplitude"
+        self.diode_sampling = "4096"
         self.diode_pulse_dtype = np.float64 #, np.complex128
         self.diode_cavity_time = 4E-09
         self.diode_N = 4096 # * 4
@@ -339,9 +340,6 @@ class CalculatorData:
 
             case "diode":
 
-                self.diode_t_list = np.arange(self.diode_N, dtype=np.float64)
-                self.diode_gain_value = np.full_like(self.diode_t_list, 0.0)
-                self.diode_loss_value = np.full_like(self.diode_t_list, 0.0)
                 smooth = np.asarray([1, 6, 15, 20, 15, 6, 1], dtype=np.float32) / 64.0         
 
                 # Conditions for self-sustained pulsation and bistability in semiconductor lasers - Masayasu Ueno and Roy Lang
@@ -352,6 +350,13 @@ class CalculatorData:
                 #print(f"Round {i + 1} of {self.calculation_rounds}")
                 match params:
                     case "calc":
+
+                        self.diode_N = int(self.diode_sampling)
+                        self.diode_dt = self.diode_cavity_time / self.diode_N
+
+                        self.diode_t_list = np.arange(self.diode_N, dtype=np.float64)
+                        self.diode_gain_value = np.full_like(self.diode_t_list, 0.0)
+                        self.diode_loss_value = np.full_like(self.diode_t_list, 0.0)
                         self.diode_pulse_dtype = np.complex128 if self.diode_mode == "Amplitude" else np.float64 
                         self.diode_pulse = np.array([], dtype=self.diode_pulse_dtype)
                         self.diode_pulse_original = np.array([], dtype=self.diode_pulse_dtype)
@@ -397,7 +402,6 @@ class CalculatorData:
 
     def diode_round_trip_new(self):
         self.oc_val = np.exp(- self.cavity_loss)
-        print(f"oc_val: {self.oc_val}")
         self.diode_pulse_after = np.copy(self.diode_pulse)
 
 
@@ -455,7 +459,8 @@ class CalculatorData:
             self.summary_photons_after_absorber = np.sum(intens(self.diode_pulse_after)) * self.diode_dt * self.volume
 
             #cavity loss
-            self.diode_pulse_after *= np.exp(- self.cavity_loss)
+            cavity_loss = self.cavity_loss if self.diode_pulse_dtype == np.float64 else self.cavity_loss / 2.0
+            self.diode_pulse_after *= np.exp(- cavity_loss)
             self.summary_photons_after_cavity_loss = np.sum(intens(self.diode_pulse_after)) * self.diode_dt * self.volume
 
             self.diode_accum_pulse_after = np.add.accumulate(intens(self.diode_pulse_after)) * self.diode_dt * self.volume
@@ -669,6 +674,7 @@ def generate_calc(data_obj, tab, offset = 0):
                         InputCalcS(f'DiodeRounds', "Rounds", f'{calcData.calculation_rounds}', width = 80),
                     ),
                     Div(
+                        SelectCalcS(f'DiodeSelectSampling', "Sampling", ["4096", "8192", "16384", "32768"], calcData.diode_sampling, width = 150),
                         InputCalcS(f'DiodePulseWidth', "Width", f'{calcData.diode_pulse_width}', width = 80),
                         InputCalcS(f'DiodeAlpha', "Alpha", f'{calcData.diode_alpha}', width = 80),
                         InputCalcS(f'DiodeGamma0', "Gamma", f'{calcData.diode_gamma0}', width = 80),
@@ -738,7 +744,7 @@ def generate_calc(data_obj, tab, offset = 0):
                                        [cget(np.exp(- calcData.cavity_loss) * np.multiply(calcData.diode_gain_value, calcData.diode_loss_value)).tolist(),
                                         cget(pulse).tolist()], [""],
                                        "Net gain", color=["blue", "red"], h=2, marker=None, twinx=True),
-                        # generate_chart(xVec, yVec, [""], "Gain By Pop", h=4, color=["green", "red", "black", "black"], marker="."),
+                        generate_chart(xVec, yVec, [""], "Gain By Pop", h=4, color=["green", "red", "black", "black"], marker="."),
 
                         cls="box", style="background-color: #008080;"
                   ),

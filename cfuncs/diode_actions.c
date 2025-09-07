@@ -51,6 +51,7 @@ void cmp_diode_gain(double _Complex *pulse, double *gain, double *gain_value, do
         double gGain = xh1 - xh2 * exp(-0.000000000041 * gain[i]);
         gain_value[i] = 1 + 0.5 * gGain;
         gain[iN] = gain[i] + dt * (- gGain * abs_square(pulse[i]) + Pa - gain[i] / (Ta * 1E-12));
+
         pulse_after[i] = pulse[i] * gain_value[i] + rand_factor * gain[i] * (double)rand();
     }
 }
@@ -68,6 +69,9 @@ void diode_loss(double *loss, double *loss_value, double *pulse_after,
         loss_value[i] = 1 + gAbs;
         gAbs *= pulse_after[i];
         loss[iN] = loss[i] + dt * (- gAbs + Pb - loss[i] / (Tb * 1E-12));
+        if (i == 1000) {
+            printf("int loss[i] = %f loss[iN] = %f pulse[i] = %f \n", loss[i], loss[iN], pulse_after[i]);
+        }
         pulse_after[i] += gAbs;// + 0.25 * dt * loss[i] / (Tb * 1E-12);
     }
 }
@@ -84,6 +88,9 @@ void cmp_diode_loss(double *loss, double *loss_value, double _Complex *pulse_aft
         gAbs = Gb * 0.02 * (loss[i] - N0b);
         loss_value[i] = 1 + 0.5 * gAbs;
         loss[iN] = loss[i] + dt * (- gAbs * abs_square(pulse_after[i]) + Pb - loss[i] / (Tb * 1E-12));
+        if (i == 1000) {
+            printf("cmp loss[i] = %f loss[iN] = %f pulse[i] = %f\n", loss[i], loss[iN], abs_square(pulse_after[i]));
+        }
         pulse_after[i] *= loss_value[i];
     }
 }

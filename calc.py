@@ -189,10 +189,8 @@ class CalculatorData:
         self.calculation_rounds = 1
 
         self.diode_pulse_width = 100.0
-        self.diode_alpha = 0.01
-        self.diode_gamma0 = 5.0
-        self.diode_saturation = 2000
-        self.loss_shift = self.diode_N // 2
+
+        self.loss_shift = self.diode_N // 2 # make sure absorber is in the middle of the cavity
         self.gain_distance = 150
         self.oc_shift = 1500
         self.oc_val = 0.02
@@ -365,7 +363,8 @@ class CalculatorData:
                         pulseVal = np.array([60000 / self.diode_dt / self.volume], dtype=self.diode_pulse_dtype)
                         match self.diode_intensity:
                             case "Pulse":
-                                self.diode_pulse = pulseVal * np.exp(-np.square(self.diode_t_list - 1000.0) / (self.diode_pulse_width * self.diode_pulse_width))
+                                w2 = (self.diode_pulse_width * 1.41421356237) if self.diode_pulse_dtype == np.complex128 else self.diode_pulse_width 
+                                self.diode_pulse = pulseVal * np.exp(-np.square(self.diode_t_list - 1000.0) / (2 * w2 * w2))
                                 self.diode_accum_pulse = np.add.accumulate(intens(self.diode_pulse)) * self.diode_dt * self.volume
                                 pulse_ratio = self.initial_photons / self.diode_accum_pulse[-1]
                                 self.diode_accum_pulse = np.multiply(self.diode_accum_pulse, pulse_ratio)
@@ -675,10 +674,7 @@ def generate_calc(data_obj, tab, offset = 0):
                     ),
                     Div(
                         SelectCalcS(f'DiodeSelectSampling', "Sampling", ["4096", "8192", "16384", "32768"], calcData.diode_sampling, width = 150),
-                        InputCalcS(f'DiodePulseWidth', "Width", f'{calcData.diode_pulse_width}', width = 80),
-                        InputCalcS(f'DiodeAlpha', "Alpha", f'{calcData.diode_alpha}', width = 80),
-                        InputCalcS(f'DiodeGamma0', "Gamma", f'{calcData.diode_gamma0}', width = 80),
-                        InputCalcS(f'DiodeSaturation', "U-Sat", f'{calcData.diode_saturation}', width = 80),
+                        InputCalcS(f'DiodePulseWidth', "Pulse width", f'{calcData.diode_pulse_width}', width = 80),
                     ),
                     Div(
                         InputCalcS(f'Ta', "Gain Half-life (ps)", f'{calcData.Ta}', width = 100),

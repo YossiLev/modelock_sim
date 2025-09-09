@@ -103,6 +103,30 @@ lib_diode.diode_round_trip.argtypes = [
 ]
 lib_diode.diode_round_trip.restype = None
 
+lib_diode.cmp_diode_round_trip.argtypes = [
+    ctypes.POINTER(ctypes.c_double), 
+    ctypes.POINTER(ctypes.c_double), 
+    ctypes.POINTER(ctypes.c_double),
+    ctypes.POINTER(ctypes.c_double),
+    ctypes.POINTER(ctypes.c_double),
+    ctypes.POINTER(ctypes.c_double),
+    ctypes.c_int,
+    ctypes.c_int,
+    ctypes.c_int,
+    ctypes.c_int,
+    ctypes.c_int,
+    ctypes.c_double,
+    ctypes.c_double,
+    ctypes.c_double,
+    ctypes.c_double,
+    ctypes.c_double,
+    ctypes.c_double,
+    ctypes.c_double,
+    ctypes.c_double,
+    ctypes.c_double
+]
+lib_diode.cmp_diode_round_trip.restype = None
+
 def MMult(M1, M2):
     res = [[
         M1[0][0] * M2[0][0] + M1[0][1] * M2[1][0],
@@ -179,6 +203,7 @@ class CalculatorData:
 
         self.harmony = 2
 
+        self.diode_cavity_type = "Ring"
         self.diode_mode = "Amplitude"
         self.diode_sampling = "4096"
         self.diode_pulse_dtype = np.float64 #, np.complex128
@@ -351,6 +376,10 @@ class CalculatorData:
 
                         self.diode_N = int(self.diode_sampling)
                         self.diode_dt = self.diode_cavity_time / self.diode_N
+                        self.loss_shift = self.diode_N // 2 # make sure absorber is in the middle of the cavity
+                        self.gain_distance = 150
+                        self.oc_shift = 1500
+
 
                         self.diode_t_list = np.arange(self.diode_N, dtype=np.float64)
                         self.diode_gain_value = np.full_like(self.diode_t_list, 0.0)
@@ -378,7 +407,7 @@ class CalculatorData:
                                 self.diode_accum_pulse = np.multiply(self.diode_accum_pulse, self.initial_photons / pulse_photons)
                                 self.diode_pulse = np.multiply(self.diode_pulse, self.initial_photons / pulse_photons)
                             case "CW":
-                                self.diode_pulse = np.full_like(self.diode_t_list, 1)
+                                self.diode_pulse = np.full(self.diode_N, 1.0, dtype=self.diode_pulse_dtype)
                                 self.diode_accum_pulse = np.add.accumulate(intens(self.diode_pulse)) * self.diode_dt * self.volume
                                 pulse_ratio = self.initial_photons / self.diode_accum_pulse[-1]
                                 self.diode_accum_pulse = np.multiply(self.diode_accum_pulse, pulse_ratio)
@@ -396,13 +425,14 @@ class CalculatorData:
                         if self.diode_update_pulse == "Update Pulse":
                             self.diode_pulse = np.copy(self.diode_pulse_after)
 
-                self.diode_round_trip_old()
-                #self.diode_round_trip_new()
+                if self.diode_cavity_type == "Ring":
+                    self.diode_round_trip_old()
+                else:
+                    self.diode_round_trip_new()
 
     def diode_round_trip_new(self):
         self.oc_val = np.exp(- self.cavity_loss)
         self.diode_pulse_after = np.copy(self.diode_pulse)
-
 
         c_pulse = self.diode_pulse.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
         c_gain = self.diode_gain.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
@@ -411,10 +441,12 @@ class CalculatorData:
         c_loss_value = self.diode_loss_value.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
         c_pulse_after = self.diode_pulse_after.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
 
-        lib_diode.diode_round_trip(c_gain, c_loss, c_gain_value, c_loss_value,
-                                    c_pulse, c_pulse_after,
-                                    self.calculation_rounds, self.diode_N, self.loss_shift, self.oc_shift, self.gain_distance,
-                                    self.diode_dt, self.Pa, self.Ta, self.Ga, self.Pb, self.Tb, self.Gb, self.N0b, self.oc_val)
+        round_trip_func = lib_diode.cmp_diode_round_trip if self.diode_pulse_dtype == np.complex128 else lib_diode.diode_round_trip
+
+        round_trip_func(c_gain, c_loss, c_gain_value, c_loss_value,
+                        c_pulse, c_pulse_after,
+                        self.calculation_rounds, self.diode_N, self.loss_shift, self.oc_shift, self.gain_distance,
+                        self.diode_dt, self.Pa, self.Ta, self.Ga, self.Pb, self.Tb, self.Gb, self.N0b, self.oc_val)
 
         self.diode_accum_pulse_after = np.add.accumulate(self.diode_pulse_after) * self.diode_dt * self.volume
 
@@ -666,8 +698,9 @@ def generate_calc(data_obj, tab, offset = 0):
             added = Div(FlexN(
                 (Div(
                     Div(
-                        SelectCalcS(f'CalcDiodeSelectMode', "mode", ["Intensity", "Amplitude"], calcData.diode_mode, width = 150),
-                        SelectCalcS(f'CalcDiodeSelectIntensity', "Intensity", ["Pulse", "Noise", "CW", "Flat"], calcData.diode_intensity, width = 150),
+                        SelectCalcS(f'CalcDiodeCavityType', "Cavity Type", ["Ring", "Linear"], calcData.diode_cavity_type, width = 100),
+                        SelectCalcS(f'CalcDiodeSelectMode', "mode", ["Intensity", "Amplitude"], calcData.diode_mode, width = 100),
+                        SelectCalcS(f'CalcDiodeSelectIntensity', "Intensity", ["Pulse", "Noise", "CW", "Flat"], calcData.diode_intensity, width = 80),
                         Button("Calculate", hx_post=f'/doCalc/5/diode/calc', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
                         Button("Recalculate", hx_post=f'/doCalc/5/diode/recalc', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
                         InputCalcS(f'DiodeRounds', "Rounds", f'{calcData.calculation_rounds}', width = 80),

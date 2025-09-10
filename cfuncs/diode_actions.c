@@ -159,13 +159,13 @@ void diode_round_trip(double *gain, double *loss, double *gain_value, double *lo
             pulse_intensity[i_gain] *= gain_value[i];
             pulse_intensity[i_match_gain] *= gain_value[i];
             // add random noise (at the point of the gain medium. this can be moved to other places)
-            pulse_intensity[i_gain] += rand_factor * gain[i] * (double)rand();
-            pulse_intensity[i_match_gain] += rand_factor * gain[i] * (double)rand();
+            //pulse_intensity[i_gain] += rand_factor * gain[i] * (double)rand();
+            //pulse_intensity[i_match_gain] += rand_factor * gain[i] * (double)rand();
 
             // ---------- output coupler calculation
             int oc_loc = (oc_shift + i) % N;
             pulse_intensity[oc_loc] *= oc_val;
-            pulse_intensity[i] += rand_factor * gain[i] * (double)rand();
+            //pulse_intensity[i] += rand_factor * gain[i] * (double)rand();
 
             // store the intensity of the output beam at it goes outside the cavity
             pulse_intensity_after[oc_loc] = pulse_intensity[oc_loc];
@@ -185,6 +185,7 @@ void cmp_diode_round_trip(double *gain, double *loss, double *gain_value, double
     double xh1 = Ga * 4468377122.5 * 0.46 * 16.5;
     double xh2 = Ga * 4468377122.5 * 0.46 * 0.32 * exp(0.000000000041*14E+10);
     double rand_factor = 0.000000000005 * dt / (Ta * 1E-12)  / (double)RAND_MAX;
+    double oc_val_sqrt = sqrt(oc_val);
 
     for (int i_round = 0; i_round < n_rounds; i_round++) {
         for (int ii = 300; ii < N + 300; ii++) {
@@ -200,7 +201,6 @@ void cmp_diode_round_trip(double *gain, double *loss, double *gain_value, double
             gAbs = Gb * 0.02 * (loss[i] - N0b);
             // loss_value[i] is the factor on the intensity of a beam segment passsing through the absorber at step i.
             loss_value[i] = 1 + gAbs;
-            //loss_value[i] = 0.5;
             // make the change to the charge carriers in the absorber
             loss[iN] = loss[i] + dt * (- gAbs * intensity_loss + Pb - loss[i] / (Tb * 1E-12));
             // update the pulse intensity of the two beams after the absorber
@@ -211,7 +211,7 @@ void cmp_diode_round_trip(double *gain, double *loss, double *gain_value, double
             int i_gain = (i + gain_distance) % N;
             int i_match_gain = (i + loss_shift - gain_distance) % N;
             // total intensity in the gain medium
-            double intensity_gain = pulse_amplitude[i_gain] + pulse_amplitude[i_match_gain];
+            double intensity_gain = abs_square(pulse_amplitude[i_gain]) + abs_square(pulse_amplitude[i_match_gain]);
 
             // ---------- gain calculation
             // gain[i] is the number of charge carrier in the gain medium at step i. the allows us to calculate the gain at the gain medium (gGain)
@@ -230,13 +230,12 @@ void cmp_diode_round_trip(double *gain, double *loss, double *gain_value, double
             pulse_amplitude[i_gain] *= sqrt(gain_value[i]);
             pulse_amplitude[i_match_gain] *= sqrt(gain_value[i]);
             // add random noise (at the point of the gain medium. this can be moved to other places)
-            pulse_amplitude[i_gain] += rand_factor * gain[i] * (double)rand();
-            pulse_amplitude[i_match_gain] += rand_factor * gain[i] * (double)rand();
+            //pulse_amplitude[i_gain] += rand_factor * gain[i] * (double)rand();
+            //pulse_amplitude[i_match_gain] += rand_factor * gain[i] * (double)rand();
 
             // ---------- output coupler calculation
             int oc_loc = (oc_shift + i) % N;
-            pulse_amplitude[oc_loc] *= oc_val;
-            pulse_amplitude[i] += rand_factor * gain[i] * (double)rand();
+            pulse_amplitude[oc_loc] *= oc_val_sqrt;
 
             // store the amplitude of the output beam at it goes outside the cavity
             pulse_amplitude_after[oc_loc] = pulse_amplitude[oc_loc];

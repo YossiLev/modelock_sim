@@ -448,7 +448,7 @@ class CalculatorData:
                         self.calculation_rounds, self.diode_N, self.loss_shift, self.oc_shift, self.gain_distance,
                         self.diode_dt, self.Pa, self.Ta, self.Ga, self.Pb, self.Tb, self.Gb, self.N0b, self.oc_val)
 
-        self.diode_accum_pulse_after = np.add.accumulate(self.diode_pulse_after) * self.diode_dt * self.volume
+        self.diode_accum_pulse_after = np.add.accumulate(intens(self.diode_pulse_after)) * self.diode_dt * self.volume
 
     def diode_round_trip_old(self):
 
@@ -748,7 +748,7 @@ def generate_calc(data_obj, tab, offset = 0):
                 Div(
                     Div(
                         generate_chart([cget(calcData.diode_t_list).tolist()], 
-                                       [cget(pulse_original).tolist(), cget(np.log(pulse_after)).tolist()], [""], 
+                                       [cget(pulse_original).tolist(), cget(np.log(pulse_after+ 0.000000001)).tolist()], [""], 
                                        "Original Pulse and Pulse after (photons/sec)", h=2, color=colors, marker=None, twinx=True),
 
                         generate_chart([cget(calcData.diode_t_list).tolist()], 

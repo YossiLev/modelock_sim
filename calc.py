@@ -212,6 +212,7 @@ class CalculatorData:
         self.diode_dt = self.diode_cavity_time / self.diode_N
         self.diode_intensity = "Pulse"
         self.calculation_rounds = 1
+        self.calculation_rounds_done = 0
 
         self.diode_pulse_width = 100.0
 
@@ -379,7 +380,18 @@ class CalculatorData:
                         self.loss_shift = self.diode_N // 2 # make sure absorber is in the middle of the cavity
                         self.gain_distance = 150
                         self.oc_shift = 1500
-
+                        gg = 20
+                        ll = 0.4
+                        oo = np.exp(- self.cavity_loss)
+                        self.diode_levels_x = [0, self.gain_distance  - 1, 
+                                               self.gain_distance, self.oc_shift - 1, 
+                                               self.oc_shift, self.loss_shift - self.gain_distance - 1, 
+                                               self.loss_shift - self.gain_distance, self.loss_shift - 1, 
+                                               self.loss_shift, self.diode_N]
+                        #self.diode_levels_x.reverse()
+                        self.diode_levels_y = [1, 1, 1 / gg, 1 / gg, 
+                                               1 / gg / oo, 1 / gg / oo, 1 / gg / oo / gg, 1 / gg / oo / gg, 
+                                               1 / gg / oo / gg / ll, 1 / gg / oo / gg / ll]
 
                         self.diode_t_list = np.arange(self.diode_N, dtype=np.float64)
                         self.diode_gain_value = np.full_like(self.diode_t_list, 0.0)
@@ -401,11 +413,13 @@ class CalculatorData:
                                     pulse_ratio = np.sqrt(pulse_ratio)
                                 self.diode_pulse = np.multiply(self.diode_pulse, pulse_ratio)
                             case "Noise":
-                                self.diode_pulse = np.random.random(self.diode_t_list.shape)
-                                self.diode_accum_pulse = np.add.accumulate(self.diode_pulse) * self.diode_dt * self.volume
-                                pulse_photons = self.diode_accum_pulse[-1]
-                                self.diode_accum_pulse = np.multiply(self.diode_accum_pulse, self.initial_photons / pulse_photons)
-                                self.diode_pulse = np.multiply(self.diode_pulse, self.initial_photons / pulse_photons)
+                                self.diode_pulse = np.random.random(self.diode_t_list.shape).astype(self.diode_pulse_dtype)
+                                self.diode_accum_pulse = np.add.accumulate(intens(self.diode_pulse)) * self.diode_dt * self.volume
+                                pulse_ratio = self.initial_photons / self.diode_accum_pulse[-1]
+                                self.diode_accum_pulse = np.multiply(self.diode_accum_pulse, pulse_ratio)
+                                if self.diode_pulse_dtype == np.complex128:
+                                    pulse_ratio = np.sqrt(pulse_ratio)
+                                self.diode_pulse = np.multiply(self.diode_pulse, pulse_ratio)
                             case "CW":
                                 self.diode_pulse = np.full(self.diode_N, 1.0, dtype=self.diode_pulse_dtype)
                                 self.diode_accum_pulse = np.add.accumulate(intens(self.diode_pulse)) * self.diode_dt * self.volume
@@ -420,15 +434,17 @@ class CalculatorData:
                         self.diode_pulse_original = np.copy(self.diode_pulse)
                         self.diode_gain = np.full_like(self.diode_t_list, self.start_gain)
                         self.diode_loss = np.full_like(self.diode_t_list, self.start_absorber)
-
+                        self.calculation_rounds_done = 0
                     case "recalc":
-                        if self.diode_update_pulse == "Update Pulse":
+                        if self.diode_cavity_type == "Ring" and self.diode_update_pulse == "Update Pulse":
                             self.diode_pulse = np.copy(self.diode_pulse_after)
 
                 if self.diode_cavity_type == "Ring":
                     self.diode_round_trip_old()
                 else:
                     self.diode_round_trip_new()
+
+                self.calculation_rounds_done += self.calculation_rounds
 
     def diode_round_trip_new(self):
         self.oc_val = np.exp(- self.cavity_loss)
@@ -736,7 +752,7 @@ def generate_calc(data_obj, tab, offset = 0):
 
                 Div(
                     Table(
-                        Tr(Td(""), Td("Value"), Td("Change")), 
+                        Tr(Td(f"{calcData.calculation_rounds_done}"), Td("Value"), Td("Change")), 
                         Tr(Td("Before gain"), Td(f"{calcData.summary_photons_before:.3e}"), Td("")), 
                         Tr(Td("After gain"), Td(f"{calcData.summary_photons_after_gain:.3e}"), Td(f"{(calcData.summary_photons_after_gain - calcData.summary_photons_before):.3e}")), 
                         Tr(Td("After absorber"), Td(f"{calcData.summary_photons_after_absorber:.3e}"), Td(f"{(calcData.summary_photons_after_absorber - calcData.summary_photons_before):.3e}")),
@@ -751,9 +767,9 @@ def generate_calc(data_obj, tab, offset = 0):
                                        [cget(pulse_original).tolist(), cget(np.log(pulse_after+ 0.000000001)).tolist()], [""], 
                                        "Original Pulse and Pulse after (photons/sec)", h=2, color=colors, marker=None, twinx=True),
 
-                        generate_chart([cget(calcData.diode_t_list).tolist()], 
-                                       [cget(pulse).tolist()], [""], 
-                                       "Pulse in (photons/sec)", h=2, color=colors, marker=None, twinx=True),
+                        generate_chart([cget(calcData.diode_t_list).tolist(), calcData.diode_levels_x], 
+                                       [cget(pulse).tolist(), calcData.diode_levels_y], [""], 
+                                       "Pulse in (photons/sec)", h=2, color=["red", "black"], marker=None, twinx=True),
                         generate_chart([cget(calcData.diode_t_list).tolist()], 
                                        [cget(pulse_after).tolist()], [""], 
                                        "Pulse out (photons/sec)", h=2, color=colors, marker=None, twinx=True),

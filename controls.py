@@ -41,7 +41,7 @@ def generate_chart(x, y, l, t, w=11, h=2, color="blue", marker=None, twinx=False
         fig, ax1 = plt.subplots(figsize=(w, h))
         ax1.plot(x[0], y[0], label=l[0], marker=marker, color=color[0] if isinstance(color, list) else color)
         ax2 = ax1.twinx()
-        ax2.plot(x[0], y[1], label=l[0], marker= marker, color=color[1] if isinstance(color, list) else color)
+        ax2.plot(x[1 if len(x) == 2 else 0], y[1], label=l[0], marker= marker, color=color[1] if isinstance(color, list) else color)
     else:
         for i in range(len(y)):
             if len(x) == len(y):

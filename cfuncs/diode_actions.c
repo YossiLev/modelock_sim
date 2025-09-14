@@ -109,7 +109,7 @@ void diode_round_trip(double *gain, double *loss, double *gain_value, double *lo
                    double *pulse_intensity, double *pulse_intensity_after,
                    int n_rounds, int N, int loss_shift, int oc_shift, int gain_distance,
                    double dt, double Pa, double Ta, double Ga, double Pb, double Tb, double Gb, double N0b, double oc_val) {
-    int i;
+    int i, m_shift = 0;
     double gAbs;
 
     double xh1 = Ga * 4468377122.5 * 0.46 * 16.5;
@@ -117,7 +117,7 @@ void diode_round_trip(double *gain, double *loss, double *gain_value, double *lo
     double rand_factor = 0.000000000005 * dt / (Ta * 1E-12)  / (double)RAND_MAX;
 
     for (int i_round = 0; i_round < n_rounds; i_round++) {
-        for (int ii = 300; ii < N + 300; ii++) {
+        for (int ii = m_shift; ii < N + m_shift; ii++) {
             int i = ii % N;
             int iN = (i + 1) % N;
             // twin segment that meets us on the absorber
@@ -159,8 +159,8 @@ void diode_round_trip(double *gain, double *loss, double *gain_value, double *lo
             pulse_intensity[i_gain] *= gain_value[i];
             pulse_intensity[i_match_gain] *= gain_value[i];
             // add random noise (at the point of the gain medium. this can be moved to other places)
-            //pulse_intensity[i_gain] += rand_factor * gain[i] * (double)rand();
-            //pulse_intensity[i_match_gain] += rand_factor * gain[i] * (double)rand();
+            pulse_intensity[i_gain] += rand_factor * gain[i] * (double)rand();
+            pulse_intensity[i_match_gain] += rand_factor * gain[i] * (double)rand();
 
             // ---------- output coupler calculation
             int oc_loc = (oc_shift + i) % N;
@@ -179,7 +179,7 @@ void cmp_diode_round_trip(double *gain, double *loss, double *gain_value, double
                    double _Complex *pulse_amplitude, double _Complex *pulse_amplitude_after,
                    int n_rounds, int N, int loss_shift, int oc_shift, int gain_distance,
                    double dt, double Pa, double Ta, double Ga, double Pb, double Tb, double Gb, double N0b, double oc_val) {
-    int i;
+    int i, m_shift = 0;
     double gAbs;
 
     double xh1 = Ga * 4468377122.5 * 0.46 * 16.5;
@@ -188,7 +188,7 @@ void cmp_diode_round_trip(double *gain, double *loss, double *gain_value, double
     double oc_val_sqrt = sqrt(oc_val);
 
     for (int i_round = 0; i_round < n_rounds; i_round++) {
-        for (int ii = 300; ii < N + 300; ii++) {
+        for (int ii = m_shift; ii < N + m_shift; ii++) {
             int i = ii % N;
             int iN = (i + 1) % N;
             // twin segment that meets us on the absorber
@@ -230,8 +230,8 @@ void cmp_diode_round_trip(double *gain, double *loss, double *gain_value, double
             pulse_amplitude[i_gain] *= sqrt(gain_value[i]);
             pulse_amplitude[i_match_gain] *= sqrt(gain_value[i]);
             // add random noise (at the point of the gain medium. this can be moved to other places)
-            //pulse_amplitude[i_gain] += rand_factor * gain[i] * (double)rand();
-            //pulse_amplitude[i_match_gain] += rand_factor * gain[i] * (double)rand();
+            pulse_amplitude[i_gain] += sqrt(rand_factor * gain[i]) * (double)rand();
+            pulse_amplitude[i_match_gain] += sqrt(rand_factor * gain[i]) * (double)rand();
 
             // ---------- output coupler calculation
             int oc_loc = (oc_shift + i) % N;

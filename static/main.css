@@ -302,6 +302,15 @@ h1 {
   position: relative;
 }
 
+.QvecControl {
+  display: inline-block;
+  padding: 10px;
+  border-radius: 5px;
+  background-color: #f8f350;
+  margin: 3px;
+  position: relative;
+}
+
 .floatRight {
   position: absolute;
   float: right;

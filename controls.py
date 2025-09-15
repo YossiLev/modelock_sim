@@ -102,6 +102,19 @@ def ABCDMatControl(name, M):
         cls="ABCDMatControl"
     )
 
+
+def QvecControl(name, Q):
+    return Div(
+        Div(
+            Span(name), 
+        ),
+        Div(
+            InputCalcM(f'{name}_QR', "R", f'{Q[0]}', width = 180),
+            InputCalcM(f'{name}_QI', "I", f'{Q[1]}', width = 180),
+        ),
+        cls="QvecControl"
+    )
+
 random_seed = 12345
 def random_lcg():
     global random_seed

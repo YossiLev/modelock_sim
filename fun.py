@@ -483,6 +483,7 @@ def generate_multimode(data_obj, tab):
                         *[Div(Button(x["name"], hx_post=f"/setcavity/1/{x['name']}", hx_target="#genMultiMode", hx_vals='js:{localId: getLocalId()}')) for x in cavities],),
                     Div(
                         ABCDMatControl("Total", data_obj.MatMulti),
+                        QvecControl("QTotal", data_obj.QvecMulti)
                     )                   
                 ]),
                 funCanvas(1),

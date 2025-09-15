@@ -10,6 +10,7 @@ class Data_object():
         self.run_state = False
         self.current_cavity_name = ""
         self.MatMulti = [[1,0],[0,1]]
+        self.QvecMulti = [5e-5, 0]
         self.user_type = 0
         self.pass_hash = b'J\xdcv_\xf0Ge\x83\x1f\xc2\x9e\xa5\xd6\xbd\xd7\xa1'
 

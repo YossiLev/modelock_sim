@@ -44,7 +44,6 @@ function mergeToNamedObject(objs) {
   saveToLocalStorage("namedObjects", namedObjects);
 }
 
-
 function getNamedObjectByIndex(index) {
   let namedObjects = loadSafeNamedObjects();
 

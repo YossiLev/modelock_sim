@@ -201,6 +201,39 @@ function AbcdMatEigenValuesCalc(name) {
     toggleVisibility(eigenText);
 }
 
+function MatOnQvec(M, Q) {
+    let [A, B, C, D] = [M[0][0], M[0][1], M[1][0], M[1][1]];
+    let [x, y] = Q;
+    let denom = C * x + D;
+    if (Math.abs(denom) < 1e-20) {
+        return [1e20, 0];
+    }
+    let x2 = (A * x + B) / denom;
+    let y2 = y / (denom * denom);
+    return [x2, y2];
+}
+
+function MatOnQvecInve(M, QInv) {
+    let [A, B, C, D] = [M[0][0], M[0][1], M[1][0], M[1][1]];
+    let [x, y] = QInv;
+    let denom = B * x + A;
+    if (Math.abs(denom) < 1e-20) {
+        return [1e20, 0];
+    }
+    let x2 = (D * x + C) / denom;
+    let y2 = y / (denom * denom);
+    return [x2, y2];
+}
+
+function OneOverQ(Q) {
+    let [x, y] = Q;
+    let denom = x * x + y * y;
+    if (Math.abs(denom) < 1e-20) {
+        return [1e20, 0];
+    }
+    return [x / denom, -y / denom];
+}
+
 function changeVal(val, incVal) {
     let obj = extractLength(val);
     obj.val += incVal;

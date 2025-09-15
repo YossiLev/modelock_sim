@@ -1220,6 +1220,7 @@ function getMatDistanceForever(dist) {
                 pos = elements[iEl].par[0];
                 if (dist < pos - prevLensPos) {
                     M = MMult(MDist(dist), M);
+                    AbcdMatStore(M[0][0], M[0][1], M[1][0], M[1][1]);
                     return M;
                 }
                 M = MMult(MDist(pos - prevLensPos), M);
@@ -1533,6 +1534,7 @@ function fullCavityGaussian(startDist = 0.0) {
         vecWaist.push(waist);
     }
 
+    AbcdMatPaste("Total");
     drawMultiMode();
 }
 

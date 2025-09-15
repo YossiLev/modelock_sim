@@ -538,50 +538,50 @@ def generate_calc(data_obj, tab, offset = 0):
                     style=f"width:{width}px; margin:2px;"),
                 style="display: inline-block; position: relative;"
         )
-    def InputCalcM(id, title, value, step=0.01, width = 150):
-        return Div(
-                Div(title, cls="floatRight", style="font-size: 10px; top:-3px; right:10px;background: #e7edb8;"),
-                Input(type="number", id=id, title=title,
-                    value=value, step=f"{step}", 
-#                    hx_trigger="input changed delay:1s", hx_post=f"/clUpdate/{tab}", hx_target="#gen_calc", 
-#                    hx_vals='js:{localId: getLocalId()}',
-                    style=f"width:{width}px; margin:2px;",
-                    **{'onkeyup':f"validateMat(event);",
-                       'onpaste':f"validateMat(event);",}),
-                style="display: inline-block; position: relative;"
-        )
+#     def InputCalcM(id, title, value, step=0.01, width = 150):
+#         return Div(
+#                 Div(title, cls="floatRight", style="font-size: 10px; top:-3px; right:10px;background: #e7edb8;"),
+#                 Input(type="number", id=id, title=title,
+#                     value=value, step=f"{step}", 
+# #                    hx_trigger="input changed delay:1s", hx_post=f"/clUpdate/{tab}", hx_target="#gen_calc", 
+# #                    hx_vals='js:{localId: getLocalId()}',
+#                     style=f"width:{width}px; margin:2px;",
+#                     **{'onkeyup':f"validateMat(event);",
+#                        'onpaste':f"validateMat(event);",}),
+#                 style="display: inline-block; position: relative;"
+#         )
 
     def SelectCalcS(id, title, options, selected, width = 150):
         return Select(*[Option(o) if o != selected else Option(o, selected="1") for o in options], id=id,
                     hx_trigger="input changed", hx_post=f"/clUpdate/{tab}", hx_target="#gen_calc", hx_include="#calcForm *", 
                     hx_vals='js:{localId: getLocalId()}', style=f"width:{width}px;")
 
-    def ABCDMatControl(name, M):
-        det = M[0][0] * M[1][1] - M[0][1] * M[1][0]
-        msg = f'&#9888; det={det}'
-        return Div(
-            Div(
-                Div(
-                    Img(src="/static/eigen.png", title="Copy", width=20, height=20, onclick=f"AbcdMatEigenValuesCalc('{name}');"),
-                    Img(src="/static/copy.png", title="Copy", width=20, height=20, onclick=f"AbcdMatCopy('{name}');"),
-                    Img(src="/static/paste.png", title="Paste", width=20, height=20, onclick=f"AbcdMatPaste('{name}');"),
-                    cls="floatRight"
-                ),
-                Span(name), 
-                Span(NotStr(msg), id=f"{name}_msg", 
-                     style=f"visibility: {'hidden' if abs(det - 1.0) < 0.000001 else 'visible'}; color: yellow; background-color: red; padding: 1px; border-radius: 4px; margin-left: 30px; ") if len(msg) > 0 else "",
-            ),
-            Div(
-                InputCalcM(f'{name}_A', "A", f'{M[0][0]}', width = 180),
-                InputCalcM(f'{name}_B', "B", f'{M[0][1]}', width = 180),
-            ),
-            Div(
-                InputCalcM(f'{name}_C', "C", f'{M[1][0]}', width = 180),
-                InputCalcM(f'{name}_D', "D", f'{M[1][1]}', width = 180),
-            ),
-            Div("", id=f"{name}_eigen", style="visibility: hidden;"),
-            cls="ABCDMatControl"
-        )
+    # def ABCDMatControl(name, M):
+    #     det = M[0][0] * M[1][1] - M[0][1] * M[1][0]
+    #     msg = f'&#9888; det={det}'
+    #     return Div(
+    #         Div(
+    #             Div(
+    #                 Img(src="/static/eigen.png", title="Copy", width=20, height=20, onclick=f"AbcdMatEigenValuesCalc('{name}');"),
+    #                 Img(src="/static/copy.png", title="Copy", width=20, height=20, onclick=f"AbcdMatCopy('{name}');"),
+    #                 Img(src="/static/paste.png", title="Paste", width=20, height=20, onclick=f"AbcdMatPaste('{name}');"),
+    #                 cls="floatRight"
+    #             ),
+    #             Span(name), 
+    #             Span(NotStr(msg), id=f"{name}_msg", 
+    #                  style=f"visibility: {'hidden' if abs(det - 1.0) < 0.000001 else 'visible'}; color: yellow; background-color: red; padding: 1px; border-radius: 4px; margin-left: 30px; ") if len(msg) > 0 else "",
+    #         ),
+    #         Div(
+    #             InputCalcM(f'{name}_A', "A", f'{M[0][0]}', width = 180),
+    #             InputCalcM(f'{name}_B', "B", f'{M[0][1]}', width = 180),
+    #         ),
+    #         Div(
+    #             InputCalcM(f'{name}_C', "C", f'{M[1][0]}', width = 180),
+    #             InputCalcM(f'{name}_D', "D", f'{M[1][1]}', width = 180),
+    #         ),
+    #         Div("", id=f"{name}_eigen", style="visibility: hidden;"),
+    #         cls="ABCDMatControl"
+    #     )
 
     if data_obj is None:
         return Div()
@@ -741,7 +741,7 @@ def generate_calc(data_obj, tab, offset = 0):
                         InputCalcS(f'start_absorber', "Abs start val", f'{calcData.start_absorber}', width = 100),
                     ),
                     Div(
-                        InputCalcS(f'dt', "dt (sec)", f'{calcData.diode_dt}', width = 60),
+                        InputCalcS(f'dt', "dt (ps)", f'{calcData.diode_dt * 1E+12}', width = 60),
                         InputCalcS(f'volume', "Volume cm^3", f'{calcData.volume}', width = 120),
                         InputCalcS(f'initial_photons', "Initial Photns", f'{calcData.initial_photons}', width = 120),
                         InputCalcS(f'cavity_loss', "OC (Cavity loss)", f'{calcData.cavity_loss}', width = 100),

@@ -458,7 +458,7 @@ def generate_multimode(data_obj, tab):
     images = []
     added = Div()
     match tab:
-        case 1:
+        case 1: # MultiMode
             added = Div(
                 Header("See light lateral shape as a 1D front progressing in the cavity", help="This is a help text"),
                 Div(
@@ -480,7 +480,10 @@ def generate_multimode(data_obj, tab):
                     Textarea(collect_cavity(data_obj.current_cavity_name), id="pickEl_text", spellcheck="false", style="width:200px; height: 300px; border: none; font-size: 13px; font-family: Arial;"),
                     Div(
                         Div(Input(type="number", id=f'pickEl_edit_inc', step="0.001", style="width:100px; height: 20px;", value=f'0.001')),
-                        *[Div(Button(x["name"], hx_post=f"/setcavity/1/{x['name']}", hx_target="#genMultiMode", hx_vals='js:{localId: getLocalId()}')) for x in cavities],)
+                        *[Div(Button(x["name"], hx_post=f"/setcavity/1/{x['name']}", hx_target="#genMultiMode", hx_vals='js:{localId: getLocalId()}')) for x in cavities],),
+                    Div(
+                        ABCDMatControl("Total", data_obj.MatMulti),
+                    )                   
                 ]),
                 funCanvas(1),
                 graphCanvas()

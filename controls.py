@@ -62,6 +62,45 @@ def generate_chart(x, y, l, t, w=11, h=2, color="blue", marker=None, twinx=False
 
     return Img(src=f'data:image/jpg;base64,{str(my_base64_jpgData, "utf-8")}')
 
+def InputCalcM(id, title, value, step=0.01, width = 150):
+    return Div(
+            Div(title, cls="floatRight", style="font-size: 10px; top:-3px; right:10px;background: #e7edb8;"),
+            Input(type="number", id=id, title=title,
+                value=value, step=f"{step}", 
+#                    hx_trigger="input changed delay:1s", hx_post=f"/clUpdate/{tab}", hx_target="#gen_calc", 
+#                    hx_vals='js:{localId: getLocalId()}',
+                style=f"width:{width}px; margin:2px;",
+                **{'onkeyup':f"validateMat(event);",
+                    'onpaste':f"validateMat(event);",}),
+            style="display: inline-block; position: relative;"
+    )
+
+def ABCDMatControl(name, M):
+    det = M[0][0] * M[1][1] - M[0][1] * M[1][0]
+    msg = f'&#9888; det={det}'
+    return Div(
+        Div(
+            Div(
+                Img(src="/static/eigen.png", title="Copy", width=20, height=20, onclick=f"AbcdMatEigenValuesCalc('{name}');"),
+                Img(src="/static/copy.png", title="Copy", width=20, height=20, onclick=f"AbcdMatCopy('{name}');"),
+                Img(src="/static/paste.png", title="Paste", width=20, height=20, onclick=f"AbcdMatPaste('{name}');"),
+                cls="floatRight"
+            ),
+            Span(name), 
+            Span(NotStr(msg), id=f"{name}_msg", 
+                    style=f"visibility: {'hidden' if abs(det - 1.0) < 0.000001 else 'visible'}; color: yellow; background-color: red; padding: 1px; border-radius: 4px; margin-left: 30px; ") if len(msg) > 0 else "",
+        ),
+        Div(
+            InputCalcM(f'{name}_A', "A", f'{M[0][0]}', width = 180),
+            InputCalcM(f'{name}_B', "B", f'{M[0][1]}', width = 180),
+        ),
+        Div(
+            InputCalcM(f'{name}_C', "C", f'{M[1][0]}', width = 180),
+            InputCalcM(f'{name}_D', "D", f'{M[1][1]}', width = 180),
+        ),
+        Div("", id=f"{name}_eigen", style="visibility: hidden;"),
+        cls="ABCDMatControl"
+    )
 
 random_seed = 12345
 def random_lcg():

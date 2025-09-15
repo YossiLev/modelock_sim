@@ -115,6 +115,7 @@ void diode_round_trip(double *gain, double *loss, double *gain_value, double *lo
     double xh1 = Ga * 4468377122.5 * 0.46 * 16.5;
     double xh2 = Ga * 4468377122.5 * 0.46 * 0.32 * exp(0.000000000041*14E+10);
     double rand_factor = 0.000000000005 * dt / (Ta * 1E-12)  / (double)RAND_MAX;
+    double oc_out_val = 1.0 - oc_val;
 
     for (int i_round = 0; i_round < n_rounds; i_round++) {
         for (int ii = m_shift; ii < N + m_shift; ii++) {
@@ -164,11 +165,12 @@ void diode_round_trip(double *gain, double *loss, double *gain_value, double *lo
 
             // ---------- output coupler calculation
             int oc_loc = (oc_shift + i) % N;
+            // store the intensity of the output beam at it goes outside the cavity
+            pulse_intensity_after[oc_loc] = pulse_intensity[oc_loc] * oc_out_val;
+
             pulse_intensity[oc_loc] *= oc_val;
             //pulse_intensity[i] += rand_factor * gain[i] * (double)rand();
 
-            // store the intensity of the output beam at it goes outside the cavity
-            pulse_intensity_after[oc_loc] = pulse_intensity[oc_loc];
         }
 
     }
@@ -186,6 +188,7 @@ void cmp_diode_round_trip(double *gain, double *loss, double *gain_value, double
     double xh2 = Ga * 4468377122.5 * 0.46 * 0.32 * exp(0.000000000041*14E+10);
     double rand_factor = 0.000000000005 * dt / (Ta * 1E-12)  / (double)RAND_MAX;
     double oc_val_sqrt = sqrt(oc_val);
+    double oc_out_val = 1.0 - oc_val;
 
     for (int i_round = 0; i_round < n_rounds; i_round++) {
         for (int ii = m_shift; ii < N + m_shift; ii++) {

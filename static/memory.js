@@ -62,13 +62,17 @@ function deleteNamedObjectByIndex(index) {
   saveToLocalStorage("namedObjects", namedObjects);
 }
   
+function AbcdMatStore(a, b, c, d) {
+    saveToLocalStorage("AbcdMat", {A:a, B:b, C:c, D:d});
+}
+
 function AbcdMatCopy(name) {
     let A = document.getElementById(name + "_A").value;
     let B = document.getElementById(name + "_B").value;
     let C = document.getElementById(name + "_C").value;
     let D = document.getElementById(name + "_D").value; 
 
-    saveToLocalStorage("AbcdMat", {A:A, B:B, C:C, D:D});
+    AbcdMatStore(A, B, C, D);
 }
 
 function AbcdMatPaste(name) {

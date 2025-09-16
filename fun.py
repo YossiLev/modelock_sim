@@ -69,6 +69,21 @@ cavities = [
             "E",
         ]
     },
+    { "name": "Fiber", "elements": 
+        [
+            "S",
+            "P 80mm",
+            "L 80mm",
+            "P 30cm",
+            "L 125mm",
+            "P 200mm",
+            "L 75mm",
+            "P 200mm",
+            "L 8mm",
+            "P 8mm",
+            "E",
+        ]
+    },
 ]
 
 def ver_func(l):
@@ -345,6 +360,7 @@ def InputS(id, title, value, step=0.01, width = 50):
 def generate_multi_on_server(data_obj):
     if data_obj is None:
         params = {
+            "lambdaNM": 1064,
             "beamType": 0,
             "initialRange": 0.001, #0.00024475293,
             "seed": 0,
@@ -365,6 +381,7 @@ def generate_multi_on_server(data_obj):
         params = {
             "beamType": mmData.beam_type,
             "initialRange": mmData.initial_range,
+            "lambdaNM": mmData.lambda_nm,
             "seed": mmData.seed,
             "aperture": mmData.aperture,
             "diffractionWaist": mmData.diffraction_waist,
@@ -383,7 +400,8 @@ def generate_multi_on_server(data_obj):
 
     return Div(
         Div(
-            initBeamType(beamParamInit = 0.00003, beamDistInit = 0.0), 
+            Input(type="number", id=f'lambdaNM', placeholder="wavelength", step="1", style="width:90px;", value=f'{params["lambdaNM"]}'),
+            initBeamType(beamParamInit = 0.00003, beamDistInit = 0.0),
             Button("Init", hx_post=f"/mmInit", hx_include="#nRounds, #multiTimeOptionsForm *", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML", hx_target="#multiModeServer"),
             Button("Full", hx_ext="ws", ws_connect="/mmRun", ws_send=True, hx_include="#nRounds, #multiTimeOptionsForm", hx_vals='js:{localId: getLocalId()}'),
             Select(*[Option(x, selected="1") if (x == selected_rounds_option) else Option(x) for x in n_rounds_options], id="nRounds", **{'onchange':"nMaxMatricesChanged();"},),
@@ -397,6 +415,8 @@ def generate_multi_on_server(data_obj):
         ),
         Div(
             Div(
+                Input(type="number", id=f'lambdaNM', placeholder="wavelength", step="1", style="width:90px;", value=f'{params["lambdaNM"]}'),
+
                 Select(Option("Radial", selected="1") if params["beamType"] == 1 else Option("Radial"),
                         Option("1-Dimensional", selected="1") if params["beamType"] == 0 else Option("1-Dimensional"), id="beamType",),
                 InputS('initialRange', "The range of the wave front (meters)", f'{params["initialRange"]}', step=0.0001, width = 60),
@@ -461,7 +481,7 @@ def generate_multimode(data_obj, tab):
         case 1: # MultiMode
             added = Div(
                 Header("See light lateral shape as a 1D front progressing in the cavity", help="This is a help text"),
-                Div(
+                Div(Input(type="number", id=f'lambdaNM', placeholder="wavelength", step="1", style="width:90px;", value=1064),
                     initBeamType(), 
                     Button("Init", onclick="initElementsMultiMode(); initMultiMode(1);"),
                     Select(Option("All"), Option("1"), Option("2"), Option("3"), Option("4"), Option("5"), id="nMaxMatrices", **{'onchange':"nMaxMatricesChanged();"},),
@@ -491,7 +511,8 @@ def generate_multimode(data_obj, tab):
             )
         case 2: # Crystal
             added = Div(
-                Div(initBeamType(beamParamInit = 0.00003, beamDistInit = 0.0), 
+                Div(Input(type="number", id=f'lambdaNM', placeholder="wavelength", step="1", style="width:90px;", value=1064),
+                    initBeamType(beamParamInit = 0.00003, beamDistInit = 0.0), 
                     Button("Init", onclick="initElementsMultiMode(); initMultiMode(2);"),
                     Button("Full", onclick="fullCavityCrystal()"),
                     Button("Full(prev)", onclick="fullCavityCrystal(2)"),
@@ -512,7 +533,8 @@ def generate_multimode(data_obj, tab):
             )
         case 3: # MultiTime
             added = Div(
-                Div(initBeamType(beamParamInit = 0.00003, beamDistInit = 0.0), 
+                Div(Input(type="number", id=f'lambdaNM', placeholder="wavelength", step="1", style="width:90px;", value=1064),
+                    initBeamType(beamParamInit = 0.00003, beamDistInit = 0.0), 
                     Button("Init", onclick="initElementsMultiMode(); initMultiTime();", ),
                     Button("Phase", onclick="timeCavityStep(1, true)"),
                     Button("Full", onclick="timeCavityStep(5, false)"),
@@ -567,7 +589,9 @@ def generate_multimode(data_obj, tab):
             )
         case 4: # tester
             added = Div(
-                Div(initBeamType(), 
+                Div(Input(type="number", id=f'lambdaNM', placeholder="wavelength", step="1", style="width:90px;", value=1064),
+
+                    initBeamType(), 
                     Button("Init", onclick="initElementsMultiMode(); initMultiMode(4);"),
                     Select(Option("All"), Option("1"), Option("2"), Option("3"), Option("4"), Option("5"), id="nMaxMatrices", **{'onchange':"nMaxMatricesChanged();"},),
                     Button("Full", onclick="initElementsMultiMode(); initMultiMode(4); fullCavityMultiMode()"),

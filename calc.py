@@ -702,12 +702,12 @@ def generate_calc(data_obj, tab, offset = 0):
                         InputCalcS(f'start_absorber', "Abs start val", f'{calcData.start_absorber}', width = 100),
                     ),
                     Div(
-                        InputCalcS(f'dt', "dt (ps)", f'{calcData.diode_dt * 1E+12}', width = 60),
-                        InputCalcS(f'volume', "Volume cm^3", f'{calcData.volume}', width = 120),
-                        InputCalcS(f'initial_photons', "Initial Photns", f'{calcData.initial_photons}', width = 120),
-                        InputCalcS(f'cavity_loss', "OC (Cavity loss)", f'{calcData.cavity_loss}', width = 100),
+                        InputCalcS(f'dt', "dt (ps)", f'{format(calcData.diode_dt * 1E+12, ".4f")}', width = 80),
+                        InputCalcS(f'volume', "Volume cm^3", f'{calcData.volume}', width = 80),
+                        InputCalcS(f'initial_photons', "Initial Photns", f'{calcData.initial_photons}', width = 100),
+                        InputCalcS(f'cavity_loss', "OC (Cavity loss)", f'{calcData.cavity_loss}', width = 80),
                         SelectCalcS(f'CalcDiodeUpdatePulse', "UpdatePulse", ["Update Pulse", "Unchanged Pulse"], calcData.diode_update_pulse, width = 120),
-                        InputCalcS(f'h', "Abs ratio", f'{calcData.h}', width = 50),
+                        #InputCalcS(f'h', "Abs ratio", f'{calcData.h}', width = 50),
                     ),
                 ),
 

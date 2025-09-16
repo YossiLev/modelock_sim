@@ -3,7 +3,7 @@ var workingTab = 1;
 var sfs = -1;
 var multiFronts = [[], []];
 var gaussianFronts = [[], []];
-const lambda = 0.000000780;
+var lambda = 0.000001064;
 var initialRange = 0.01047;
 var multiRanges = [[], []];
 var nSamples = 256;
@@ -52,6 +52,8 @@ function getInitFront(pPar = - 1) {
     initialRange = getFieldFloat("initialRange");
     let vf = [];
     RayleighRange = 0.0;
+    lambda = getFieldFloat("lambdaNM", 1064) * 1e-9;
+
     switch (sel.value) {
         case "Gaussian Beam":
             waist0 = pPar > 0.0 ? pPar : getFieldFloat("beamParam", 0.0005);
@@ -579,7 +581,7 @@ function vecDeriv2(v, dx = 1, n = 5) {
 }
 
 function vecWaistFromQ(v) {
-    let vw = math.clone(v);
+    let vw = Array(v.length).fill(0.0);//math.clone(v);
     for (let i = 0; i < v.length; i++) {
         vw[i] = Math.sqrt(- lambda / (Math.PI * (math.divide(1, v[i]).im)));
     }
@@ -732,7 +734,7 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowCha
     fac *= zoomVal;
     vectors.forEach((vo, iVec) => {
         if (selectVal == 0 || iVec < selectVal) {
-            let sx = vo.s - pixelWidth * vo.z * vo.vec.length / 2 + canvas.width / 2;
+            let sx = vo.s;// - pixelWidth * vo.z * vo.vec.length / 2 + canvas.width / 2;
             let dx = pixelWidth * vo.z;
             ctx.strokeStyle = vo.c;
             ctx.beginPath();

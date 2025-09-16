@@ -255,6 +255,7 @@ class MultiModeSimulation:
         self.aperture = np.asarray(0.000156)
         self.diffraction_waist = np.asarray(0.000060)
         self.initial_range = 0.0001
+        self.lambda_nm = 1064
 
         self.n_rounds_per_full = 1
         self.lambda_ = 0.000000780

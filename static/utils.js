@@ -246,6 +246,7 @@ function changeline(line, incVal) {
     return parts.join(" ");
 }
 
+// change my value up or down
 function changeCavityLines(lines, selectedVal, incVal) {
     let newLines = [];
     for (let i = 0; i < lines.length; i++) {
@@ -258,21 +259,34 @@ function changeCavityLines(lines, selectedVal, incVal) {
     return newLines;
 }
 
+// change the values of my previous P (propogation) and next P one up and one down to create a left/right shift
 function changeCavityLinesShift(lines, selectedVal, incVal) {
     if (selectedVal <= 0 || selectedVal >= lines.length - 1) {
         return lines;
     }
-    if (lines[selectedVal].split(" ")[0].toUpperCase() == "P" ||
-        lines[selectedVal - 1].split(" ")[0].toUpperCase() != "P" ||
-        lines[selectedVal + 1].split(" ")[0].toUpperCase() != "P"
-        ) {
+    // find the previous and next P lines
+    let prevP = -1;
+    let nextP = -1;
+    for (let i = selectedVal - 1; i >= 0; i--) {
+        if (lines[i].split(" ")[0].toUpperCase() == "P") {
+            prevP = i;
+            break;
+        }
+    }
+    for (let i = selectedVal + 1; i < lines.length; i++) {
+        if (lines[i].split(" ")[0].toUpperCase() == "P") {
+            nextP = i;
+            break;
+        }
+    }
+    if (prevP == -1 || nextP == -1) {
         return lines;
     }
     let newLines = [];
     for (let i = 0; i < lines.length; i++) {
-        if (i == selectedVal - 1) {
+        if (i == prevP) {
             newLines.push(changeline(lines[i], incVal));
-        } else if (i == selectedVal + 1) {
+        } else if (i == nextP) {
             newLines.push(changeline(lines[i], - incVal));
         } else {
             newLines.push(lines[i]);
@@ -281,6 +295,11 @@ function changeCavityLinesShift(lines, selectedVal, incVal) {
     return newLines;
 }
 
+function multiModeRefresh() {
+    setTimeout(() => {
+        initElementsMultiMode(); initMultiMode(1); fullCavityGaussian();
+    }, 1);
+}
 function handlePickerKeyDown(event) {
     let name = event.target.id;
     let incVal = parseFloat(document.getElementById(`${name}_edit_inc`).value);
@@ -292,21 +311,21 @@ function handlePickerKeyDown(event) {
     if (event.key === 'ArrowUp') {
         lines = changeCavityLines(lines, selectedVal, incVal);
         textEl.value = lines.join("\n");
-        initElementsMultiMode(); initMultiMode(1); fullCavityGaussian();
+        multiModeRefresh();
         event.preventDefault();
     } else if (event.key === 'ArrowDown') {
         lines = changeCavityLines(lines, selectedVal, - incVal);
-        initElementsMultiMode(); initMultiMode(1); fullCavityGaussian();
+        multiModeRefresh();
         textEl.value = lines.join("\n");
         event.preventDefault();
     } else if (event.key === 'ArrowLeft') {
         lines = changeCavityLinesShift(lines, selectedVal, - incVal);
-        initElementsMultiMode(); initMultiMode(1); fullCavityGaussian();
+        multiModeRefresh();
         textEl.value = lines.join("\n");
         event.preventDefault();
     } else if (event.key === 'ArrowRight') {
         lines = changeCavityLinesShift(lines, selectedVal, incVal);
-        initElementsMultiMode(); initMultiMode(1); fullCavityGaussian();
+        multiModeRefresh();
         textEl.value = lines.join("\n");
         event.preventDefault();
     }

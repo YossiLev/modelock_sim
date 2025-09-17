@@ -38,5 +38,13 @@ ssh -f -N -L 13389:132.71.147.168:3389 -l levyose1 vpn.esc.biu.ac.il -p 2222
 
 [{"name":"Basic Radial","date":1750257417095,"state":0,"obj":{"name":"Basic Radial","beamType":0,"initialRange":"0.0001","seed":"65688","aperture":"0.000156","diffractionWaist":"6e-05","epsilon":"5.8","gainFactor":"0.5","dispersionFactor":"1.5","lensingFactor":"1.0","modulationGainFactor":"0.0","isFactor":"10000.0","crystalShift":"9e-05","reportEveryStep":"250","stepsCounter":"5000"}}]
 
-
+- diode simulation
+    - RF analysis of pulse train
+    - Store and recall parameters Set
+    - Flexible siplay of graphs (full, part, none)
+    - Calculate experimental actual parameters (maybe measure)
+    - Add position of SA, OC and Gain
+    - Next level
+        - more gain positions (and maybe absorber positions)
+        
 

@@ -24,6 +24,7 @@ var vecEt = [];
 var vecW = [];
 var vecWaist = [];
 var vecQ = [];
+var vecWaistFromQ = [];
 var vecMats = [];
 var RayleighRange;
 var graphData = [];
@@ -343,7 +344,7 @@ function drawFronts(canvas, ctx, fronts, ranges, gaussian) {
 
     }
 
-    let waists = vecWaistFromQ(gaussian);
+    let waists = calcWaistFromQ(gaussian);
     let hFactor = zoomFactor * basicZoomFactor;
     h = 0.0;
     ctx.strokeStyle = `rgba(255, 128, 0, 255)`;
@@ -580,7 +581,7 @@ function vecDeriv2(v, dx = 1, n = 5) {
     return vd;
 }
 
-function vecWaistFromQ(v) {
+function calcWaistFromQ(v) {
     let vw = Array(v.length).fill(0.0);//math.clone(v);
     for (let i = 0; i < v.length; i++) {
         vw[i] = Math.sqrt(- lambda / (Math.PI * (math.divide(1, v[i]).im)));
@@ -665,10 +666,13 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowCha
     }
 
     let l = v.length;
+    console.log(`draw vector length = ${l} id=${id} clear=${clear} vectors=${vectors.length}`);
     let fac;
     const prevCompare = document.getElementById('cbxPrevCompare')?.checked;
     if (l > 0) {
-        fac = Math.max(Math.abs(Math.max(...v)), Math.abs(Math.min(...v)));
+        vMax = Math.max(...v);
+        vMin = Math.min(...v);
+        fac = Math.max(Math.abs(vMax), Math.abs(vMin));
         let vecObj = {vecOrig: math.clone(v), w: pixelWidth, ch:allowChange,  s: start, c: color, n: name, f: fac, m: message, z: zoomX};
         vectors.push(vecObj);
         presentedVectors.set(id, vectors);
@@ -889,7 +893,7 @@ function drawGraph() {
             graphData.push(vecDeriv(math.abs(vecWaist), distStep));
             break;
         case "QWaist(x)": 
-            graphData.push(vecWaistFromQ(vecQ));
+            graphData.push(vecWaistFromQ);
             break;
     }
 
@@ -1420,8 +1424,8 @@ function fullCavityMultiMode(mode = 1, startDist = 0.0) {
         MS0 = MMult(getMatDistanceForever(startDist + 2 * 0.982318181), MStartDistInv);
         console.log("MS0 ", MS0)
     }
-    vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0]; vecW = [0], vecWaist = [0.0005], vecQ[0] = math.complex(0, RayleighRange), vecMats = [];
-    
+    vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0]; vecW = [0], vecWaist = [0.0005], vecQ = [math.complex(0, RayleighRange)], vecMats = [], vecWaistFromQ = [0];
+
     for (let iStep = 1; iStep < 400; iStep++) {
         let f0 = math.clone(fronts[0]);
         let r0 = ranges[0];
@@ -1483,6 +1487,7 @@ function fullCavityMultiMode(mode = 1, startDist = 0.0) {
         fronts.push(ff);
         ranges.push(L * dxf);
     }
+    vecWaistFromQ = calcWaistFromQ(vecQ);
 
     drawMultiMode();
 }
@@ -1502,8 +1507,8 @@ function fullCavityGaussian(startDist = 0.0) {
         MS0 = MMult(getMatDistanceForever(startDist + 2 * 0.982318181), MStartDistInv);
         console.log("MS0 ", MS0)
     }
-    vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0]; vecW = [0], vecWaist = [0], vecQ[0] = math.complex(0, RayleighRange), vecMats = [];
-    
+    vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0]; vecW = [0], vecWaist = [0], vecQ = [math.complex(0, RayleighRange)], vecMats = [], vecWaistFromQ = [0];
+
     for (let iStep = 1; iStep < 400; iStep++) {
         let f0 = fronts[0];
 
@@ -1535,6 +1540,7 @@ function fullCavityGaussian(startDist = 0.0) {
         vecW.push(waist / 1.41421356237);
         vecWaist.push(waist);
     }
+    vecWaistFromQ = calcWaistFromQ(vecQ);
 
     AbcdMatPaste("Total");
     drawMultiMode();
@@ -1553,7 +1559,7 @@ function fullCavityCrystal(modePrev = 1) {
         fullCavityCrystalPrevFocal = [];
     }
 
-    vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0]; vecW = [], vecWaist = [], vecQ[0] = math.complex(0, RayleighRange), vecMats = [];
+    vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0]; vecW = [], vecWaist = [], vecQ = [math.complex(0, RayleighRange)], vecMats = [], vecWaistFromQ = [];
 
     let power = getFieldFloat('power', 30000000);
     let lens_aperture = 56e-6;
@@ -1708,6 +1714,7 @@ function fullCavityCrystal(modePrev = 1) {
             ranges.reverse();
         }
     }
+
     }
 
     let [stable, lambda1, lambda2, beamWaist, beamDist] = analyzeStability(MatTotal);
@@ -1717,6 +1724,7 @@ function fullCavityCrystal(modePrev = 1) {
         setFieldFloat('beamParam', beamWaist);
     }
     //setFieldFloat('power', power);
+    vecWaistFromQ = calcWaistFromQ(vecQ);
 
     drawMultiMode();
 }
@@ -1854,7 +1862,7 @@ function roundtripMultiMode(waist = - 1) {
         w = qi * lambda / Math.PI;
         //console.log(`disc = ${disc}, w = ${w}, l1 = ${l1}, l2 = ${l2}`)
     }
-    vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0]; vecW = [0], vecWaist = [0], vecQ[0] = math.complex(0, RayleighRange), vecMats = [];
+    vecA = [0]; vecB = [0]; vecC = [0]; vecD = [0]; vecW = [0], vecWaist = [0], vecQ = [math.complex(0, RayleighRange)], vecMats = [], vecWaistFromQ = [0];
     for (let iStep = 1; iStep < 50; iStep++) {
 
         let f0 = math.clone(fronts[iStep - 1]);
@@ -1879,6 +1887,8 @@ function roundtripMultiMode(waist = - 1) {
         fronts.push(ff);
         ranges.push(L * dxf);
     }
+    vecWaistFromQ = calcWaistFromQ(vecQ);
+
     drawMultiMode();
 }
 
@@ -2197,10 +2207,10 @@ function graphCanvasMouseUp(e) {
 function saveMultiTimeParametersProcess() {
     document.getElementById("saveParametersDialog").style.visibility = "visible";
 }
-function restoreMultiTimeParametersProcess() {
+function restoreMultiTimeParametersProcess(formName) {
     let list = document.getElementById("restoreParametersList");
     [...list.children].forEach(c => c.remove());
-    let namedObjects = loadSafeNamedObjects();
+    let namedObjects = loadSafeNamedObjects(formName);
     exportElement = document.getElementById("exportParametersListArea");
     if (exportElement) {
         exportElement.parentElement.removeChild(exportElement);
@@ -2209,7 +2219,7 @@ function restoreMultiTimeParametersProcess() {
         let child = document.createElement("div");
         let text = document.createElement("span");
         text.innerText = `-> ${namedObjects[iObj].name}`;
-        text.setAttribute("onclick",`restoreMultiTimeParameters(${iObj})`);
+        text.setAttribute("onclick",`restoreMultiTimeParameters(${iObj}, '${formName}')`);
         child.appendChild(text);
         let img = document.createElement("img");
         img.src = "static/delete.png";
@@ -2222,10 +2232,10 @@ function restoreMultiTimeParametersProcess() {
     document.getElementById("restoreParametersDialog").style.visibility = "visible";
 }
 
-function saveMultiTimeParameters(isSave) {
+function saveMultiTimeParameters(isSave, formName) {
     if (isSave) {
-        let obj = { name: document.getElementById("parametersName").value};
-        let form = document.getElementById("multiTimeOptionsForm");
+        let obj = { name: document.getElementById("parametersName").value, form: formName };
+        let form = document.getElementById(formName);
         for (let item of form.children) {
             if (item instanceof HTMLInputElement) {
                 obj[item.id] = item.value;
@@ -2242,11 +2252,11 @@ function saveMultiTimeParameters(isSave) {
     document.getElementById("saveParametersDialog").style.visibility = "hidden";
 }
 
-function restoreMultiTimeParameters(index) {
+function restoreMultiTimeParameters(index, formName) {
     if (index >= 0) { 
-        let obj = getNamedObjectByIndex(index);
+        let obj = getNamedObjectByIndex(index, formName);
         console.log(obj)
-        let form = document.getElementById("multiTimeOptionsForm");
+        let form = document.getElementById(formName);
         for (let item of form.children) {
             if (obj.hasOwnProperty(item.id)) {
                 if (item instanceof HTMLInputElement) {
@@ -2279,7 +2289,6 @@ function exportMultiTimeParameters() {
     area.style.width = "500px";
     area.style.height = "400px";
 
-    //area.setAttribute("onclick",`restoreMultiTimeParameters(${iName})`);
     copy.appendChild(area);
 }
 

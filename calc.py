@@ -709,6 +709,7 @@ def generate_calc(data_obj, tab, offset = 0):
                         SelectCalcS(f'CalcDiodeUpdatePulse', "UpdatePulse", ["Update Pulse", "Unchanged Pulse"], calcData.diode_update_pulse, width = 120),
                         #InputCalcS(f'h', "Abs ratio", f'{calcData.h}', width = 50),
                     ),
+                    id="diodeDynamicsOptionsForm"
                 ),
 
                 Div(
@@ -721,7 +722,22 @@ def generate_calc(data_obj, tab, offset = 0):
                         Tr(Td("Output"), Td(f"{output_photons:.3e}"), Td(f"{(output_photons * energy_of_1064_photon * 10E+9):.3e}nJ")),
                         ),
                 ))),
-
+                Div(
+                    Button("Save Parameters", onclick="saveMultiTimeParametersProcess()"),
+                    Button("Restore Parameters", onclick="restoreMultiTimeParametersProcess('diodeDynamicsOptionsForm')"),
+                    Div(Div("Give a name to saved parameters"),
+                        Div(Input(type="text", id=f'parametersName', placeholder="Descibe", style="width:450px;", value="")),
+                        Button("Save", onclick="saveMultiTimeParameters(1, 'diodeDynamicsOptionsForm')"),
+                        Button("Cancel", onclick="saveMultiTimeParameters(0, 'diodeDynamicsOptionsForm')"),
+                        id="saveParametersDialog", cls="pophelp", style="position: absolute; visibility: hidden"),
+                    Div(Div("Select the parameters set"),
+                        Div("", id="restoreParametersList"),
+                        Div("", id="copyParametersList"),
+                        Button("Cancel", onclick="restoreMultiTimeParameters(-1, 'diodeDynamicsOptionsForm')"),
+                        Button("Export", onclick="exportMultiTimeParameters()"),
+                        Button("Import", onclick="importMultiTimeParameters()"),
+                        id="restoreParametersDialog", cls="pophelp", style="position: absolute; visibility: hidden"),
+                ),
                 Div(
                     Div(
                         generate_chart([cget(calcData.diode_t_list).tolist()], 

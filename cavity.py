@@ -434,7 +434,6 @@ class CavityDataPartsKerr(CavityDataParts):
 
 
     def get_state(self):
-        print(f" in get_state finalized = {self.finalized}")
         if not self.finalized:
             return []
         self.It[self.nbuf, :] = np.abs(self.Et[self.nbuf, :])**2

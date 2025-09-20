@@ -2225,7 +2225,7 @@ function restoreMultiTimeParametersProcess(formName) {
         img.src = "static/delete.png";
         img.style.paddingLeft = "20px";
         img.style.verticalAlign = "middle";
-        img.setAttribute("onclick",`deleteMultiTimeParameters(${iObj})`);
+        img.setAttribute("onclick",`deleteMultiTimeParameters(${iObj}, '${formName}')`);
         child.appendChild(img);
         list.appendChild(child);
     }
@@ -2236,7 +2236,9 @@ function saveMultiTimeParameters(isSave, formName) {
     if (isSave) {
         let obj = { name: document.getElementById("parametersName").value, form: formName };
         let form = document.getElementById(formName);
-        for (let item of form.children) {
+        let formAllDecendents = form.querySelectorAll("*");
+
+        for (let item of formAllDecendents) {
             if (item instanceof HTMLInputElement) {
                 obj[item.id] = item.value;
             } else if (item instanceof HTMLSelectElement) {
@@ -2257,7 +2259,9 @@ function restoreMultiTimeParameters(index, formName) {
         let obj = getNamedObjectByIndex(index, formName);
         console.log(obj)
         let form = document.getElementById(formName);
-        for (let item of form.children) {
+        let formAllDecendents = form.querySelectorAll("*");
+
+        for (let item of formAllDecendents) {
             if (obj.hasOwnProperty(item.id)) {
                 if (item instanceof HTMLInputElement) {
                     item.value = obj[item.id];
@@ -2274,8 +2278,8 @@ function restoreMultiTimeParameters(index, formName) {
     document.getElementById("restoreParametersDialog").style.visibility = "hidden";
 }
 
-function deleteMultiTimeParameters(index) {
-    deleteNamedObjectByIndex(index);
+function deleteMultiTimeParameters(index, formName) {
+    deleteNamedObjectByIndex(index, formName);
     document.getElementById("restoreParametersDialog").style.visibility = "hidden";
 }
 

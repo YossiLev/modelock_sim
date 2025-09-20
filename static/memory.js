@@ -19,19 +19,19 @@ function loadFromLocalStorage(key) {
     }
 }
 
-function loadSafeNamedObjects() {
+function loadSafeNamedObjects(formName) {
   let namedObjects = loadFromLocalStorage("namedObjects");
   if (namedObjects == null || !Array.isArray(namedObjects)) {
     namedObjects = [];
   }
 
-  return namedObjects;
+  return namedObjects.filter(obj => obj.obj.form === undefined || formName === undefined || obj.obj.form === formName);
 }
 
 function addNamedObject(obj) {
   let namedObjects = loadSafeNamedObjects();
 
-  namedObjects.push({name: obj.name, date : Date.now(), state: 0, obj: obj});
+  namedObjects.push({name: obj.name, form: obj.form, date : Date.now(), state: 0, obj: obj});
 
   saveToLocalStorage("namedObjects", namedObjects);
 }
@@ -53,10 +53,13 @@ function getNamedObjectByIndex(index, formName) {
   return namedObjects[index].obj;
 }
 
-function deleteNamedObjectByIndex(index) {
-  let namedObjects = loadSafeNamedObjects();
-
-  namedObjects.splice(index, 1);
+function deleteNamedObjectByIndex(index, formName) {
+  let namedObjects = loadSafeNamedObjects(formName);
+  let dateOfDeleted = namedObjects[index].date;
+  // get full list
+  namedObjects = loadSafeNamedObjects();
+  // filter out the one with the same date
+  namedObjects = namedObjects.filter(obj => obj.date !== dateOfDeleted);
 
   saveToLocalStorage("namedObjects", namedObjects);
 }

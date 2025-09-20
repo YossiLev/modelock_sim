@@ -72,7 +72,7 @@ def content_table(current_page):
 def my_frame(current_page, content):
     return Div(
             Div("Some text some message..", id="snackbar"),
-            Div(H1('Kerr Mode Locking Simulation')),
+            Div(H1('LASER Lab Simulation')),
             Div(content_table(current_page), content, cls="rowx"),
             id="fullPage"
         )

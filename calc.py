@@ -672,31 +672,50 @@ def generate_calc(data_obj, tab, offset = 0):
             pulse_after = intens(calcData.diode_pulse_after)
             pulse_original = intens(calcData.diode_pulse_original)
 
-            added = Div(FlexN(
-                (Div(
-                    Div(
-                        SelectCalcS(f'CalcDiodeCavityType', "Cavity Type", ["Ring", "Linear"], calcData.diode_cavity_type, width = 100),
-                        SelectCalcS(f'CalcDiodeSelectMode', "mode", ["Intensity", "Amplitude"], calcData.diode_mode, width = 100),
-                        SelectCalcS(f'CalcDiodeSelectIntensity', "Intensity", ["Pulse", "Noise", "CW", "Flat"], calcData.diode_intensity, width = 80),
+            added = Div(
+                Div(
                         Button("Calculate", hx_post=f'/doCalc/5/diode/calc', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
                         Button("Recalculate", hx_post=f'/doCalc/5/diode/recalc', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
                         InputCalcS(f'DiodeRounds', "Rounds", f'{calcData.calculation_rounds}', width = 80),
+                        Div(
+                            Button("Save Parameters", onclick="saveMultiTimeParametersProcess()"),
+                            Button("Restore Parameters", onclick="restoreMultiTimeParametersProcess('diodeDynamicsOptionsForm')"),
+                            Div(Div("Give a name to saved parameters"),
+                                Div(Input(type="text", id=f'parametersName', placeholder="Descibe", style="width:450px;", value="")),
+                                Button("Save", onclick="saveMultiTimeParameters(1, 'diodeDynamicsOptionsForm')"),
+                                Button("Cancel", onclick="saveMultiTimeParameters(0, 'diodeDynamicsOptionsForm')"),
+                                id="saveParametersDialog", cls="pophelp", style="position: absolute; visibility: hidden"),
+                            Div(Div("Select the parameters set"),
+                                Div("", id="restoreParametersList"),
+                                Div("", id="copyParametersList"),
+                                Button("Cancel", onclick="restoreMultiTimeParameters(-1, 'diodeDynamicsOptionsForm')"),
+                                Button("Export", onclick="exportMultiTimeParameters()"),
+                                Button("Import", onclick="importMultiTimeParameters()"),
+                                id="restoreParametersDialog", cls="pophelp", style="position: absolute; visibility: hidden"),
+                            style="display: inline-block; position: relative;"
+                        ),
                     ),
+                FlexN(
+                (
+                Div(
                     Div(
-                        SelectCalcS(f'DiodeSelectSampling', "Sampling", ["4096", "8192", "16384", "32768"], calcData.diode_sampling, width = 150),
+                        SelectCalcS(f'DiodeSelectSampling', "Sampling", ["4096", "8192", "16384", "32768"], calcData.diode_sampling, width = 100),
+                        SelectCalcS(f'CalcDiodeCavityType', "Cavity Type", ["Ring", "Linear"], calcData.diode_cavity_type, width = 80),
+                        SelectCalcS(f'CalcDiodeSelectMode', "mode", ["Intensity", "Amplitude"], calcData.diode_mode, width = 120),
                         InputCalcS(f'DiodePulseWidth', "Pulse width", f'{calcData.diode_pulse_width}', width = 80),
+                        SelectCalcS(f'CalcDiodeSelectIntensity', "Intensity", ["Pulse", "Noise", "CW", "Flat"], calcData.diode_intensity, width = 80),
                     ),
                     Div(
-                        InputCalcS(f'Ta', "Gain Half-life (ps)", f'{calcData.Ta}', width = 100),
-                        InputCalcS(f'Pa', "Gain current", f'{calcData.Pa}', width = 100),
+                        InputCalcS(f'Ta', "Gain Half-life (ps)", f'{calcData.Ta}', width = 80),
+                        InputCalcS(f'Pa', "Gain current", f'{calcData.Pa}', width = 80),
                         InputCalcS(f'Ga', "Gain diff gain (cm^2)", f'{calcData.Ga}', width = 100),
                         InputCalcS(f'N0a', "Gain N0(tr) (cm^-3)", f'{calcData.N0a}', width = 100),
                         InputCalcS(f'start_gain', "Gain start val", f'{calcData.start_gain}', width = 100),
 
                     ),
                     Div(
-                        InputCalcS(f'Tb', "Abs half-life (ps)", f'{calcData.Tb}', width = 100),
-                        InputCalcS(f'Pb', "Abs current", f'{calcData.Pb}', width = 100),
+                        InputCalcS(f'Tb', "Abs half-life (ps)", f'{calcData.Tb}', width = 80),
+                        InputCalcS(f'Pb', "Abs current", f'{calcData.Pb}', width = 80),
                         InputCalcS(f'Gb', "Abs diff gain (cm^2)", f'{calcData.Gb}', width = 100),
                         InputCalcS(f'N0b', "Abs N0(tr) (cm^2)", f'{calcData.N0b}', width = 100),
                         InputCalcS(f'start_absorber', "Abs start val", f'{calcData.start_absorber}', width = 100),
@@ -722,22 +741,7 @@ def generate_calc(data_obj, tab, offset = 0):
                         Tr(Td("Output"), Td(f"{output_photons:.3e}"), Td(f"{(output_photons * energy_of_1064_photon * 10E+9):.3e}nJ")),
                         ),
                 ))),
-                Div(
-                    Button("Save Parameters", onclick="saveMultiTimeParametersProcess()"),
-                    Button("Restore Parameters", onclick="restoreMultiTimeParametersProcess('diodeDynamicsOptionsForm')"),
-                    Div(Div("Give a name to saved parameters"),
-                        Div(Input(type="text", id=f'parametersName', placeholder="Descibe", style="width:450px;", value="")),
-                        Button("Save", onclick="saveMultiTimeParameters(1, 'diodeDynamicsOptionsForm')"),
-                        Button("Cancel", onclick="saveMultiTimeParameters(0, 'diodeDynamicsOptionsForm')"),
-                        id="saveParametersDialog", cls="pophelp", style="position: absolute; visibility: hidden"),
-                    Div(Div("Select the parameters set"),
-                        Div("", id="restoreParametersList"),
-                        Div("", id="copyParametersList"),
-                        Button("Cancel", onclick="restoreMultiTimeParameters(-1, 'diodeDynamicsOptionsForm')"),
-                        Button("Export", onclick="exportMultiTimeParameters()"),
-                        Button("Import", onclick="importMultiTimeParameters()"),
-                        id="restoreParametersDialog", cls="pophelp", style="position: absolute; visibility: hidden"),
-                ),
+
                 Div(
                     Div(
                         generate_chart([cget(calcData.diode_t_list).tolist()], 

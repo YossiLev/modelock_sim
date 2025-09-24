@@ -207,14 +207,18 @@ class CalculatorData:
         self.diode_mode = "Amplitude"
         self.diode_sampling = "4096"
         self.diode_pulse_dtype = np.float64 #, np.complex128
+
         self.diode_cavity_time = 4E-09
         self.diode_N = 4096 # * 4
         self.diode_dt = self.diode_cavity_time / self.diode_N
         self.diode_intensity = "Pulse"
         self.calculation_rounds = 1
         self.calculation_rounds_done = 0
-
         self.diode_pulse_width = 100.0
+
+        self.diode_absorber_shift = 0.0
+        self.diode_gain_shift = 20.0
+        self.diode_output_coupler_shift = 700.0
 
         self.loss_shift = self.diode_N // 2 # make sure absorber is in the middle of the cavity
         self.gain_distance = 150
@@ -704,6 +708,11 @@ def generate_calc(data_obj, tab, offset = 0):
                         SelectCalcS(f'CalcDiodeSelectMode', "mode", ["Intensity", "Amplitude"], calcData.diode_mode, width = 120),
                         InputCalcS(f'DiodePulseWidth', "Pulse width", f'{calcData.diode_pulse_width}', width = 80),
                         SelectCalcS(f'CalcDiodeSelectIntensity', "Intensity", ["Pulse", "Noise", "CW", "Flat"], calcData.diode_intensity, width = 80),
+                    ),
+                    Div(
+                        InputCalcS(f'DiodeAbsorberShift', "Absorber Shift (mm)", f'{calcData.diode_absorber_shift}', width = 100),
+                        InputCalcS(f'DiodeGainShift', "Gain Shift (mm)", f'{calcData.diode_gain_shift}', width = 100),
+                        InputCalcS(f'DiodeOutputCouplerShift', "OC Shift (mm)", f'{calcData.diode_output_coupler_shift}', width = 100),
                     ),
                     Div(
                         InputCalcS(f'Ta', "Gain Half-life (ps)", f'{calcData.Ta}', width = 80),

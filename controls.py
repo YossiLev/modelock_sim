@@ -31,24 +31,32 @@ def PickerDivs(id, count, sel, style=""):
         id = id,
         **{'onkeydown':"handlePickerKeyDown(event);"}
    )
+def Frame_chart_buttons(title):
+    return Div(Div("O"), Div("C"), Div("W"), style="display: flex; flex-direction: column;")
 
-def generate_chart(x, y, l, t, w=11, h=2, color="blue", marker=None, twinx=False):
+def Frame_chart(title, *args, **kwargs):
+    #return Div(Frame_chart_buttons(title), generate_chart(*args, **kwargs), style="display: flex; flex-direction: row;")
+    return generate_chart(*args, **kwargs)
+
+def generate_chart(x, y, l, t, w=11, h=2, color="blue", marker=None, twinx=False, lw=1):
     fig = plt.figure(figsize=(w, h))
     ax = plt.gca()
     ax.yaxis.set_major_formatter(plt.ScalarFormatter(useOffset=False))
+    marker = marker if isinstance(marker, list) else [marker] * len(y)
+    lw = lw if isinstance(lw, list) else [lw] * len(y)
     if twinx and len(y) == 2:
         plt.close(fig)
         fig, ax1 = plt.subplots(figsize=(w, h))
-        ax1.plot(x[0], y[0], label=l[0], marker=marker, color=color[0] if isinstance(color, list) else color)
+        ax1.plot(x[0], y[0], label=l[0], marker=marker[0], color=color[0] if isinstance(color, list) else color, linewidth=lw[0])
         ax2 = ax1.twinx()
-        ax2.plot(x[1 if len(x) == 2 else 0], y[1], label=l[0], marker= marker, color=color[1] if isinstance(color, list) else color)
+        ax2.plot(x[1 if len(x) == 2 else 0], y[1], label=l[0], marker= marker[1], color=color[1] if isinstance(color, list) else color, linewidth=lw[1])
     else:
         for i in range(len(y)):
             if len(x) == len(y):
                 xi = i
             else:
                 xi = 0
-            plt.plot(x[xi], y[i], label=l[0], marker=marker, color=color[i] if isinstance(color, list) else color)
+            plt.plot(x[xi], y[i], label=l[0], marker=marker[i], color=color[i] if isinstance(color, list) else color, linewidth=lw[i])
 
     if (len(x) > 0):
         fig.axes[0].set_title(t)

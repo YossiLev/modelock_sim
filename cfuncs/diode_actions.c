@@ -2,13 +2,21 @@
 #include <stdlib.h>
 #include <complex.h>
 #include <math.h>
+#include "fft_filter.h"
 
 // for linux compilation:
+// if using cuda:
+// nvcc -c -Xcompiler -fPIC ./cfuncs/fft_filter.cu -o ./cfuncs/fft_filter.o
+// gcc -c -fPIC ./cfuncs/diode_actions.c -o ./cfuncs/diode_actions.o
+// nvcc -shared -o ./cfuncs/libs/libdiode.so ./cfuncs/diode_actions.o ./cfuncs/fft_filter.o -lcufft -lcudart
+// or without cuda:
 // gcc -shared -o ./cfuncs/libs/libdiode.so -fPIC ./cfuncs/diode_actions.c
 //
+
 // for windows compilation:
 // gcc -shared -o ./cfuncs/libs/libdiode.dll -Wl ./cfuncs/diode_actions.c
 //
+
 // for macos compilation:
 // gcc -shared -o ./cfuncs/libs/libdiode.dylib -fPIC ./cfuncs/diode_actions.c
 
@@ -174,9 +182,9 @@ void diode_round_trip(double *gain, double *loss, double *gain_value, double *lo
         }
 
     }
-
 }
 
+// complex version of the above function for electric field amplitude
 void cmp_diode_round_trip(double *gain, double *loss, double *gain_value, double *loss_value,
                    double _Complex *pulse_amplitude, double _Complex *pulse_amplitude_after,
                    int n_rounds, int N, int loss_shift, int oc_shift, int gain_distance,
@@ -189,6 +197,13 @@ void cmp_diode_round_trip(double *gain, double *loss, double *gain_value, double
     double rand_factor = 0.000000000005 * dt / (Ta * 1E-12)  / (double)RAND_MAX;
     double oc_val_sqrt = sqrt(oc_val);
     double oc_out_val = sqrt(1.0 - oc_val);
+
+    FFTFilterCtx ctx;
+
+    if (fft_filter_init(&ctx, N, N / 4) != 0) {
+        fprintf(stderr, "Init failed\n");
+        return;
+    }
 
     for (int i_round = 0; i_round < n_rounds; i_round++) {
         for (int ii = m_shift; ii < N + m_shift; ii++) {
@@ -245,6 +260,35 @@ void cmp_diode_round_trip(double *gain, double *loss, double *gain_value, double
 
         }
 
+        fft_filter_run(&ctx, pulse_amplitude);
+
     }
 
+    fft_filter_destroy(&ctx);
+
 }
+
+/*
+    cufftDoubleComplex *d_data;
+    CHECK_CUDA(cudaMalloc(&d_data, N * sizeof(cufftDoubleComplex)));
+    cufftHandle plan;
+    CHECK_CUFFT(cufftPlan1d(&plan, N, CUFFT_Z2Z, 1));
+
+    double complex *target = malloc(N * sizeof(double complex));
+    for (int it = 0; it < ITER; it++) {
+        createSomeData(target);
+
+        CHECK_CUDA(cudaMemcpy(d_data, target, N * sizeof(cufftDoubleComplex), cudaMemcpyHostToDevice));
+        CHECK_CUFFT(cufftExecZ2Z(plan, d_data, d_data, CUFFT_FORWARD));
+        CHECK_CUDA(cudaMemcpy(target, d_data, N * sizeof(cufftDoubleComplex), cudaMemcpyDeviceToHost));
+        
+        // multiply by a bandwidth filter in frequency domain
+        limitBandwidth(target);
+
+        CHECK_CUDA(cudaMemcpy(d_data, target, N * sizeof(cufftDoubleComplex), cudaMemcpyHostToDevice));
+        CHECK_CUFFT(cufftExecZ2Z(plan, d_data, d_data, CUFFT_INVERSE));
+        CHECK_CUDA(cudaMemcpy(target, d_data, N * sizeof(cufftDoubleComplex), cudaMemcpyDeviceToHost));
+
+    }
+
+*/

@@ -216,13 +216,14 @@ class CalculatorData:
         self.calculation_rounds_done = 0
         self.diode_pulse_width = 100.0
 
+        # actual shift parameters in millimeters
         self.diode_absorber_shift = 0.0
-        self.diode_gain_shift = 20.0
-        self.diode_output_coupler_shift = 700.0
+        self.diode_gain_shift = 11.0
+        self.diode_output_coupler_shift = 130.0
 
-        self.loss_shift = self.diode_N // 2 # make sure absorber is in the middle of the cavity
-        self.gain_distance = 150
-        self.oc_shift = 1500
+        self.loss_shift = self.diode_N // 2 + self.mm_to_unit_shift(self.diode_absorber_shift) # zero shift means that the absorber is in the middle of the cavity
+        self.gain_distance = self.mm_to_unit_shift(self.diode_gain_shift)
+        self.oc_shift = self.mm_to_unit_shift(self.diode_output_coupler_shift)
         self.oc_val = 0.02
 
         self.start_gain = 7.44E+10
@@ -278,6 +279,10 @@ class CalculatorData:
                 params[key] = getattr(self, cget(key)[0])
         return params
 
+    def mm_to_unit_shift(self, mm):
+        shift = int(mm / 1E+03 / (self.diode_dt * 3E+08))
+        print(f"mm_to_unit_shift mm={mm} shift={shift}")
+        return shift
     
     def doCalcCommand(self, cmd, params, dataObj):
         match (cmd):
@@ -381,13 +386,15 @@ class CalculatorData:
 
                         self.diode_N = int(self.diode_sampling)
                         self.diode_dt = self.diode_cavity_time / self.diode_N
-                        self.loss_shift = self.diode_N // 2 # make sure absorber is in the middle of the cavity
-                        self.gain_distance = 150
-                        self.oc_shift = 1500
+                        self.loss_shift = self.diode_N // 2 + self.mm_to_unit_shift(self.diode_absorber_shift) # zero shift means that the absorber is in the middle of the cavity
+                        self.gain_distance = self.mm_to_unit_shift(self.diode_gain_shift)
+                        self.oc_shift = self.mm_to_unit_shift(self.diode_output_coupler_shift)
+                        print(f"diode_N={self.diode_N} dt={self.diode_dt} loss_shift={self.loss_shift} gain_distance={self.gain_distance} oc_shift={self.oc_shift}")
+ 
                         gg = 20
                         ll = 0.4
                         oo = np.exp(- self.cavity_loss)
-                        self.diode_levels_x = [0, self.gain_distance  - 1, 
+                        self.diode_levels_x = [0, self.gain_distance - 1, 
                                                self.gain_distance, self.oc_shift - 1, 
                                                self.oc_shift, self.loss_shift - self.gain_distance - 1, 
                                                self.loss_shift - self.gain_distance, self.loss_shift - 1, 
@@ -530,6 +537,16 @@ class CalculatorData:
             return
         self.cavity_mat = MMult(self.cavity_mat, M)
 
+def gain_function(Ga, N):
+    xh1 = Ga * 4468377122.5 * 0.46 * 16.5
+    xh2 = Ga * 4468377122.5 * 0.46 * 0.32 * np.exp(0.000000000041*14E+10)
+    gGain = xh1 - xh2 * np.exp(-0.000000000041 * N)
+    return gGain
+
+def loss_function(Gb, N0b, N):
+    gAbs = Gb * 0.02 * (N - N0b)
+    return gAbs
+
 def generate_calc(data_obj, tab, offset = 0):
                         
     def InputCalcS(id, title, value, step=0.01, width = 150):
@@ -652,16 +669,19 @@ def generate_calc(data_obj, tab, offset = 0):
             colors = ["#ff0000", "#ff8800", "#aaaa00", "#008800", "#0000ff", "#ff00ff", "#110011"]
             minN = 2E+10
             maxN = 7E+10
-            xGain = [minN, maxN]
-            xLoss = [minN, maxN / 2]
-            yGain = list(map(lambda x : calcData.Ga * (x - calcData.N0a), xGain))
-            yLoss = list(map(lambda x : calcData.Gb * (x - calcData.N0b), xLoss))
-            xGainRange = [cget(np.min(calcData.diode_gain)) * calcData.volume, cget(np.max(calcData.diode_gain)) * calcData.volume]
-            yGainRange = list(map(lambda x : calcData.Ga * (x - calcData.N0a), xGainRange))
-            xLossRange = [cget(np.min(calcData.diode_loss)) * calcData.volume, cget(np.max(calcData.diode_loss)) * calcData.volume]
-            yLossRange = list(map(lambda x : calcData.Gb * (x - calcData.N0b), xLossRange))
-            xVec = [xGain, xLoss, xGainRange, xLossRange]
-            yVec = [yGain, yLoss, yGainRange, yLossRange]
+            # xGain = [minN, maxN]
+            # xLoss = [minN, maxN / 2]
+            xGain = np.linspace(4E+10, 9.0E+10, 50).tolist()
+            xLoss = np.linspace(0.1E+10, 5.0E+10, 50).tolist()
+            yGain = list(map(lambda x : gain_function(calcData.Ga, x), xGain))
+            yLoss = list(map(lambda x : loss_function(calcData.Gb, calcData.N0b, x), xLoss))
+
+            xGainRange = np.linspace(cget(np.min(calcData.diode_gain)) * calcData.volume, cget(np.max(calcData.diode_gain)) * calcData.volume, 10).tolist()
+            yGainRange = list(map(lambda x : gain_function(calcData.Ga, x), xGainRange))
+            xLossRange = np.linspace(cget(np.min(calcData.diode_loss)) * calcData.volume, cget(np.max(calcData.diode_loss)) * calcData.volume, 10).tolist()
+            yLossRange = list(map(lambda x : loss_function(calcData.Gb, calcData.N0b, x), xLossRange))
+            xVec = [xGainRange, xLossRange, xGain, xLoss ]
+            yVec = [yGainRange, yLossRange, yGain, yLoss ]
             min_gain = np.min(calcData.diode_gain) * calcData.volume
             max_gain = np.max(calcData.diode_gain) * calcData.volume
             min_loss = np.min(calcData.diode_loss) * calcData.volume# * 0.04 / 0.46
@@ -753,7 +773,7 @@ def generate_calc(data_obj, tab, offset = 0):
 
                 Div(
                     Div(
-                        generate_chart([cget(calcData.diode_t_list).tolist()], 
+                        Frame_chart("fc1", [cget(calcData.diode_t_list).tolist()], 
                                        [cget(pulse_original).tolist(), cget(np.log(pulse_after+ 0.000000001)).tolist()], [""], 
                                        "Original Pulse and Pulse after (photons/sec)", h=2, color=colors, marker=None, twinx=True),
 
@@ -779,7 +799,7 @@ def generate_calc(data_obj, tab, offset = 0):
                                        [cget(np.exp(- calcData.cavity_loss) * np.multiply(calcData.diode_gain_value, calcData.diode_loss_value)).tolist(),
                                         cget(pulse).tolist()], [""],
                                        "Net gain", color=["blue", "red"], h=2, marker=None, twinx=True),
-                        generate_chart(xVec, yVec, [""], "Gain By Pop", h=4, color=["green", "red", "black", "black"], marker="."),
+                        generate_chart(xVec, yVec, [""], "Gain By Pop", h=4, color=["black", "black", "green", "red"], marker=".", lw=[5, 5, 1, 1]),
 
                         cls="box", style="background-color: #008080;"
                   ),

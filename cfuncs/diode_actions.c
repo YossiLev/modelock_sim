@@ -7,7 +7,7 @@
 // for linux compilation:
 // if using cuda:
 // nvcc -c -Xcompiler -fPIC ./cfuncs/fft_filter.cu -o ./cfuncs/fft_filter.o
-// gcc -c -fPIC ./cfuncs/diode_actions.c -o ./cfuncs/diode_actions.o
+// gcc -c -fPIC -DUSE_FFT_FILTER_CUDA ./cfuncs/diode_actions.c -o ./cfuncs/diode_actions.o 
 // nvcc -shared -o ./cfuncs/libs/libdiode.so ./cfuncs/diode_actions.o ./cfuncs/fft_filter.o -lcufft -lcudart
 // or without cuda:
 // gcc -shared -o ./cfuncs/libs/libdiode.so -fPIC ./cfuncs/diode_actions.c
@@ -198,12 +198,14 @@ void cmp_diode_round_trip(double *gain, double *loss, double *gain_value, double
     double oc_val_sqrt = sqrt(oc_val);
     double oc_out_val = sqrt(1.0 - oc_val);
 
+#ifdef USE_FFT_FILTER_CUDA
     FFTFilterCtx ctx;
 
     if (fft_filter_init(&ctx, N, N / 4) != 0) {
         fprintf(stderr, "Init failed\n");
         return;
     }
+#endif
 
     for (int i_round = 0; i_round < n_rounds; i_round++) {
         for (int ii = m_shift; ii < N + m_shift; ii++) {
@@ -259,13 +261,15 @@ void cmp_diode_round_trip(double *gain, double *loss, double *gain_value, double
             pulse_amplitude[oc_loc] *= oc_val_sqrt;
 
         }
-
+#ifdef USE_FFT_FILTER_CUDA
         fft_filter_run(&ctx, pulse_amplitude);
+#endif
 
     }
 
+#ifdef USE_FFT_FILTER_CUDA
     fft_filter_destroy(&ctx);
-
+#endif
 }
 
 /*

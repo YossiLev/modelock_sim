@@ -116,7 +116,7 @@ void cmp_diode_loss(double *loss, double *loss_value, double _Complex *pulse_aft
 void diode_round_trip(double *gain, double *loss, double *gain_value, double *loss_value,
                    double *pulse_intensity, double *pulse_intensity_after,
                    int n_rounds, int N, int loss_shift, int oc_shift, int gain_distance,
-                   double dt, double Pa, double Ta, double Ga, double Pb, double Tb, double Gb, double N0b, double oc_val) {
+                   double dt, double gainWidth, double Pa, double Ta, double Ga, double Pb, double Tb, double Gb, double N0b, double oc_val) {
     int i, m_shift = 0;
     double gAbs;
 
@@ -188,7 +188,7 @@ void diode_round_trip(double *gain, double *loss, double *gain_value, double *lo
 void cmp_diode_round_trip(double *gain, double *loss, double *gain_value, double *loss_value,
                    double _Complex *pulse_amplitude, double _Complex *pulse_amplitude_after,
                    int n_rounds, int N, int loss_shift, int oc_shift, int gain_distance,
-                   double dt, double Pa, double Ta, double Ga, double Pb, double Tb, double Gb, double N0b, double oc_val) {
+                   double dt, double gainWidth, double Pa, double Ta, double Ga, double Pb, double Tb, double Gb, double N0b, double oc_val) {
     int i, m_shift = 0;
     double gAbs;
 
@@ -201,7 +201,7 @@ void cmp_diode_round_trip(double *gain, double *loss, double *gain_value, double
 #ifdef USE_FFT_FILTER_CUDA
     FFTFilterCtx ctx;
 
-    if (fft_filter_init(&ctx, N, N / 4) != 0) {
+    if (fft_filter_init(&ctx, N, gainWidth) != 0) {
         fprintf(stderr, "Init failed\n");
         return;
     }

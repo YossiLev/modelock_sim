@@ -659,6 +659,7 @@ def doCalcUpdate(calcData, form_data):
         pushParam(calcData, "diode_gain_shift", lambda: float(form_data.get("DiodeGainShift")))
         pushParam(calcData, "diode_output_coupler_shift", lambda: float(form_data.get("DiodeOutputCouplerShift")))
 
+        pushParam(calcData, "gain_width", lambda: float(form_data.get("gain_width")))
         pushParam(calcData, "Ta", lambda: float(form_data.get("Ta")))
         pushParam(calcData, "Tb", lambda: float(form_data.get("Tb")))
         pushParam(calcData, "Pa", lambda: float(form_data.get("Pa")))

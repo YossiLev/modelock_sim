@@ -99,6 +99,7 @@ lib_diode.diode_round_trip.argtypes = [
     ctypes.c_double,
     ctypes.c_double,
     ctypes.c_double,
+    ctypes.c_double,
     ctypes.c_double
 ]
 lib_diode.diode_round_trip.restype = None
@@ -115,6 +116,7 @@ lib_diode.cmp_diode_round_trip.argtypes = [
     ctypes.c_int,
     ctypes.c_int,
     ctypes.c_int,
+    ctypes.c_double,
     ctypes.c_double,
     ctypes.c_double,
     ctypes.c_double,
@@ -237,6 +239,7 @@ class CalculatorData:
         self.Tb = 300 # in pico seconds
         self.Pa = 2.48e+19 #2.8e+23
         self.Pb = 0
+        self.gain_width = 500 # in frequency units
         self.Ga = 5.024E-09#2.2379489747279815e-10 # 2.0 * np.log(100.0) / 7.44E+10 #2E-16
         self.Gb = 8.07e-10
         self.N0a = 20000000000.0 #0.0 # 1.6E+18
@@ -473,7 +476,7 @@ class CalculatorData:
         round_trip_func(c_gain, c_loss, c_gain_value, c_loss_value,
                         c_pulse, c_pulse_after,
                         self.calculation_rounds, self.diode_N, self.loss_shift, self.oc_shift, self.gain_distance,
-                        self.diode_dt, self.Pa, self.Ta, self.Ga, self.Pb, self.Tb, self.Gb, self.N0b, self.oc_val)
+                        self.diode_dt, self.gain_width, self.Pa, self.Ta, self.Ga, self.Pb, self.Tb, self.Gb, self.N0b, self.oc_val)
 
         self.diode_accum_pulse_after = np.add.accumulate(intens(self.diode_pulse_after)) * self.diode_dt * self.volume
 
@@ -736,6 +739,7 @@ def generate_calc(data_obj, tab, offset = 0):
                     ),
                     Div(
                         InputCalcS(f'Ta', "Gain Half-life (ps)", f'{calcData.Ta}', width = 80),
+                        InputCalcS(f'gain_width', "Gain Width (u)", f'{calcData.gain_width}', width = 80),
                         InputCalcS(f'Pa', "Gain current", f'{calcData.Pa}', width = 80),
                         InputCalcS(f'Ga', "Gain diff gain (cm^2)", f'{calcData.Ga}', width = 100),
                         InputCalcS(f'N0a', "Gain N0(tr) (cm^-3)", f'{calcData.N0a}', width = 100),

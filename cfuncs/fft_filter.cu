@@ -33,6 +33,16 @@ __global__ void applyFilter(cufftDoubleComplex *data, int N, int cutoff) {
     }
 }
 
+__global__ void applyLorentzian(cufftDoubleComplex* data, int N, double W) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < N) {
+        int freq = (i <= N/2) ? i : (i - N);
+        double L = 1.0 / (1.0 + ( (double)freq / W ) * ( (double)freq / W ));
+        data[i].x *= L;
+        data[i].y *= L;
+    }
+}
+
 // Initialize
 int fft_filter_init(FFTFilterCtx *ctx, int N, int cutoff) {
     ctx->N = N;
@@ -66,7 +76,7 @@ int fft_filter_run(FFTFilterCtx *ctx, double _Complex *arr) {
     // Filter
     int block = 256;
     int grid = (N + block - 1) / block;
-    applyFilter<<<grid, block>>>(d_data, N, cutoff);
+    applyLorentzian<<<grid, block>>>(d_data, N, cutoff);
     CHECK_CUDA(cudaDeviceSynchronize());
 
     // Inverse FFT

@@ -134,3 +134,66 @@ def random_lcg():
 def random_lcg_set_seed(seed):
     global random_seed
     random_seed = seed
+
+def graphCanvas(id="graphCanvas", width=1000, height = 200, options=True, mode=1):
+    return Div(
+        Div(
+            Div(Select(Option("A"), Option("B"), Option("C"), Option("D"), 
+                        Option("AbsE(x)"), Option("ArgE(x)"), Option("M(x)"), 
+                        Option("Width(x)"), Option("Waist(x)"), Option("QWaist(x)"),
+                        id="displayOption",
+                        **{'onchange':"drawGraph();"},),
+            Label(Input(id="cbxPrevCompare", type='checkbox', name='Compare', checked=False), "Compare"))
+            if options else "",
+
+            Div(
+                Button(
+                    Img(src="static/zoomin.png", alt="Zoom in", width="16", height="16"),
+                    cls="imgButton",
+                    onclick=f"zoomGraph('{id}', 1, {mode});"
+                ),
+                Button(
+                    Img(src="static/zoomout.png", alt="Zoom out", width="16", height="16"),
+                    cls="imgButton",
+                    onclick=f"zoomGraph('{id}', -1, {mode});"
+                ),
+                Button(
+                    Img(src="static/c12.png", alt="Select", width="16", height="16"),
+                    cls="imgButton",
+                    onclick=f"selectGraph('{id}', {mode});"
+                ),
+                Button(
+                    Img(src="static/degaussian.png", alt="Select", width="16", height="16"),
+                    cls="imgButton",
+                    onclick=f"degaussGraph('{id}', {mode});"
+                ),
+                Button(
+                    Img(src="static/delorentzian.png", alt="Select", width="16", height="16"),
+                    cls="imgButton",
+                    onclick=f"delorentzGraph('{id}', {mode});"
+                ),
+                Button(
+                    Img(src="static/desech.png", alt="Select", width="16", height="16"),
+                    cls="imgButton",
+                    onclick=f"desechGraph('{id}', {mode});"
+                ),                
+                Span("1.0", id=f"{id}-zoomVal", style="display: none;"),
+                Span("0", id=f"{id}-selectVal", style="display: none;"),
+                Span("0", id=f"{id}-degaussVal", style="display: none;"),
+                Span("0", id=f"{id}-delorentzVal", style="display: none;"),
+                Span("0", id=f"{id}-desechVal", style="display: none;"),
+                style="position: absolute; float: left; z-index: 10;"
+            ),
+            Div(Span("", id=f"{id}-message", style=""),
+                style=f"position: absolute; z-index: 5; width: {width}px; text-align: right; font-size:10px"
+            ),
+            Canvas(
+                id=id, width=width, height = height, 
+                   style="background-color: #e5e5f7; background-image:  repeating-radial-gradient( circle at 0 0, transparent 0, #e5e5f7 10px ), repeating-linear-gradient( #444cf755, #444cf7 );",
+                **{'onmousemove':"graphCanvasMouseMove(event);",
+                'onmousedown':"graphCanvasMouseDown(event);",
+                'onmouseup':"graphCanvasMouseUp(event);",},
+                
+            )
+        )
+    )    

@@ -49,5 +49,79 @@ function drawPulseGraph() {
 
     }
     ctx.stroke();
-
 }
+
+function spreadDiodeUpdatedData(data) {
+    // if (data.rounds) {
+    //     document.getElementById("stepsCounter").value = `${data.rounds}`;
+    // }
+    // if (data.more) {
+    //     document.getElementById("stepsCounter").style.color = "red";
+    //     document.getElementById("stepsCounter").style.animation = "blink 1s infinite";
+    // } else {
+    //     document.getElementById("stepsCounter").style.color = "black";
+    //     document.getElementById("stepsCounter").style.animation = "";
+    // }
+    // if (data.samples) {
+    //     for (sample of data.samples) {
+    //         canvas = document.getElementById(sample.name);
+    //         drawTimeNumData(openVec(sample.samples), 0, canvas);
+    //     }
+    // }
+    // if (data.pointer) {
+    //     modifyPointer(data.pointer)
+    // }
+    if (data.graphs) {
+        let backColor = data.more ? "#ffeedd": "white";
+        for (graph of data.graphs) {
+            let clear = true;
+            for (line of graph.lines) {
+                drawPlotVector(line.values, graph.id, {clear: clear, color: line.color, pixelWidth: 1, 
+                    allowChange: true, name: data.title, start: 0, message: "", zoomX: Object.hasOwn(line, 'zoomx') ? line.zoomx : 1,
+                    backColor: backColor});
+                //
+                //    drawVector(line.values, clear, line.color, 1, true, graph.id, "",  0, line.text, 
+                //        Object.hasOwn(line, 'zoomx') ? line.zoomx : 1, backColor);
+                clear = false;
+            }
+            // if (graph.name == "gr5") {
+            //     if (graph.lines.length > 0) {
+            //         currentPlot3dValues = graph.lines[0].values;
+            //         if (document.getElementById("cbxAutoRecord").checked) {
+            //             AddPlot3D();
+            //         }
+            //     }
+            // }
+        }
+
+    }
+    // if (data.view_buttons) {
+    //     for (let part in [0, 1]) {
+    //         for (let i = 0; i < 14; i++) {
+    //             but = document.getElementById(`view_button-${part}-${i + 1}`);  
+    //             if (data.view_buttons.view_on_stage[part] == `${i + 1}`) {
+    //                 but.classList.add("buttonH");
+    //             } else {
+    //                 but.classList.remove("buttonH");
+    //             }
+    //         }
+    //         for (let i of ["Frq", "Amp"]) {
+    //             but = document.getElementById(`view_button-${part}-${i}`);  
+    //             if (data.view_buttons.view_on_amp_freq[part] == `${i}`) {
+    //                 but.classList.add("buttonH");
+    //             } else {
+    //                 but.classList.remove("buttonH");
+    //             }
+    //         }
+    //         for (let i of ["Phs", "Abs", "Pow"]) {
+    //             but = document.getElementById(`view_button-${part}-${i}`);  
+    //             if (data.view_buttons.view_on_abs_phase[part] == `${i}`) {
+    //                 but.classList.add("buttonH");
+    //             } else {
+    //                 but.classList.remove("buttonH");
+    //             }
+    //         }
+    //     }
+    // }
+}
+

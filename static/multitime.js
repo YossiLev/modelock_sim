@@ -959,7 +959,7 @@ function AddPlot3D() {
     }
 }
 
-function spreadUpdatedData(data) {
+function spreadMultiModeUpdatedData(data) {
     if (data.rounds) {
         document.getElementById("stepsCounter").value = `${data.rounds}`;
     }
@@ -1025,21 +1025,6 @@ function spreadUpdatedData(data) {
                     but.classList.remove("buttonH");
                 }
             }
-        }
-    }
-}
-function numDataMutated() {
-    numData = document.getElementById("numData");
-    s = numData.innerText;
-    if (s.length > 0) {
-        data = JSON.parse(s);
-        numData.innerText = "";
-        if (data.delay > 0) {
-            setTimeout(() => {
-                spreadUpdatedData(data);
-            }, data.delay);
-        } else {
-            spreadUpdatedData(data);
         }
     }
 }

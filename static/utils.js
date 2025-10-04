@@ -1,3 +1,6 @@
+
+
+
 document.addEventListener("DOMContentLoaded", function () {
     initializeDragAndDrop();
 
@@ -19,6 +22,32 @@ document.addEventListener("DOMContentLoaded", function () {
         observer.observe(fullPageDiv, mutationConfig);
     }
 });
+
+function numDataMutated() {
+    numData = document.getElementById("numData");
+    s = numData.innerText;
+    if (s.length > 0) {
+        data = JSON.parse(s);
+        numData.innerText = "";
+        let spreadFunction = null;
+        if (data.type == "diode") {
+            spreadFunction = spreadDiodeUpdatedData;
+        } else if (data.type == "multi_mode") {
+            spreadFunction = spreadMultiModeUpdatedData;
+        }
+        if (spreadFunction == null) {
+            console.log("Unknown data type: " + data.type);
+            return;
+        }
+        if (data.delay > 0) {
+            setTimeout(() => {
+                spreadFunction(data);
+            }, data.delay);
+        } else {
+            spreadFunction(data);
+        }
+    }
+}
 
 function drawTextBG(ctx, txt, x, y, color = '#000', font = "8pt Courier") {
     ctx.save();
@@ -343,4 +372,196 @@ function pickerDivsSelect(name, sel) {
     }
     let text = document.getElementById(`${name}_text`).value;
     inpEdit.value = text.split("\n")[sel];
+}
+
+
+function calcDegauss(vec) {
+    let mx = Math.max(...vec);
+    return vec.map(v => {
+        if (v > 0) {
+            return Math.sqrt(- Math.log(v / mx));
+        } else {
+            return 0.0;
+        }
+    });
+}
+function calcDeSech(vec) {
+    let mx = Math.max(...vec);
+    return vec.map(v => {
+        if (v > 0) {
+            return - Math.log(v / mx);
+        } else {
+            return 0.0;
+        }
+    });
+}
+function calcDeLorentz(vec) {
+    let mx = Math.max(...vec);
+    return vec.map(v => {
+        if (v > 0) {
+            return Math.sqrt(mx / v - 1);
+        } else {
+            return 0.0;
+        }
+    });
+}
+
+function drawPlotVector(v, id, params = {}) {
+    if (!drawOption) {
+        return
+    }
+    let {
+        clear = true,      // default
+        color = "red",     // default
+        pixelWidth = drawW,// default
+        allowChange = false, // default     
+        name = "",          // default
+        start = drawSx,    // default
+        message = "",      // default
+        zoomX = 1,         // default
+        backColor = "white" // default
+    } = params;
+    const canvas = document.getElementById(id);
+    const ctx = canvas.getContext("2d");
+
+    const paddingLeft = 140;
+    const paddingRight = 110;
+    const paddingTop = 40;
+    const paddingBottom = 20;
+    const paddingHeight = paddingTop + paddingBottom;
+    const paddingWidth = paddingLeft + paddingRight;
+
+    const graphHeight = canvas.height - paddingHeight - 20;
+    const graphTop = paddingTop + 10;
+    const graphBottom = graphTop + graphHeight;
+    const graphWidth = canvas.width - paddingWidth - 70;
+    const graphLeft = paddingLeft + 35;
+    const graphRight = graphLeft + graphWidth;
+
+    if (typeof v === 'string') {
+        v = JSON.parse(v);
+    }
+
+    let degaussVal = parseInt(document.getElementById(`${id}-degaussVal`).innerHTML);
+    let deLorentzVal = parseInt(document.getElementById(`${id}-delorentzVal`).innerHTML);
+    let deSechVal = parseInt(document.getElementById(`${id}-desechVal`).innerHTML);
+
+    let vectors = presentedVectors.get(id);
+    if (clear || vectors == null) {
+        vectors = [];
+        presentedVectors.set(id, vectors);
+    }
+
+    let l = v.length;
+    console.log(`draw vector length = ${l} id=${id} clear=${clear} vectors=${vectors.length}`);
+    let fac;
+    const prevCompare = document.getElementById('cbxPrevCompare')?.checked;
+    if (l > 0) {
+        vMax = Math.max(...v);
+        vMin = Math.min(...v);
+        fac = Math.max(Math.abs(vMax), Math.abs(vMin));
+        let vecObj = {vecOrig: math.clone(v), w: pixelWidth, ch:allowChange,  s: start, c: color, n: name, f: fac, m: message, z: zoomX};
+        vectors.push(vecObj);
+        presentedVectors.set(id, vectors);
+    } else {
+        fac = 0;
+    }
+    vectors.forEach((vv) => {
+        if (degaussVal == 1) {
+            vv.vec = calcDegauss(vv.vecOrig);
+        } else if (deLorentzVal == 1) {
+            vv.vec = calcDeLorentz(vv.vecOrig);
+        } else if (deSechVal == 1) {
+            vv.vec = calcDeSech(vv.vecOrig);
+        } else {
+            vv.vec = vv.vecOrig;
+        }
+        v = vv.vec;
+        vv.f = Math.max(Math.abs(Math.max(...v)), Math.abs(Math.min(...v)));
+    });
+
+    l = vectors.reduce((p, c) => Math.max(p, c.vec.length), 0);
+    start = vectors.reduce((p, c) => Math.max(p, c.s), 0);
+    let change = vectors.reduce((p, c) => p || c.ch, false);
+    pixelWidth = vectors.reduce((p, c) => Math.max(p, c.w), 0);
+
+    if (change && pixelWidth > graphWidth / l) {
+        pixelWidth = graphWidth / l;
+    }
+
+    ctx.fillStyle = backColor;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);     
+    if (isMouseDownOnGraph) {
+        const canvas = document.getElementById(id);
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#ddd";
+        ctx.fillRect(graphLeft + mouseOnGraphStart * drawW, 0, (mouseOnGraphEnd - mouseOnGraphStart) * drawW, 200)
+    }
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.rect(paddingLeft, paddingTop, canvas.width - paddingWidth, canvas.height - paddingHeight);
+    ctx.stroke();
+
+    drawTextBG(ctx, name, 310, 2, "black", "12pt Arial");2
+
+    ctx.strokeStyle = `gray`;
+    ctx.beginPath();
+    ctx.moveTo(graphLeft, graphBottom);
+    ctx.lineTo(graphLeft + l * pixelWidth, graphBottom);
+    ctx.stroke();
+
+    let selectVal = parseInt(document.getElementById(`${id}-selectVal`).innerHTML);
+    fac = vectors.filter((v, iv) => (selectVal == 0 || iv < selectVal)).reduce((p, c) => Math.max(p, c.f), 0.001);
+    if (prevCompare) {
+        let facPrev = Math.max(Math.abs(Math.max(...drawVectorComparePrevious)), Math.abs(Math.min(...drawVectorComparePrevious)));
+        if (fac < facPrev) {
+            fac = facPrev;
+        }
+        let diffPrev = math.subtract(v, drawVectorComparePrevious)
+        facPrev = Math.max(Math.abs(Math.max(...diffPrev)), Math.abs(Math.min(...diffPrev)));
+        if (fac < facPrev) {
+            fac = facPrev;
+        }
+    }
+    if (fac > 0) {
+        fac = graphHeight / fac
+    }
+    let zoomVal = parseFloat(document.getElementById(`${id}-zoomVal`).innerHTML);
+    fac *= zoomVal;
+    vectors.forEach((vo, iVec) => {
+        if (selectVal == 0 || iVec < selectVal) {
+            let sx = vo.s;// - pixelWidth * vo.z * vo.vec.length / 2 + canvas.width / 2;
+            let dx = pixelWidth * vo.z;
+            ctx.strokeStyle = vo.c;
+            ctx.beginPath();
+            ctx.moveTo(graphLeft, graphBottom - Math.floor(fac * vo.vec[0]));
+            for (let i = 1; i < l; i++) {
+                ctx.lineTo(graphLeft + i * dx, graphBottom - Math.floor(fac * vo.vec[i]));
+            }
+            ctx.stroke();
+
+            drawTextBG(ctx, `${vo.n}`, 20, 120 + (iVec + 1) * 16, vo.c);
+        }
+    });
+    document.getElementById(`${id}-message`).innerHTML = 
+            vectors.map((c) => `<span style="color:${c.c}">${c.m}</span>`).filter((c) => c.length > 0).join("</br>");
+    if (prevCompare) {
+        ctx.strokeStyle = 'green';
+        ctx.beginPath();
+        ctx.moveTo(graphLeft, graphBottom - Math.floor(fac * drawVectorComparePrevious[0]));
+        for (let i = 1; i < l; i++) {
+            ctx.lineTo(graphLeft + i * pixelWidth, graphBottom - Math.floor(fac * drawVectorComparePrevious[i]));
+        }
+        ctx.stroke();
+        ctx.strokeStyle = 'blue';
+        ctx.beginPath();
+        ctx.moveTo(graphLeft, graphBottom - Math.floor(fac * (v[0] - drawVectorComparePrevious[0])));
+        for (let i = 1; i < l; i++) {
+            ctx.lineTo(graphLeft + i * pixelWidth, graphBottom - Math.floor(fac * (v[i] - drawVectorComparePrevious[i])));
+        }
+        ctx.stroke();
+    } else {
+        drawVectorComparePrevious = math.clone(v);
+    }
 }

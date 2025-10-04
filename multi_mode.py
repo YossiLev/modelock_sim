@@ -694,6 +694,7 @@ class MultiModeSimulation:
 
     def serialize_mm_data(self, delay, more):
         data = {
+            "type": "multi_mode",
             "delay": delay,
             "more": more,
             "rounds": self.n_rounds,

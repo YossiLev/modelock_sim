@@ -619,36 +619,6 @@ function drawVectorPar(v, id, params) {
     drawVector(v, clear, color, pixelWidth, allowChange, id, name, start, message, zoomX, backColor);
 }
 
-function calcDegauss(vec) {
-    let mx = Math.max(...vec);
-    return vec.map(v => {
-        if (v > 0) {
-            return Math.sqrt(- Math.log(v / mx));
-        } else {
-            return 0.0;
-        }
-    });
-}
-function calcDeSech(vec) {
-    let mx = Math.max(...vec);
-    return vec.map(v => {
-        if (v > 0) {
-            return - Math.log(v / mx);
-        } else {
-            return 0.0;
-        }
-    });
-}
-function calcDeLorentz(vec) {
-    let mx = Math.max(...vec);
-    return vec.map(v => {
-        if (v > 0) {
-            return Math.sqrt(mx / v - 1);
-        } else {
-            return 0.0;
-        }
-    });
-}
 function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowChange = false, 
     id = "graphCanvas", name = "", start = drawSx, message = "", zoomX = 1, backColor = "white") {
     if (!drawOption) {
@@ -712,10 +682,14 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowCha
         ctx.fillStyle = "#ddd";
         ctx.fillRect(start + mouseOnGraphStart * drawW, 0, (mouseOnGraphEnd - mouseOnGraphStart) * drawW, 200)
     }
+    const graphHeight = canvas.height - 60;
+    const graphTop = 20;
+    const graphBottom = graphTop + graphHeight;
+
     ctx.strokeStyle = `gray`;
     ctx.beginPath();
-    ctx.moveTo(start, 100);
-    ctx.lineTo(start + l * pixelWidth, 100);
+    ctx.moveTo(start, graphBottom);
+    ctx.lineTo(start + l * pixelWidth, graphBottom);
     ctx.stroke();
 
     let selectVal = parseInt(document.getElementById(`${id}-selectVal`).innerHTML);
@@ -732,7 +706,7 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowCha
         }
     }
     if (fac > 0) {
-        fac = 90 / fac
+        fac = graphHeight / fac
     }
     let zoomVal = parseFloat(document.getElementById(`${id}-zoomVal`).innerHTML);
     fac *= zoomVal;
@@ -742,9 +716,9 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowCha
             let dx = pixelWidth * vo.z;
             ctx.strokeStyle = vo.c;
             ctx.beginPath();
-            ctx.moveTo(sx, 100 - Math.floor(fac * vo.vec[0]));
+            ctx.moveTo(sx, graphBottom - Math.floor(fac * vo.vec[0]));
             for (let i = 1; i < l; i++) {
-                ctx.lineTo(sx + i * dx, 100 - Math.floor(fac * vo.vec[i]));
+                ctx.lineTo(sx + i * dx, graphBottom - Math.floor(fac * vo.vec[i]));
             }
             ctx.stroke();
 
@@ -756,16 +730,16 @@ function drawVector(v, clear = true, color = "red", pixelWidth = drawW, allowCha
     if (prevCompare) {
         ctx.strokeStyle = 'green';
         ctx.beginPath();
-        ctx.moveTo(start, 100 - Math.floor(fac * drawVectorComparePrevious[0]));
+        ctx.moveTo(start, graphBottom - Math.floor(fac * drawVectorComparePrevious[0]));
         for (let i = 1; i < l; i++) {
-            ctx.lineTo(start + i * pixelWidth, 100 - Math.floor(fac * drawVectorComparePrevious[i]));
+            ctx.lineTo(start + i * pixelWidth, graphBottom - Math.floor(fac * drawVectorComparePrevious[i]));
         }
         ctx.stroke();
         ctx.strokeStyle = 'blue';
         ctx.beginPath();
-        ctx.moveTo(start, 100 - Math.floor(fac * (v[0] - drawVectorComparePrevious[0])));
+        ctx.moveTo(start, graphBottom - Math.floor(fac * (v[0] - drawVectorComparePrevious[0])));
         for (let i = 1; i < l; i++) {
-            ctx.lineTo(start + i * pixelWidth, 100 - Math.floor(fac * (v[i] - drawVectorComparePrevious[i])));
+            ctx.lineTo(start + i * pixelWidth, graphBottom - Math.floor(fac * (v[i] - drawVectorComparePrevious[i])));
         }
         ctx.stroke();
     } else {
@@ -824,7 +798,7 @@ function drawMatDecomposition(ix, clear = true, color = "red") {
     }
 }
 
-function zoomGraph(id, change) {
+function zoomGraph(id, change, mode = 1) {
     val = parseFloat(document.getElementById(`${id}-zoomVal`).innerHTML);
     if (change > 0) {
         val *= 2;
@@ -832,8 +806,11 @@ function zoomGraph(id, change) {
         val *= 0.5;
     }
     document.getElementById(`${id}-zoomVal`).innerHTML = val.toFixed(4);
-    drawVectorPar([], id, {clear: false, allowChange: true, start: 0});
-
+    if (mode == 1) {
+        drawVectorPar([], id, {clear: false, allowChange: true, start: 0});
+    } else {
+        drawPlotVector([], id, {clear: false, allowChange: true, start: 0});
+    }
 }
 
 function selectGraph(id) {
@@ -841,28 +818,40 @@ function selectGraph(id) {
     document.getElementById(`${id}-selectVal`).innerHTML = `${1 - val}`;
     drawVectorPar([], id, {clear: false, allowChange: true, start: 0});
 }
-function degaussGraph(id) {
+function degaussGraph(id, mode = 1) {
     val = parseInt(document.getElementById(`${id}-degaussVal`).innerHTML);
     document.getElementById(`${id}-degaussVal`).innerHTML = `${1 - val}`;
     document.getElementById(`${id}-delorentzVal`).innerHTML = `0`;
     document.getElementById(`${id}-desechVal`).innerHTML = `0`;
-    drawVectorPar([], id, {clear: false, allowChange: true, start: 0});
+    if (mode == 1) {
+        drawVectorPar([], id, {clear: false, allowChange: true, start: 0});
+    } else {
+        drawPlotVector([], id, {clear: false, allowChange: true, start: 0});
+    }
 }
-function delorentzGraph(id) {
+function delorentzGraph(id, mode = 1) {
     val = parseInt(document.getElementById(`${id}-delorentzVal`).innerHTML);
     document.getElementById(`${id}-delorentzVal`).innerHTML = `${1 - val}`;
     document.getElementById(`${id}-degaussVal`).innerHTML = `0`;
     document.getElementById(`${id}-desechVal`).innerHTML = `0`;
-    drawVectorPar([], id, {clear: false, allowChange: true, start: 0});
+    if (mode == 1) {
+        drawVectorPar([], id, {clear: false, allowChange: true, start: 0});
+    } else {
+        drawPlotVector([], id, {clear: false, allowChange: true, start: 0});
+    }
 }
-function desechGraph(id) {
+function desechGraph(id, mode = 1) {
     val = parseInt(document.getElementById(`${id}-desechVal`).innerHTML);
     document.getElementById(`${id}-desechVal`).innerHTML = `${1 - val}`;
     document.getElementById(`${id}-degaussVal`).innerHTML = `0`;
     document.getElementById(`${id}-delorentzVal`).innerHTML = `0`;
-    drawVectorPar([], id, {clear: false, allowChange: true, start: 0});
+    if (mode == 1) {
+        drawVectorPar([], id, {clear: false, allowChange: true, start: 0});
+    } else {
+        drawPlotVector([], id, {clear: false, allowChange: true, start: 0});
+    }
 }
-
+ 
 function drawGraph() {
     if (!drawOption) {
         return
@@ -2049,7 +2038,7 @@ function fetchGraphData(sample, x, y) {
      })
      .then(resp => resp.json()) // or, resp.text(), etc.
      .then(data => {
-        spreadUpdatedData(data);
+        spreadMultiModeUpdatedData(data);
      })
      .catch(error => {
         console.error(error);

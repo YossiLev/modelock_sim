@@ -127,6 +127,10 @@ void diode_round_trip(double *gain, double *loss, double *gain_value, double *lo
 
     for (int i_round = 0; i_round < n_rounds; i_round++) {
         for (int ii = m_shift; ii < N + m_shift; ii++) {
+            if (ii % 100 == 0) {
+                printf("Round %d step %d\r", i_round, ii);
+                fflush(stdout);
+            }   
             int i = ii % N;
             int iN = (i + 1) % N;
             // twin segment that meets us on the absorber

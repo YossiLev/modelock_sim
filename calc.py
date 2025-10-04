@@ -7,6 +7,7 @@
 #         import numpy as np
 #         from scipy.signal import fftconvolve
 # except ImportError:
+import json
 import numpy as np
 from scipy.signal import fftconvolve
 
@@ -540,6 +541,37 @@ class CalculatorData:
             return
         self.cavity_mat = MMult(self.cavity_mat, M)
 
+    def serialize_diode_graphs_data(self):
+        graphs = []
+        graphs.append({
+            "id": "diode_pulse_chart",
+            "title": "Pulse in (photons/sec)",
+            "x_label": "Time (s)",
+            "y_label": "Intensity",
+            "lines": [
+                {"color": "orange", "values": cget(intens(self.diode_pulse)).tolist(), "text": f"rrrrrrrrrr"}
+            ],
+            # "x_values": cget(self.diode_t_list).tolist(),
+            # "y_values": cget(intens(self.diode_pulse)).tolist(),
+        })
+
+        return graphs
+    
+    def collectDiodeData(self, delay=20, more=False):
+        data = {
+            "type": "diode",
+            "delay": delay,
+            "more": more,
+            "title": "Pulse in (photons/sec)",
+            "graphs": self.serialize_diode_graphs_data(),
+        }
+        try:
+            s = json.dumps(data)
+        except TypeError as e:
+            print("error: json exeption", data)
+            s = ""
+        return s
+
 def gain_function(Ga, N):
     xh1 = Ga * 4468377122.5 * 0.46 * 16.5
     xh2 = Ga * 4468377122.5 * 0.46 * 0.32 * np.exp(0.000000000041*14E+10)
@@ -784,6 +816,11 @@ def generate_calc(data_obj, tab, offset = 0):
                         generate_chart([cget(calcData.diode_t_list).tolist(), calcData.diode_levels_x], 
                                        [cget(pulse).tolist(), calcData.diode_levels_y], [""], 
                                        "Pulse in (photons/sec)", h=2, color=["red", "black"], marker=None, twinx=True),
+                        Div(
+                           Div(cls="handle", draggable="true"),
+                               FlexN([graphCanvas(id="diode_pulse_chart", width=1100, height=300, options=False, mode = 2), 
+                               ]), cls="container"
+                        ),
                         generate_chart([cget(calcData.diode_t_list).tolist()], 
                                        [cget(pulse_after).tolist()], [""], 
                                        "Pulse out (photons/sec)", h=2, color=colors, marker=None, twinx=True),
@@ -804,6 +841,8 @@ def generate_calc(data_obj, tab, offset = 0):
                                         cget(pulse).tolist()], [""],
                                        "Net gain", color=["blue", "red"], h=2, marker=None, twinx=True),
                         generate_chart(xVec, yVec, [""], "Gain By Pop", h=4, color=["black", "black", "green", "red"], marker=".", lw=[5, 5, 1, 1]),
+
+                        Div(calcData.collectDiodeData(), id="numData"),
 
                         cls="box", style="background-color: #008080;"
                   ),

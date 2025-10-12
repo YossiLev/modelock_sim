@@ -1,5 +1,7 @@
 {
     "files.associations": {
-        "complex": "c"
+        "complex": "c",
+        "random": "c",
+        "__locale": "c"
     }
 }

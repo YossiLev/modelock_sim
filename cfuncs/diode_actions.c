@@ -276,6 +276,114 @@ void cmp_diode_round_trip(double *gain, double *loss, double *gain_value, double
 #endif
 }
 
+// maxwell bloch method function for electric field amplitude
+void mb_diode_round_trip(double *gainN, double _Complex *gainP, double *lossN, double _Complex *lossP, 
+                   double *gain_value, double *loss_value,
+                   double _Complex *pulse_amplitude, double _Complex *pulse_amplitude_after,
+                   int n_rounds, int N, int loss_shift, int oc_shift, int gain_distance,
+                   double dt, double gainWidth, double Pa, double Ta, double Ga, double Pb, double Tb, double Gb, double N0b, double oc_val) {
+    int i, m_shift = 0;
+    double gAbs;
+
+    double xh1 = Ga * 4468377122.5 * 0.46 * 16.5;
+    double xh2 = Ga * 4468377122.5 * 0.46 * 0.32 * exp(0.000000000041*14E+10);
+    double rand_factor = 0.000000000005 * dt / (Ta * 1E-12)  / (double)RAND_MAX;
+    double oc_val_sqrt = sqrt(oc_val);
+    double oc_out_val = sqrt(1.0 - oc_val);
+    double omega0 = 0.0; // transition frequency, set to zero for simplicity
+    double kappa = 1.0; // coupling constant, adjust as needed
+    double C = 1.0; // inversion to polarization coupling, adjust as needed
+    double coupling_out = 1.0; // coupling from polarization to field, adjust as needed
+    double Gamma = Ga; // polarization decay rate, using gain linewidth for simplicity
+
+    double complex z = -(Gamma + I * omega0) * dt;
+    double complex alpha = cexp(z);
+    double complex one_minus_alpha = 1.0 + 0.0*I - alpha; /* (1 - alpha) */
+
+    for (int i_round = 0; i_round < n_rounds; i_round++) {
+        for (int ii = m_shift; ii < N + m_shift; ii++) {
+            int i = ii % N;
+            int iN = (i + 1) % N;
+
+            //
+            // loss medium
+            //
+
+            // twin segment that meets us on the absorber
+            int i_match_loss = (i + loss_shift) % N;
+            // total intensity in the absorber
+            double _Complex amplitude_loss = pulse_amplitude[i] + pulse_amplitude[i_match_loss];
+            double intensity_loss = abs_square(pulse_amplitude[i]) + abs_square(pulse_amplitude[i_match_loss]);
+            double complex drive = kappa * amplitude_loss * (lossN[i] + 0.0); /* ensure complex multiply */
+            lossP[iN] = alpha * lossP[iN] + one_minus_alpha * drive;
+            double complex delta_loss = coupling_out * lossP[iN];
+            pulse_amplitude[i] += delta_loss;
+            pulse_amplitude[i_match_loss] += delta_loss;
+            double exchange = cimag(conj(amplitude_loss) * lossP[iN]);
+            lossN[iN] = lossN[i] + dt * ( (N0b - lossN[i]) / Tb - C * exchange + Pb - lossN[i] / (Tb * 1E-12));
+
+            // ---------- loss calculation
+            // loss[i] is the number of charge carrier in the absorber at step i. the allows us to calculate the gain(loss) at the absorber (gAbs)
+            // gAbs = Gb * 0.02 * (loss[i] - N0b);
+            // // loss_value[i] is the factor on the intensity of a beam segment passsing through the absorber at step i.
+            // loss_value[i] = 1 + gAbs;
+            // // make the change to the charge carriers in the absorber
+            // loss[iN] = loss[i] + dt * (- gAbs * intensity_loss + Pb - loss[i] / (Tb * 1E-12));
+            // // update the pulse intensity of the two beams after the absorber
+            // pulse_amplitude[i] *= sqrt(loss_value[i]);
+            // pulse_amplitude[i_match_loss] *= sqrt(loss_value[i]);
+
+            //
+            // gain medium
+            //
+
+            // get the indices of the two beam segments at the gain medium for the gain calculation
+            int i_gain = (i + gain_distance) % N;
+            int i_match_gain = (i + loss_shift - gain_distance) % N;
+            // total intensity in the gain medium
+            double _Complex amplitude_gain = pulse_amplitude[i_gain] + pulse_amplitude[i_match_gain];
+            double intensity_gain = abs_square(pulse_amplitude[i_gain]) + abs_square(pulse_amplitude[i_match_gain]);
+            double complex drive = kappa * amplitude_gain * (gainN[i] + 0.0); /* ensure complex multiply */
+            gainP[iN] = alpha * gainP[iN] + one_minus_alpha * drive;
+            double complex delta_gain = coupling_out * gainP[iN];
+            pulse_amplitude[i_gain] += delta_gain;
+            pulse_amplitude[i_match_gain] += delta_gain;
+            double exchange = cimag(conj(amplitude_gain) * gainP[iN]);
+            gainN[iN] = gainN[i] + dt * ( (Pa - gainN[i]) / Ta - C * exchange + Pa - gainN[i] / (Ta * 1E-12));
+
+            // ---------- gain calculation
+            // gain[i] is the number of charge carrier in the gain medium at step i. the allows us to calculate the gain at the gain medium (gGain)
+            // double gGain = xh1 - xh2 * exp(-0.000000000041 * gain[i]);
+            // if (gGain < 0) {
+            //     printf("Negative gain detected at index %d: %f %f\n", i, gGain, gain[i]);
+            // }
+            // // gain_value[i] is the factor on the intensity of a beam segment passsing through the gain medium at step i.
+            // gain_value[i] = 1 + gGain;
+            // // make the change to the charge carriers in the gain medium
+            // gain[iN] = gain[i] + dt * (-gGain * intensity_gain + Pa - gain[i] / (Ta * 1E-12));
+            // if (gain[iN] < 0) {
+            //     printf("Negative gain carrier detected at index %d: %f %f %f\n", i, gain[iN], gain[i], intensity_gain);
+            // }
+            // // update the pulse amplitude of the two beams after the gain medium
+            // pulse_amplitude[i_gain] *= sqrt(gain_value[i]);
+            // pulse_amplitude[i_match_gain] *= sqrt(gain_value[i]);
+            // add random noise (at the point of the gain medium. this can be moved to other places)
+            pulse_amplitude[i_gain] += sqrt(rand_factor * gainN[i]) * (double)rand();
+            pulse_amplitude[i_match_gain] += sqrt(rand_factor * gainN[i]) * (double)rand();
+
+            // ---------- output coupler calculation
+            int oc_loc = (oc_shift + i) % N;
+            // store the intensity of the output beam at it goes outside the cavity
+            pulse_amplitude_after[oc_loc] = pulse_amplitude[oc_loc] * oc_out_val;
+
+            pulse_amplitude[oc_loc] *= oc_val_sqrt;
+        }
+
+    }
+
+
+}
+
 /*
     cufftDoubleComplex *d_data;
     CHECK_CUDA(cudaMalloc(&d_data, N * sizeof(cufftDoubleComplex)));

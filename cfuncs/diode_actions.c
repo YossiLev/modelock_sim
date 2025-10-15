@@ -339,7 +339,7 @@ void mb_diode_round_trip(double *gainN, double _Complex *gainP, double *lossN, d
             int iN = (i + 1) % N;
 
             /* -------------------- ABSORBER (loss) interaction -------------------- */
-            // twin segment that meets us on the absorber
+            // two segments that meet at the absorber
             idx_loss_a = i;
             idx_loss_b = (i + loss_shift) % N;
             // amplitude sum in the absorber
@@ -354,12 +354,12 @@ void mb_diode_round_trip(double *gainN, double _Complex *gainP, double *lossN, d
             // light amplitude change due to absorber
             I_tot = cabs(amplitude_loss);
             if(I_tot > 1e-30) {
-                pulse_amplitude[idx_loss_a] += delta_loss * cabs(idx_loss_a)  / I_tot;
-                pulse_amplitude[idx_loss_b] += delta_loss * cabs(idx_loss_b) / I_tot;
+                pulse_amplitude[idx_loss_a] += delta_loss * cabs(pulse_amplitude[idx_loss_a])  / I_tot;
+                pulse_amplitude[idx_loss_b] += delta_loss * cabs(pulse_amplitude[idx_loss_b]) / I_tot;
             }
 
             /* -------------------- Gain interaction -------------------- */
-            // get the indices of the two beam segments at the gain medium for the gain calculation
+            // two beam segments at the gain medium for the gain calculation
             idx_gain_a = (i + gain_distance) % N;
             idx_gain_b = (i + loss_shift - gain_distance) % N;
             // amplitude sum in the gain medium
@@ -376,8 +376,8 @@ void mb_diode_round_trip(double *gainN, double _Complex *gainP, double *lossN, d
             // light amplitude change due to gain medium
             I_tot = cabs(amplitude_gain);
             if(I_tot > 1e-30) {
-                pulse_amplitude[idx_gain_a] += delta_gain * cabs(idx_gain_a)  / I_tot;
-                pulse_amplitude[idx_gain_b] += delta_gain * cabs(idx_gain_b) / I_tot;
+                pulse_amplitude[idx_gain_a] += delta_gain * cabs(pulse_amplitude[idx_gain_a])  / I_tot;
+                pulse_amplitude[idx_gain_b] += delta_gain * cabs(pulse_amplitude[idx_gain_b]) / I_tot;
             }
 
             /* inject small complex Gaussian noise at gain interaction points (spontaneous-like) */

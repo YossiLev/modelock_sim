@@ -153,6 +153,7 @@ lib_diode.mb_diode_round_trip.argtypes = [
     ctypes.c_double,
     ctypes.c_double,
     ctypes.c_double,
+    ctypes.c_double,
     ctypes.c_double
 ]
 lib_diode.mb_diode_round_trip.restype = None
@@ -520,7 +521,7 @@ class CalculatorData:
             round_trip_func(c_gain, c_gain_polarization, c_loss, c_loss_polarization, c_gain_value, c_loss_value,
                             c_pulse, c_pulse_after,
                             self.calculation_rounds, self.diode_N, self.loss_shift, self.oc_shift, self.gain_distance,
-                            self.diode_dt, self.gain_width, self.Pa, self.Ta, self.Ga, self.Pb, self.Tb, self.Gb, self.N0b, self.oc_val)
+                            self.diode_dt, self.gain_width, self.Pa, self.N0a, self.Ta, self.Ga, self.Pb, self.Tb, self.Gb, self.N0b, self.oc_val)
             self.diode_accum_pulse_after = np.add.accumulate(intens(self.diode_pulse_after)) * self.diode_dt * self.volume
             return
         

@@ -130,6 +130,33 @@ lib_diode.cmp_diode_round_trip.argtypes = [
 ]
 lib_diode.cmp_diode_round_trip.restype = None
 
+lib_diode.mb_diode_round_trip.argtypes = [
+    ctypes.POINTER(ctypes.c_double), 
+    ctypes.POINTER(ctypes.c_double), 
+    ctypes.POINTER(ctypes.c_double), 
+    ctypes.POINTER(ctypes.c_double), 
+    ctypes.POINTER(ctypes.c_double),
+    ctypes.POINTER(ctypes.c_double),
+    ctypes.POINTER(ctypes.c_double),
+    ctypes.POINTER(ctypes.c_double),
+    ctypes.c_int,
+    ctypes.c_int,
+    ctypes.c_int,
+    ctypes.c_int,
+    ctypes.c_int,
+    ctypes.c_double,
+    ctypes.c_double,
+    ctypes.c_double,
+    ctypes.c_double,
+    ctypes.c_double,
+    ctypes.c_double,
+    ctypes.c_double,
+    ctypes.c_double,
+    ctypes.c_double,
+    ctypes.c_double
+]
+lib_diode.mb_diode_round_trip.restype = None
+
 def MMult(M1, M2):
     res = [[
         M1[0][0] * M2[0][0] + M1[0][1] * M2[1][0],
@@ -174,6 +201,8 @@ def intens(arr):
         return arr
     if (np.isnan(arr.real)).any():
         print("NaN in real part **** could be an error")
+        print(f"arr={arr[0]},{arr[1]},{arr[2]},{arr[3]}, ")
+        raise Exception("NaN in real part **** could be an error")
     return np.square(arr.real) + np.square(arr.imag)
 
 class CalculatorData:
@@ -209,7 +238,7 @@ class CalculatorData:
         self.diode_cavity_type = "Ring"
         self.diode_mode = "Amplitude"
         self.diode_sampling = "4096"
-        self.diode_pulse_dtype = np.float64 #, np.complex128
+        self.diode_pulse_dtype = np.complex128
 
         self.diode_cavity_time = 4E-09
         self.diode_N = 4096 # * 4
@@ -260,6 +289,8 @@ class CalculatorData:
         self.diode_accum_pulse_after = []
         self.diode_gain = np.array([1], dtype=np.float64)
         self.diode_loss = np.array([1], dtype=np.float64)
+        self.diode_gain_polarization = np.array([1], dtype=np.complex128)
+        self.diode_loss_polarization = np.array([1], dtype=np.complex128)
         self.diode_gain_value = np.array([1], dtype=np.float64)
         self.diode_loss_value = np.array([1], dtype=np.float64)
 
@@ -411,7 +442,7 @@ class CalculatorData:
                         self.diode_t_list = np.arange(self.diode_N, dtype=np.float64)
                         self.diode_gain_value = np.full_like(self.diode_t_list, 0.0)
                         self.diode_loss_value = np.full_like(self.diode_t_list, 0.0)
-                        self.diode_pulse_dtype = np.complex128 if self.diode_mode == "Amplitude" else np.float64 
+                        self.diode_pulse_dtype = np.complex128 if self.diode_mode != "Intensity" else np.float64 
                         self.diode_pulse = np.array([], dtype=self.diode_pulse_dtype)
                         self.diode_pulse_original = np.array([], dtype=self.diode_pulse_dtype)
                         self.diode_pulse_after = np.array([], dtype=self.diode_pulse_dtype)
@@ -446,9 +477,18 @@ class CalculatorData:
                             case "Flat":
                                 self.diode_pulse = np.full_like(self.diode_t_list, 0)
                                 
+                        if self.diode_pulse_dtype == np.complex128:
+                            lambda_ = 1064E-09
+                            omega0 = 2.0 * np.pi * 3E+08 / lambda_
+                            phase = self.diode_t_list * (-1.j * omega0 * self.diode_dt)
+                            self.diode_pulse = self.diode_pulse * np.exp(phase)
+                            
                         self.diode_pulse_original = np.copy(self.diode_pulse)
                         self.diode_gain = np.full_like(self.diode_t_list, self.start_gain)
                         self.diode_loss = np.full_like(self.diode_t_list, self.start_absorber)
+                        shape = self.diode_t_list.shape
+                        self.diode_gain_polarization = np.random.uniform(-1, 1, shape) + 1.j * np.random.uniform(-1, 1, shape)
+                        self.diode_loss_polarization = np.random.uniform(-1, 1, shape) + 1.j * np.random.uniform(-1, 1, shape)
                         self.calculation_rounds_done = 0
                     case "recalc":
                         if self.diode_cavity_type == "Ring" and self.diode_update_pulse == "Update Pulse":
@@ -467,11 +507,23 @@ class CalculatorData:
 
         c_pulse = self.diode_pulse.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
         c_gain = self.diode_gain.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+        c_gain_polarization = self.diode_gain_polarization.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
         c_gain_value = self.diode_gain_value.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
         c_loss = self.diode_loss.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+        c_loss_polarization = self.diode_loss_polarization.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
         c_loss_value = self.diode_loss_value.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
         c_pulse_after = self.diode_pulse_after.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
 
+        print(f"diode_round_trip_new: diode_mode={self.diode_mode} diode_pulse_dtype={self.diode_pulse_dtype}")
+        if self.diode_mode == "MB":
+            round_trip_func = lib_diode.mb_diode_round_trip
+            round_trip_func(c_gain, c_gain_polarization, c_loss, c_loss_polarization, c_gain_value, c_loss_value,
+                            c_pulse, c_pulse_after,
+                            self.calculation_rounds, self.diode_N, self.loss_shift, self.oc_shift, self.gain_distance,
+                            self.diode_dt, self.gain_width, self.Pa, self.Ta, self.Ga, self.Pb, self.Tb, self.Gb, self.N0b, self.oc_val)
+            self.diode_accum_pulse_after = np.add.accumulate(intens(self.diode_pulse_after)) * self.diode_dt * self.volume
+            return
+        
         round_trip_func = lib_diode.cmp_diode_round_trip if self.diode_pulse_dtype == np.complex128 else lib_diode.diode_round_trip
 
         round_trip_func(c_gain, c_loss, c_gain_value, c_loss_value,
@@ -760,7 +812,7 @@ def generate_calc(data_obj, tab, offset = 0):
                     Div(
                         SelectCalcS(f'DiodeSelectSampling', "Sampling", ["4096", "8192", "16384", "32768"], calcData.diode_sampling, width = 100),
                         SelectCalcS(f'CalcDiodeCavityType', "Cavity Type", ["Ring", "Linear"], calcData.diode_cavity_type, width = 80),
-                        SelectCalcS(f'CalcDiodeSelectMode', "mode", ["Intensity", "Amplitude"], calcData.diode_mode, width = 120),
+                        SelectCalcS(f'CalcDiodeSelectMode', "mode", ["Intensity", "Amplitude", "MB"], calcData.diode_mode, width = 120),
                         InputCalcS(f'DiodePulseWidth', "Pulse width", f'{calcData.diode_pulse_width}', width = 80),
                         SelectCalcS(f'CalcDiodeSelectIntensity', "Intensity", ["Pulse", "Noise", "CW", "Flat"], calcData.diode_intensity, width = 80),
                     ),
@@ -816,11 +868,11 @@ def generate_calc(data_obj, tab, offset = 0):
                         generate_chart([cget(calcData.diode_t_list).tolist(), calcData.diode_levels_x], 
                                        [cget(pulse).tolist(), calcData.diode_levels_y], [""], 
                                        "Pulse in (photons/sec)", h=2, color=["red", "black"], marker=None, twinx=True),
-                        Div(
-                           Div(cls="handle", draggable="true"),
-                               FlexN([graphCanvas(id="diode_pulse_chart", width=1100, height=300, options=False, mode = 2), 
-                               ]), cls="container"
-                        ),
+                        # Div(
+                        #    Div(cls="handle", draggable="true"),
+                        #        FlexN([graphCanvas(id="diode_pulse_chart", width=1100, height=300, options=False, mode = 2), 
+                        #        ]), cls="container"
+                        # ),
                         generate_chart([cget(calcData.diode_t_list).tolist()], 
                                        [cget(pulse_after).tolist()], [""], 
                                        "Pulse out (photons/sec)", h=2, color=colors, marker=None, twinx=True),
@@ -836,6 +888,9 @@ def generate_calc(data_obj, tab, offset = 0):
                                        [cget(calcData.diode_loss).tolist(), cget(calcData.diode_loss_value).tolist()], [""], 
                                        f"Abs carrs (cm^-3) [{(max_loss - min_loss):.2e} = {max_loss:.3e} - {min_loss:.3e}] and Loss (cm^-1)", 
                                        color=["black", "red"], h=2, marker=None, twinx=True),
+                        generate_chart([cget(calcData.diode_t_list).tolist()], 
+                                        [cget(np.imag(calcData.diode_loss_polarization)).tolist()], [""], 
+                                        "Loss Polarization", color=["black"], h=2, marker=None, twinx=True),
                         generate_chart([cget(calcData.diode_t_list).tolist()], 
                                        [cget(np.exp(- calcData.cavity_loss) * np.multiply(calcData.diode_gain_value, calcData.diode_loss_value)).tolist(),
                                         cget(pulse).tolist()], [""],

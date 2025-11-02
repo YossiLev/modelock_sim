@@ -241,7 +241,7 @@ class CalculatorData:
         self.diode_sampling = "4096"
         self.diode_pulse_dtype = np.complex128
 
-        self.diode_cavity_time = 4E-09
+        self.diode_cavity_time = 3.95138389E-09 #4E-09
         self.diode_N = 4096 # * 4
         self.diode_dt = self.diode_cavity_time / self.diode_N
         self.diode_intensity = "Pulse"

@@ -311,6 +311,7 @@ void mb_diode_round_trip(double *gainN, double _Complex *gainP, double *lossN, d
                    double _Complex *pulse_amplitude, double _Complex *pulse_amplitude_after,
                    int n_rounds, int N, int loss_shift, int oc_shift, int gain_distance,
                    double dt, double gainWidth, double Pa, double Ta, double Ga, double N0a, double Pb, double Tb, double Gb, double N0b, double oc_val) {
+                    
     int m_shift = 0;
     double gAbs;
 
@@ -319,9 +320,10 @@ void mb_diode_round_trip(double *gainN, double _Complex *gainP, double *lossN, d
     double oc_out_val = sqrt(1.0 - oc_val); // output coupler output amplitude factor
     double omega0 = 0.0; // transition frequency, set to zero for simplicity
     double kappa = 1.0E04; // coupling constant, adjust as needed
-    double C_loss = 1.0E-01; // inversion to polarization coupling, adjust as needed
-    double C_gain = 1.0E+05; // inversion to polarization coupling, adjust as needed
-    double coupling_out = 2E-15; // coupling from polarization to field, adjust as needed
+    double C_loss = - 1.0E-05; // inversion to polarization coupling, adjust as needed
+    double C_gain = - 1.0E-04; // inversion to polarization coupling, adjust as needed
+    double coupling_out_gain = 2E-15; // coupling from polarization to field, adjust as needed
+    double coupling_out_loss = 2E-16; // coupling from polarization to field, adjust as needed
     double Gamma =  gainWidth * 2.0 * 3.14159 * 1E12; // gain width is given in THz, convert to rad/s
 
     double _Complex z = -(Gamma + I * omega0) * dt;
@@ -354,9 +356,9 @@ void mb_diode_round_trip(double *gainN, double _Complex *gainP, double *lossN, d
             drive = kappa * amplitude_loss * (double _Complex)lossN[i];
             lossP[iN] = alpha * lossP[i] + one_minus_alpha * drive;
 
-            delta_loss = coupling_out * lossP[iN];
+            delta_loss = coupling_out_loss * lossP[iN];
             
-            exchange = cimag(conj(amplitude_loss) * lossP[iN]);
+            exchange = cimag(conj(amplitude_loss) * lossP[i]);
             lossN[iN] = lossN[i] + dt * ((N0b - lossN[i]) / tLoss - C_loss * exchange);
 
             // light amplitude change due to absorber
@@ -377,12 +379,12 @@ void mb_diode_round_trip(double *gainN, double _Complex *gainP, double *lossN, d
             drive = kappa * amplitude_gain * (double _Complex)gainN[i]; /* ensure complex multiply */
             gainP[iN] = alpha * gainP[i] + one_minus_alpha * drive;
 
-            delta_gain = coupling_out * gainP[iN];
-            exchange = cimag(conj(amplitude_gain) * gainP[iN]);
+            delta_gain = coupling_out_gain * gainP[iN];
+            exchange = cimag(conj(amplitude_gain) * gainP[i]);
             gainN[iN] = gainN[i] + dt * ((N0a - gainN[i]) / tGain - C_gain * exchange + Pa);
             if (gainN[iN] < 0 || ii == 20) {
                 printf("Negative gain carrier detected at index %d: %f %f %f\n", i, gainN[iN], gainN[i], cabs(amplitude_gain));
-                printf("Negative gain carrier Data: %f %f %f %e %f\n", C_gain, exchange, Pa, dt, (N0a - gainN[i]) / tGain);
+                printf("Negative gain carrier Data: %f %f %f %e %f %f %f\n", C_gain, exchange, Pa, dt, (N0a - gainN[i]) / tGain, N0a, tGain);
             }
             // light amplitude change due to gain medium
             I_tot = cabs_square(amplitude_gain);

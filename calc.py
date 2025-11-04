@@ -488,8 +488,8 @@ class CalculatorData:
                         self.diode_gain = np.full_like(self.diode_t_list, self.start_gain)
                         self.diode_loss = np.full_like(self.diode_t_list, self.start_absorber)
                         shape = self.diode_t_list.shape
-                        self.diode_gain_polarization = np.random.uniform(-1, 1, shape) + 1.j * np.random.uniform(-1, 1, shape)
-                        self.diode_loss_polarization = np.random.uniform(-1, 1, shape) + 1.j * np.random.uniform(-1, 1, shape)
+                        self.diode_gain_polarization = np.full_like(self.diode_t_list, 0.j, dtype=np.complex128)
+                        self.diode_loss_polarization = np.full_like(self.diode_t_list, 0.j, dtype=np.complex128)
                         self.calculation_rounds_done = 0
                     case "recalc":
                         if self.diode_cavity_type == "Ring" and self.diode_update_pulse == "Update Pulse":

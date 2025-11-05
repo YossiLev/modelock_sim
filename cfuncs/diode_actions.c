@@ -315,7 +315,7 @@ void mb_diode_round_trip(double *gainN, double _Complex *gainP, double *lossN, d
     int m_shift = 0;
     double gAbs;
 
-    double rand_factor = 0.000000000005 * dt / (Ta * 1E-12)  / (double)RAND_MAX;
+    double rand_factor = 0.0000000005 * dt / (Ta * 1E-12)  / (double)RAND_MAX;
     double oc_val_sqrt = sqrt(oc_val); // output coupler retention amplitude factor
     double oc_out_val = sqrt(1.0 - oc_val); // output coupler output amplitude factor
     double omega0 = 0.0; // transition frequency, set to zero for simplicity
@@ -340,6 +340,7 @@ void mb_diode_round_trip(double *gainN, double _Complex *gainP, double *lossN, d
     double exchange, I_tot;
     double tGain = Ta * 1E-12, tLoss = Tb * 1E-12;
     double old_intensity;
+    int bugs = 0;
 
     for (int i_round = 0; i_round < n_rounds; i_round++) {
         for (int ii = m_shift; ii < N + m_shift; ii++) {
@@ -387,17 +388,23 @@ void mb_diode_round_trip(double *gainN, double _Complex *gainP, double *lossN, d
             delta_gain = coupling_out_gain * gainP[iN];
             exchange = cimag(conj(amplitude_gain) * gainP[i]);
             gainN[iN] = gainN[i] + dt * ((N0a - gainN[i]) / tGain - C_gain * exchange + Pa);
-            if (gainN[iN] < 0 || ii == 20) {
-                printf("Negative gain carrier detected at index %d: %f %f %f\n", i, gainN[iN], gainN[i], cabs(amplitude_gain));
-                printf("Negative gain carrier Data: %f %f %f %e %f %f %f\n", C_gain, exchange, Pa, dt, (N0a - gainN[i]) / tGain, N0a, tGain);
+            if (gainN[iN] < 0) {
+                printf("-\nNegative gain carrier detected at index %d: %f %f %f\n", i, gainN[iN], gainN[i], cabs(amplitude_gain));
+                printf("Negative gain carrier Data1: %f %f %f %e %f %f %f\n", C_gain, exchange, Pa, dt, (N0a - gainN[i]) / tGain, N0a, tGain);
+                printf("Negative gain carrier Data2: amp(%f + i%f) pol(%f + i%f)\n", creal(amplitude_gain), cimag(amplitude_gain), creal(gainP[i]), cimag(gainP[i]));
+                bugs += 1;
+                if (bugs > 5) {
+                    return;
+                }
+                
             }
             // light amplitude change due to gain medium
-            I_tot = cabs_square(amplitude_gain);
+            I_tot = cabs(amplitude_gain);
 
             if(I_tot > 1e-30) {
                 old_intensity = cabs_square(pulse_amplitude[idx_gain_a]) + cabs_square(pulse_amplitude[idx_gain_b]);
-                pulse_amplitude[idx_gain_a] += delta_gain * cabs_square(pulse_amplitude[idx_gain_a])  / I_tot;
-                pulse_amplitude[idx_gain_b] += delta_gain * cabs_square(pulse_amplitude[idx_gain_b]) / I_tot;
+                pulse_amplitude[idx_gain_a] += delta_gain * cabs(pulse_amplitude[idx_gain_a]) / I_tot;
+                pulse_amplitude[idx_gain_b] += delta_gain * cabs(pulse_amplitude[idx_gain_b]) / I_tot;
                 gain_value[i] = (cabs_square(pulse_amplitude[idx_gain_a]) + cabs_square(pulse_amplitude[idx_gain_b])) / (0.000001 + old_intensity);
             } else {
                 gain_value[i] = 0.0;

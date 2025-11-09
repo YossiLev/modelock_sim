@@ -305,6 +305,12 @@ static double gaussian_rand01(void) {
     return mag * cos(2.0 * 3.14159 * v);
 }
 
+static double _Complex gaussian_rand01_complex(void) {
+    double re = gaussian_rand01();
+    double im = gaussian_rand01();
+    return re + I * im;
+}
+
 // maxwell bloch method function for electric field amplitude
 void mb_diode_round_trip(double *gainN, double _Complex *gainP, double *lossN, double _Complex *lossP, 
                    double *gain_value, double *loss_value,
@@ -322,8 +328,8 @@ void mb_diode_round_trip(double *gainN, double _Complex *gainP, double *lossN, d
     double kappa = 3.0E04; // coupling constant, adjust as needed
     double C_loss = - 1.0E-05; // inversion to polarization coupling, adjust as needed
     double C_gain = - 5.0E-06; // inversion to polarization coupling, adjust as needed
-    double coupling_out_gain = 8E-16; // coupling from polarization to field, adjust as needed
-    double coupling_out_loss = 6E-16; // coupling from polarization to field, adjust as needed
+    double coupling_out_gain = 8E-04; // coupling from polarization to field, adjust as needed
+    double coupling_out_loss = 6E-04; // coupling from polarization to field, adjust as needed
     double Gamma =  gainWidth * 2.0 * 3.14159 * 1E12; // gain width is given in THz, convert to rad/s
 
     double _Complex z = -(Gamma + I * omega0) * dt;
@@ -331,11 +337,11 @@ void mb_diode_round_trip(double *gainN, double _Complex *gainP, double *lossN, d
     double _Complex one_minus_alpha = 1.0 + 0.0*I - alpha; /* (1 - alpha) */
 
     /* noise prefactor: tune to your units */
-    const double noise_prefactor = 1e-5;
+    const double noise_prefactor = 1e-7;
 
     int idx_gain_a, idx_gain_b, idx_loss_a, idx_loss_b;
     double _Complex amplitude_gain, amplitude_loss;
-    double _Complex drive;
+    double _Complex averageP, drive;
     double _Complex delta_gain, delta_loss;
     double exchange, I_tot;
     double tGain = Ta * 1E-12, tLoss = Tb * 1E-12;
@@ -357,10 +363,11 @@ void mb_diode_round_trip(double *gainN, double _Complex *gainP, double *lossN, d
 
             drive = kappa * amplitude_loss * (double _Complex)lossN[i];
             lossP[iN] = alpha * lossP[i] + one_minus_alpha * drive;
+            averageP = 0.5 * (lossP[iN] + lossP[i]);
 
-            delta_loss = coupling_out_loss * lossP[iN];
-            
-            exchange = cimag(conj(amplitude_loss) * lossP[i]);
+            delta_loss = coupling_out_loss * averageP * dt;
+
+            exchange = cimag(conj(amplitude_loss) * averageP);
             lossN[iN] = lossN[i] + dt * ((N0b - lossN[i]) / tLoss - C_loss * exchange);
 
             // light amplitude change due to absorber
@@ -385,8 +392,9 @@ void mb_diode_round_trip(double *gainN, double _Complex *gainP, double *lossN, d
             drive = kappa * amplitude_gain * (double _Complex)gainN[i]; /* ensure complex multiply */
             gainP[iN] = alpha * gainP[i] + one_minus_alpha * drive;
 
-            delta_gain = coupling_out_gain * gainP[iN];
-            exchange = cimag(conj(amplitude_gain) * gainP[i]);
+            averageP = 0.5 * (gainP[iN] + gainP[i]);
+            delta_gain = coupling_out_gain * averageP * dt;
+            exchange = cimag(conj(amplitude_gain) * averageP);
             gainN[iN] = gainN[i] + dt * ((N0a - gainN[i]) / tGain - C_gain * exchange + Pa);
             if (gainN[iN] < 0) {
                 printf("-\nNegative gain carrier detected at index %d: %f %f %f\n", i, gainN[iN], gainN[i], cabs(amplitude_gain));
@@ -410,11 +418,9 @@ void mb_diode_round_trip(double *gainN, double _Complex *gainP, double *lossN, d
                 gain_value[i] = 0.0;
             }
 
-            // /* inject small complex Gaussian noise at gain interaction points (spontaneous-like) */
+            /* inject small complex Gaussian noise at gain interaction points (spontaneous-like) */
             double sigma = noise_prefactor * sqrt(fmax(0.0, gainN[i])) * sqrt(dt);
-            double g_re = gaussian_rand01();
-            double g_im = gaussian_rand01();
-            double _Complex noise = sigma * (g_re + I * g_im);
+            double _Complex noise = sigma * gaussian_rand01_complex();
             pulse_amplitude[idx_gain_a] += noise;
             pulse_amplitude[idx_gain_b] += noise;
 

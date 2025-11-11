@@ -312,16 +312,46 @@ static double _Complex gaussian_rand01_complex(void) {
 }
 
 // maxwell bloch method function for electric field amplitude
-void mb_diode_round_trip(double *gainN, double _Complex *gainP, double *lossN, double _Complex *lossP, 
-                   double *gain_value, double *loss_value,
-                   double _Complex *pulse_amplitude, double _Complex *pulse_amplitude_after,
-                   int n_rounds, int N, int loss_shift, int oc_shift, int gain_distance,
-                   double dt, double gainWidth, double Pa, double Ta, double Ga, double N0a, double Pb, double Tb, double Gb, double N0b, double oc_val) {
+void mb_diode_round_trip(
+    /* state arrays (length N) */
+    double *gainN,          /* N per spatial cell for gain (shared inversion) */
+    double _Complex *gainP, /* N per spatial cell for gain (polarization) */
+    double *lossN,          /* inversion for absorber (shared) */
+    double _Complex *lossP, /* N per spatial cell for loss (polarization) */
+
+    /* diagnostics / outputs (length N) */
+    double *gain_value,     /* optional diagnostics: local gain change fraction */
+    double *loss_value,     /* optional diagnostics: local loss change fraction */
+
+    /* field arrays */
+    double _Complex *pulse_amplitude,       /* full-round complex samples array (length N) */
+    double _Complex *pulse_amplitude_after, /* output coupler extracted amplitude */
+
+    /* simulation control */
+    int n_rounds,          /* number of round trips */
+    int N,                 /* number of spatial cells */
+    int loss_shift,       /* index separation so absorber sees pair (i, i+loss_shift) */
+    int oc_shift,         /* output coupler shift (in spatial cells) */
+    int gain_distance,    /* distance between absorber and gain indices */
+
+    /* physical & numeric parameters */
+    double dt,            /* time step )ד() */
+    double gainWidth_THz, /* gain linewidth in THz (converted to rad/s inside) */
+    double Pa,            /* pump amplitude A */
+    double Ta_ps,        /* pump duration A */
+    double Ga,            /* gain coefficient A */
+    double N0a,           /* initial inversion A */
+    double Pb,            /* pump amplitude B */
+    double Tb_ps,        /* pump duration B */
+    double Gb,            /* gain coefficient B */
+    double N0b,           /* initial inversion B */
+    double oc_val         /* output coupler reflectivity */
+) {
                     
     int m_shift = 0;
     double gAbs;
 
-    double rand_factor = 0.0000000005 * dt / (Ta * 1E-12)  / (double)RAND_MAX;
+    double rand_factor = 0.0000000005 * dt / (Ta_ps * 1E-12)  / (double)RAND_MAX;
     double oc_val_sqrt = sqrt(oc_val); // output coupler retention amplitude factor
     double oc_out_val = sqrt(1.0 - oc_val); // output coupler output amplitude factor
     double omega0 = 0.0; // transition frequency, set to zero for simplicity
@@ -330,7 +360,7 @@ void mb_diode_round_trip(double *gainN, double _Complex *gainP, double *lossN, d
     double C_gain = - 5.0E-06; // inversion to polarization coupling, adjust as needed
     double coupling_out_gain = 8E-04; // coupling from polarization to field, adjust as needed
     double coupling_out_loss = 6E-04; // coupling from polarization to field, adjust as needed
-    double Gamma =  gainWidth * 2.0 * 3.14159 * 1E12; // gain width is given in THz, convert to rad/s
+    double Gamma =  gainWidth_THz * 2.0 * 3.14159 * 1E12; // gain width is given in THz, convert to rad/s
 
     double _Complex z = -(Gamma + I * omega0) * dt;
     double _Complex alpha = cexp(z);
@@ -344,7 +374,7 @@ void mb_diode_round_trip(double *gainN, double _Complex *gainP, double *lossN, d
     double _Complex averageP, drive;
     double _Complex delta_gain, delta_loss;
     double exchange, I_tot;
-    double tGain = Ta * 1E-12, tLoss = Tb * 1E-12;
+    double tGain = Ta_ps * 1E-12, tLoss = Tb_ps * 1E-12;
     double old_intensity;
     int bugs = 0;
 

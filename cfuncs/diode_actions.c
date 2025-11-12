@@ -335,11 +335,11 @@ void mb_diode_round_trip(
     int gain_distance,    /* distance between absorber and gain indices */
 
     /* physical & numeric parameters */
-    double dt,            /* time step )ד() */
+    double dt,            /* time step (s) */
     double gainWidth_THz, /* gain linewidth in THz (converted to rad/s inside) */
     double Pa,            /* pump amplitude A */
     double Ta_ps,        /* pump duration A */
-    double Ga,            /* gain coefficient A */
+    double Ga,            /* intrinsic polarization decay for gain (rad/s) or use gainWidth_THz */
     double N0a,           /* initial inversion A */
     double Pb,            /* pump amplitude B */
     double Tb_ps,        /* pump duration B */
@@ -381,7 +381,7 @@ void mb_diode_round_trip(
     for (int i_round = 0; i_round < n_rounds; i_round++) {
         for (int ii = m_shift; ii < N + m_shift; ii++) {
             int i = ii % N;
-            int iN = (i + 1) % N;
+            int iN = (i + 1) % N; /* history-next index */
 
             /* -------------------- ABSORBER (loss) interaction -------------------- */
             // two segments that meet at the absorber

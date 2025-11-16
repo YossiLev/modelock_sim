@@ -127,7 +127,7 @@ void diode_round_trip(double *gain, double *loss, double *gain_value, double *lo
 
     for (int i_round = 0; i_round < n_rounds; i_round++) {
         for (int ii = m_shift; ii < N + m_shift; ii++) {
-            if (ii % 100 == 0) {
+            if (ii % 1000000 == 0) {
                 printf("Round %d step %d\r", i_round, ii);
                 fflush(stdout);
             }   
@@ -427,7 +427,7 @@ void mb_diode_round_trip(
             exchange = cimag(conj(amplitude_gain) * averageP);
             gainN[iN] = gainN[i] + dt * ((N0a - gainN[i]) / tGain - C_gain * exchange + Pa);
             if (gainN[iN] < 0) {
-                printf("-\nNegative gain carrier detected at index %d: %f %f %f\n", i, gainN[iN], gainN[i], cabs(amplitude_gain));
+                printf("-\nNegative gain carrier detected at index %d (%d %d): %f %f %f\n", i, idx_gain_a, idx_gain_b, gainN[iN], gainN[i], cabs(amplitude_gain));
                 printf("Negative gain carrier Data1: %f %f %f %e %f %f %f\n", C_gain, exchange, Pa, dt, (N0a - gainN[i]) / tGain, N0a, tGain);
                 printf("Negative gain carrier Data2: amp(%f + i%f) pol(%f + i%f)\n", creal(amplitude_gain), cimag(amplitude_gain), creal(gainP[i]), cimag(gainP[i]));
                 bugs += 1;
@@ -436,14 +436,24 @@ void mb_diode_round_trip(
                 }
                 
             }
+            // if (i <10) {
+            //     printf("-\nat index %d (%d %d): %f %f %f\n", i, idx_gain_a, idx_gain_b, gainN[iN], gainN[i], cabs(amplitude_gain));
+            //     printf("carrier Data1: %f %f %f %e %f %f %f\n", C_gain, exchange, Pa, dt, (N0a - gainN[i]) / tGain, N0a, tGain);
+            //     printf("carrier Data2: amp(%f + i%f) pol(%f + i%f)\n", creal(amplitude_gain), cimag(amplitude_gain), creal(gainP[i]), cimag(gainP[i]));
+            // }
             // light amplitude change due to gain medium
             I_tot = cabs(amplitude_gain);
 
-            if(I_tot > 1e-30) {
+            if(I_tot > 1e-1) {
                 old_intensity = cabs_square(pulse_amplitude[idx_gain_a]) + cabs_square(pulse_amplitude[idx_gain_b]);
                 pulse_amplitude[idx_gain_a] += delta_gain * cabs(pulse_amplitude[idx_gain_a]) / I_tot;
                 pulse_amplitude[idx_gain_b] += delta_gain * cabs(pulse_amplitude[idx_gain_b]) / I_tot;
                 gain_value[i] = (cabs_square(pulse_amplitude[idx_gain_a]) + cabs_square(pulse_amplitude[idx_gain_b])) / (0.000001 + old_intensity);
+                if (i > 400 && i < 500) {
+                    printf("Gain idx %d (%d %d): gainN=%f I_tot=%f delta_gain=%f old_intensity=%f new_intensity=%f gain_value=%f\n", i, idx_gain_a, idx_gain_b, gainN[iN], 
+                        I_tot, cabs_square(delta_gain),
+                        old_intensity, cabs_square(pulse_amplitude[idx_gain_a]) + cabs_square(pulse_amplitude[idx_gain_b]), gain_value[i]);
+                }
             } else {
                 gain_value[i] = 0.0;
             }
@@ -451,8 +461,8 @@ void mb_diode_round_trip(
             /* inject small complex Gaussian noise at gain interaction points (spontaneous-like) */
             double sigma = noise_prefactor * sqrt(fmax(0.0, gainN[i])) * sqrt(dt);
             double _Complex noise = sigma * gaussian_rand01_complex();
-            pulse_amplitude[idx_gain_a] += noise;
-            pulse_amplitude[idx_gain_b] += noise;
+            // pulse_amplitude[idx_gain_a] += noise;
+            // pulse_amplitude[idx_gain_b] += noise;
 
             // ---------- output coupler calculation
             int oc_loc = (oc_shift + i) % N;
@@ -461,7 +471,7 @@ void mb_diode_round_trip(
 
             pulse_amplitude[oc_loc] *= oc_val_sqrt;
         }
-
+        printf("Round %d complete\n", i_round);
     }
 
 

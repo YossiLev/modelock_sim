@@ -523,7 +523,17 @@ class CalculatorData:
                             c_pulse, c_pulse_after,
                             self.calculation_rounds, self.diode_N, self.loss_shift, self.oc_shift, self.gain_distance,
                             self.diode_dt, self.gain_width, self.Pa, self.Ta, self.Ga, self.N0a, self.Pb, self.Tb, self.Gb, self.N0b, self.oc_val)
+            print("MB round trip done")
+            k = 0
+            for i in range(self.diode_pulse_after.shape[0]):
+                if np.isnan(self.diode_pulse_after[i].real) or np.isnan(self.diode_pulse_after[i].imag):
+                    k = k + 1
+                    print(f"NAN index {i}: val=({self.diode_pulse_after[i].real}, {self.diode_pulse_after[i].imag})\n")
+                if k > 100:
+                    break
             self.diode_accum_pulse_after = np.add.accumulate(intens(self.diode_pulse_after)) * self.diode_dt * self.volume
+
+            print("MB accumulation done")
             return
         
         round_trip_func = lib_diode.cmp_diode_round_trip if self.diode_pulse_dtype == np.complex128 else lib_diode.diode_round_trip
@@ -885,7 +895,7 @@ def generate_calc(data_obj, tab, offset = 0):
                         #        ]), cls="container"
                         # ),
                         generate_chart([t_list], 
-                                       [cget(shrink_with_max(calcData.diode_pulse_after, 1024)).tolist()], [""], 
+                                       [cget(shrink_with_max(pulse_after, 1024)).tolist()], [""], 
                                        "Pulse out (photons/sec)", h=2, color=colors, marker=None, twinx=True),
                         generate_chart([t_list], 
                                        [cget(shrink_with_max(calcData.diode_accum_pulse, 1024)).tolist(), cget(shrink_with_max(calcData.diode_accum_pulse_after, 1024)).tolist()], [""], 

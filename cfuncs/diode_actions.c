@@ -263,7 +263,6 @@ void cmp_diode_round_trip(double *gain, double *loss, double *gain_value, double
             pulse_amplitude_after[oc_loc] = pulse_amplitude[oc_loc] * oc_out_val;
 
             pulse_amplitude[oc_loc] *= oc_val_sqrt;
-
         }
 #ifdef USE_FFT_FILTER_CUDA
         fft_filter_run(&ctx, pulse_amplitude);
@@ -324,6 +323,7 @@ void mb_diode_round_trip(
     double *loss_value,     /* optional diagnostics: local loss change fraction */
 
     /* field arrays */
+    double _Complex *pulse_init,       /* full-round complex samples array (length N) */
     double _Complex *pulse_amplitude,       /* full-round complex samples array (length N) */
     double _Complex *pulse_amplitude_after, /* output coupler extracted amplitude */
 
@@ -345,21 +345,27 @@ void mb_diode_round_trip(
     double Tb_ps,        /* pump duration B */
     double Gb,            /* gain coefficient B */
     double N0b,           /* initial inversion B */
-    double oc_val         /* output coupler reflectivity */
+    double oc_val,         /* output coupler reflectivity */
+    double rand_factor_seed,
+    double kappa,
+    double C_loss,
+    double C_gain,
+    double coupling_out_loss,
+    double coupling_out_gain
 ) {
                     
     int m_shift = 0;
     double gAbs;
 
-    double rand_factor = 0.0000000005 * dt / (Ta_ps * 1E-12)  / (double)RAND_MAX;
+    double rand_factor = rand_factor_seed * dt / (Ta_ps * 1E-12)  / (double)RAND_MAX;
     double oc_val_sqrt = sqrt(oc_val); // output coupler retention amplitude factor
     double oc_out_val = sqrt(1.0 - oc_val); // output coupler output amplitude factor
     double omega0 = 0.0; // transition frequency, set to zero for simplicity
-    double kappa = 3.0E07; // coupling constant, adjust as needed
-    double C_loss = 95.0E+06; // inversion to polarization coupling, adjust as needed
-    double C_gain = 300.0E+05; // inversion to polarization coupling, adjust as needed
-    double coupling_out_loss = 800E+06; // coupling from polarization to field, adjust as needed
-    double coupling_out_gain = 2800E+05; // coupling from polarization to field, adjust as needed
+    // double kappa = 3.0E07; // coupling constant, adjust as needed
+    // double C_loss = 95.0E+06; // inversion to polarization coupling, adjust as needed
+    // double C_gain = 300.0E+05; // inversion to polarization coupling, adjust as needed
+    // double coupling_out_loss = -5000E+06; // coupling from polarization to field, adjust as needed
+    // double coupling_out_gain = 2800E+05; // coupling from polarization to field, adjust as needed
     double Gamma =  gainWidth_THz * 2.0 * 3.14159 * 1E12; // gain width is given in THz, convert to rad/s
 
     double _Complex a = -(Gamma + I * omega0);
@@ -368,7 +374,7 @@ void mb_diode_round_trip(
     double _Complex one_minus_alpha_div_a = one_minus_alpha / a; /* (1 - alpha) / a */
 
     /* noise prefactor: tune to your units */
-    const double noise_prefactor = 1e-3;
+    const double noise_prefactor = rand_factor;
 
     int idx_gain_a, idx_gain_b, idx_loss_a, idx_loss_b;
     double _Complex amplitude_gain, amplitude_loss;
@@ -569,8 +575,8 @@ void mb_diode_round_trip(
             //         creal(pulse_amplitude_after[oc_loc]), cimag(pulse_amplitude_after[oc_loc]));
             // }
 
-            pulse_amplitude[oc_loc] *= oc_val_sqrt;
-        }
+            pulse_amplitude[oc_loc] = pulse_amplitude[oc_loc] * oc_val_sqrt + pulse_init[oc_loc];
+            pulse_init[oc_loc] = 0.0 + 0.0*I;        }
         printf("Round %d complete\n", i_round);
     }
 

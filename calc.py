@@ -135,6 +135,7 @@ lib_diode.mb_diode_round_trip.argtypes = [
     ctypes.POINTER(ctypes.c_double), 
     ctypes.POINTER(ctypes.c_double), 
     ctypes.POINTER(ctypes.c_double), 
+    ctypes.POINTER(ctypes.c_double), 
     ctypes.POINTER(ctypes.c_double),
     ctypes.POINTER(ctypes.c_double),
     ctypes.POINTER(ctypes.c_double),
@@ -144,6 +145,12 @@ lib_diode.mb_diode_round_trip.argtypes = [
     ctypes.c_int,
     ctypes.c_int,
     ctypes.c_int,
+    ctypes.c_double,
+    ctypes.c_double,
+    ctypes.c_double,
+    ctypes.c_double,
+    ctypes.c_double,
+    ctypes.c_double,
     ctypes.c_double,
     ctypes.c_double,
     ctypes.c_double,
@@ -281,9 +288,18 @@ class CalculatorData:
         self.diode_update_pulse = "Update Pulse"
         self.h = 0.1
 
+        self.rand_factor_seed = 0.0000000005
+        self.kappa = 3.0E07
+        self.C_loss = 95.0E+06
+        self.C_gain = 300.0E+05
+        self.coupling_out_loss =-5000E+06
+        self.coupling_out_gain = 2800E+05
+
         # diode dynamics parameters
         self.diode_t_list = np.array([1], dtype=np.float64)
         self.diode_pulse = np.array([], dtype=self.diode_pulse_dtype)
+        self.diode_pulse_init = np.array([], dtype=self.diode_pulse_dtype)
+        self.diode_pulse_save = np.array([], dtype=self.diode_pulse_dtype)
         self.diode_pulse_original = np.array([], dtype=self.diode_pulse_dtype)
         self.diode_pulse_after = np.array([], dtype=self.diode_pulse_dtype)
         self.diode_accum_pulse = []
@@ -492,9 +508,15 @@ class CalculatorData:
                         self.diode_gain_polarization = np.full_like(self.diode_t_list, 0.j, dtype=np.complex128)
                         self.diode_loss_polarization = np.full_like(self.diode_t_list, 0.j, dtype=np.complex128)
                         self.calculation_rounds_done = 0
+                        if self.diode_mode == "MB":
+                            self.diode_pulse_init = np.copy(self.diode_pulse)
+                            self.diode_pulse = np.full_like(self.diode_t_list, 0.0 + 0.0j,dtype=np.complex128)
+
                     case "recalc":
                         if self.diode_cavity_type == "Ring" and self.diode_update_pulse == "Update Pulse":
                             self.diode_pulse = np.copy(self.diode_pulse_after)
+                        if self.diode_mode == "MB" and self.diode_update_pulse != "Update Pulse":
+                            self.diode_pulse = np.copy(self.diode_pulse_save)
 
                 if self.diode_cavity_type == "Ring":
                     self.diode_round_trip_old()
@@ -506,8 +528,10 @@ class CalculatorData:
     def diode_round_trip_new(self):
         self.oc_val = np.exp(- self.cavity_loss)
         self.diode_pulse_after = np.copy(self.diode_pulse)
+        self.diode_pulse_save = np.copy(self.diode_pulse)
 
         c_pulse = self.diode_pulse.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+        c_pulse_init = self.diode_pulse_init.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
         c_gain = self.diode_gain.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
         c_gain_polarization = self.diode_gain_polarization.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
         c_gain_value = self.diode_gain_value.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
@@ -520,9 +544,10 @@ class CalculatorData:
         if self.diode_mode == "MB":
             round_trip_func = lib_diode.mb_diode_round_trip
             round_trip_func(c_gain, c_gain_polarization, c_loss, c_loss_polarization, c_gain_value, c_loss_value,
-                            c_pulse, c_pulse_after,
+                            c_pulse_init, c_pulse, c_pulse_after,
                             self.calculation_rounds, self.diode_N, self.loss_shift, self.oc_shift, self.gain_distance,
-                            self.diode_dt, self.gain_width, self.Pa, self.Ta, self.Ga, self.N0a, self.Pb, self.Tb, self.Gb, self.N0b, self.oc_val)
+                            self.diode_dt, self.gain_width, self.Pa, self.Ta, self.Ga, self.N0a, self.Pb, self.Tb, self.Gb, self.N0b, self.oc_val,
+                            self.rand_factor_seed, self.kappa, self.C_loss, self.C_gain, self.coupling_out_loss, self.coupling_out_gain)
             print("MB round trip done")
             k = 0
             for i in range(self.diode_pulse_after.shape[0]):
@@ -866,7 +891,19 @@ def generate_calc(data_obj, tab, offset = 0):
                         SelectCalcS(f'CalcDiodeUpdatePulse', "UpdatePulse", ["Update Pulse", "Unchanged Pulse"], calcData.diode_update_pulse, width = 120),
                         #InputCalcS(f'h', "Abs ratio", f'{calcData.h}', width = 50),
                     ),
+
+                    Div(
+                        InputCalcS(f'rand_factor_seed', "rand seed", f'{calcData.rand_factor_seed}', width = 60),
+                        InputCalcS(f'kappa', "kappa", f'{calcData.kappa}', width = 100),
+                        InputCalcS(f'C_loss', "C_loss", f'{calcData.C_loss}', width = 100),
+                        InputCalcS(f'C_gain', "C_gain", f'{calcData.C_gain}', width = 100),
+                        InputCalcS(f'coupling_out_loss', "coupling_out_loss", f'{calcData.coupling_out_loss}', width = 120 ),
+                        InputCalcS(f'coupling_out_gain', "coupling_out_gain", f'{calcData.coupling_out_gain}', width = 120)
+
+
+                    ),
                     id="diodeDynamicsOptionsForm"
+                                    
                 ),
 
                 Div(

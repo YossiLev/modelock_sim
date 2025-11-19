@@ -680,7 +680,12 @@ def doCalcUpdate(calcData, form_data):
         pushParam(calcData, "diode_sampling", lambda: form_data.get("DiodeSelectSampling"))
         pushParam(calcData, "start_gain", lambda: float(form_data.get("start_gain")))
         pushParam(calcData, "start_absorber", lambda: float(form_data.get("start_absorber")))
-
+        pushParam(calcData, "rand_factor_seed", lambda: float(form_data.get("rand_factor_seed")))
+        pushParam(calcData, "kappa", lambda: float(form_data.get("kappa")))
+        pushParam(calcData, "C_loss", lambda: float(form_data.get("C_loss")))
+        pushParam(calcData, "C_gain", lambda: float(form_data.get("C_gain")))
+        pushParam(calcData, "coupling_out_loss", lambda: float(form_data.get("coupling_out_loss")))
+        pushParam(calcData, "coupling_out_gain", lambda: float(form_data.get("coupling_out_gain")))
 
     except:
         pass

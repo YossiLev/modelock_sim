@@ -831,6 +831,7 @@ def generate_calc(data_obj, tab, offset = 0):
 
             added = Div(
                 Div(
+                    Div(
                         Button("Calculate", hx_post=f'/doCalc/5/diode/calc', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
                         Button("Recalculate", hx_post=f'/doCalc/5/diode/recalc', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
                         InputCalcS(f'DiodeRounds', "Rounds", f'{calcData.calculation_rounds}', width = 80),
@@ -852,71 +853,73 @@ def generate_calc(data_obj, tab, offset = 0):
                             style="display: inline-block; position: relative;"
                         ),
                     ),
-                FlexN(
-                (
-                Div(
+                    FlexN(
+                    (
                     Div(
-                        SelectCalcS(f'DiodeSelectSampling', "Sampling", ["4096", "8192", "16384", "32768", "1048576"], calcData.diode_sampling, width = 100),
-                        SelectCalcS(f'CalcDiodeCavityType', "Cavity Type", ["Ring", "Linear"], calcData.diode_cavity_type, width = 80),
-                        SelectCalcS(f'CalcDiodeSelectMode', "mode", ["Intensity", "Amplitude", "MB"], calcData.diode_mode, width = 120),
-                        InputCalcS(f'DiodePulseWidth', "Pulse width", f'{calcData.diode_pulse_width}', width = 80),
-                        SelectCalcS(f'CalcDiodeSelectIntensity', "Intensity", ["Pulse", "Noise", "CW", "Flat"], calcData.diode_intensity, width = 80),
-                    ),
-                    Div(
-                        InputCalcS(f'DiodeAbsorberShift', "Absorber Shift (mm)", f'{calcData.diode_absorber_shift}', width = 100),
-                        InputCalcS(f'DiodeGainShift', "Gain Shift (mm)", f'{calcData.diode_gain_shift}', width = 100),
-                        InputCalcS(f'DiodeOutputCouplerShift', "OC Shift (mm)", f'{calcData.diode_output_coupler_shift}', width = 100),
-                    ),
-                    Div(
-                        InputCalcS(f'Ta', "Gain Half-life (ps)", f'{calcData.Ta}', width = 80),
-                        InputCalcS(f'gain_width', "Gain Width (THz)", f'{calcData.gain_width}', width = 80),
-                        InputCalcS(f'Pa', "Gain current", f'{calcData.Pa}', width = 80),
-                        InputCalcS(f'Ga', "Gain diff gain (cm^2)", f'{calcData.Ga}', width = 100),
-                        InputCalcS(f'N0a', "Gain N0(tr) (cm^-3)", f'{calcData.N0a}', width = 100),
-                        InputCalcS(f'start_gain', "Gain start val", f'{calcData.start_gain}', width = 100),
-
-                    ),
-                    Div(
-                        InputCalcS(f'Tb', "Abs half-life (ps)", f'{calcData.Tb}', width = 80),
-                        InputCalcS(f'Pb', "Abs current", f'{calcData.Pb}', width = 80),
-                        InputCalcS(f'Gb', "Abs diff gain (cm^2)", f'{calcData.Gb}', width = 100),
-                        InputCalcS(f'N0b', "Abs N0(tr) (cm^2)", f'{calcData.N0b}', width = 100),
-                        InputCalcS(f'start_absorber', "Abs start val", f'{calcData.start_absorber}', width = 100),
-                    ),
-                    Div(
-                        InputCalcS(f'dt', "dt (ps)", f'{format(calcData.diode_dt * 1E+12, ".4f")}', width = 80),
-                        InputCalcS(f'volume', "Volume cm^3", f'{calcData.volume}', width = 80),
-                        InputCalcS(f'initial_photons', "Initial Photns", f'{calcData.initial_photons}', width = 100),
-                        InputCalcS(f'cavity_loss', "OC (Cavity loss)", f'{calcData.cavity_loss}', width = 80),
-                        SelectCalcS(f'CalcDiodeUpdatePulse', "UpdatePulse", ["Update Pulse", "Unchanged Pulse"], calcData.diode_update_pulse, width = 120),
-                        #InputCalcS(f'h', "Abs ratio", f'{calcData.h}', width = 50),
-                    ),
-
-                    Div(
-                        InputCalcS(f'rand_factor_seed', "rand seed", f'{calcData.rand_factor_seed}', width = 60),
-                        InputCalcS(f'kappa', "kappa", f'{calcData.kappa}', width = 100),
-                        InputCalcS(f'C_loss', "C_loss", f'{calcData.C_loss}', width = 100),
-                        InputCalcS(f'C_gain', "C_gain", f'{calcData.C_gain}', width = 100),
-                        InputCalcS(f'coupling_out_loss', "coupling_out_loss", f'{calcData.coupling_out_loss}', width = 120 ),
-                        InputCalcS(f'coupling_out_gain', "coupling_out_gain", f'{calcData.coupling_out_gain}', width = 120)
-
-
-                    ),
-                    id="diodeDynamicsOptionsForm"
-                                    
-                ),
-
-                Div(
-                    Table(
-                        Tr(Td(f"{calcData.calculation_rounds_done}"), Td("Value"), Td("Change")), 
-                        Tr(Td("Before gain"), Td(f"{calcData.summary_photons_before:.3e}"), Td("")), 
-                        Tr(Td("After gain"), Td(f"{calcData.summary_photons_after_gain:.3e}"), Td(f"{(calcData.summary_photons_after_gain - calcData.summary_photons_before):.3e}")), 
-                        Tr(Td("After absorber"), Td(f"{calcData.summary_photons_after_absorber:.3e}"), Td(f"{(calcData.summary_photons_after_absorber - calcData.summary_photons_before):.3e}")),
-                        Tr(Td("After OC"), Td(f"{calcData.summary_photons_after_cavity_loss:.3e}"), Td(f"{(calcData.summary_photons_after_cavity_loss - calcData.summary_photons_before):.3e}")),
-                        Tr(Td("Output"), Td(f"{output_photons:.3e}"), Td(f"{(output_photons * energy_of_1064_photon * 10E+9):.3e}nJ")),
+                        Div(
+                            SelectCalcS(f'DiodeSelectSampling', "Sampling", ["4096", "8192", "16384", "32768", "1048576"], calcData.diode_sampling, width = 100),
+                            SelectCalcS(f'CalcDiodeCavityType', "Cavity Type", ["Ring", "Linear"], calcData.diode_cavity_type, width = 80),
+                            SelectCalcS(f'CalcDiodeSelectMode', "mode", ["Intensity", "Amplitude", "MB"], calcData.diode_mode, width = 120),
+                            InputCalcS(f'DiodePulseWidth', "Pulse width", f'{calcData.diode_pulse_width}', width = 80),
+                            SelectCalcS(f'CalcDiodeSelectIntensity', "Intensity", ["Pulse", "Noise", "CW", "Flat"], calcData.diode_intensity, width = 80),
                         ),
-                ))),
+                        Div(
+                            InputCalcS(f'DiodeAbsorberShift', "Absorber Shift (mm)", f'{calcData.diode_absorber_shift}', width = 100),
+                            InputCalcS(f'DiodeGainShift', "Gain Shift (mm)", f'{calcData.diode_gain_shift}', width = 100),
+                            InputCalcS(f'DiodeOutputCouplerShift', "OC Shift (mm)", f'{calcData.diode_output_coupler_shift}', width = 100),
+                        ),
+                        Div(
+                            InputCalcS(f'Ta', "Gain Half-life (ps)", f'{calcData.Ta}', width = 80),
+                            InputCalcS(f'gain_width', "Gain Width (THz)", f'{calcData.gain_width}', width = 80),
+                            InputCalcS(f'Pa', "Gain current", f'{calcData.Pa}', width = 80),
+                            InputCalcS(f'Ga', "Gain diff gain (cm^2)", f'{calcData.Ga}', width = 100),
+                            InputCalcS(f'N0a', "Gain N0(tr) (cm^-3)", f'{calcData.N0a}', width = 100),
+                            InputCalcS(f'start_gain', "Gain start val", f'{calcData.start_gain}', width = 100),
 
+                        ),
+                        Div(
+                            InputCalcS(f'Tb', "Abs half-life (ps)", f'{calcData.Tb}', width = 80),
+                            InputCalcS(f'Pb', "Abs current", f'{calcData.Pb}', width = 80),
+                            InputCalcS(f'Gb', "Abs diff gain (cm^2)", f'{calcData.Gb}', width = 100),
+                            InputCalcS(f'N0b', "Abs N0(tr) (cm^2)", f'{calcData.N0b}', width = 100),
+                            InputCalcS(f'start_absorber', "Abs start val", f'{calcData.start_absorber}', width = 100),
+                        ),
+                        Div(
+                            InputCalcS(f'dt', "dt (ps)", f'{format(calcData.diode_dt * 1E+12, ".4f")}', width = 80),
+                            InputCalcS(f'volume', "Volume cm^3", f'{calcData.volume}', width = 80),
+                            InputCalcS(f'initial_photons', "Initial Photns", f'{calcData.initial_photons}', width = 100),
+                            InputCalcS(f'cavity_loss', "OC (Cavity loss)", f'{calcData.cavity_loss}', width = 80),
+                            SelectCalcS(f'CalcDiodeUpdatePulse', "UpdatePulse", ["Update Pulse", "Unchanged Pulse"], calcData.diode_update_pulse, width = 120),
+                            #InputCalcS(f'h', "Abs ratio", f'{calcData.h}', width = 50),
+                        ),
+
+                        Div(
+                            InputCalcS(f'rand_factor_seed', "rand seed", f'{calcData.rand_factor_seed}', width = 60),
+                            InputCalcS(f'kappa', "kappa", f'{calcData.kappa}', width = 100),
+                            InputCalcS(f'C_loss', "C_loss", f'{calcData.C_loss}', width = 100),
+                            InputCalcS(f'C_gain', "C_gain", f'{calcData.C_gain}', width = 100),
+                            InputCalcS(f'coupling_out_loss', "coupling_out_loss", f'{calcData.coupling_out_loss}', width = 120 ),
+                            InputCalcS(f'coupling_out_gain', "coupling_out_gain", f'{calcData.coupling_out_gain}', width = 120)
+
+
+                        ),
+                        id="diodeDynamicsOptionsForm"
+                                        
+                    ),
+
+                    Div(
+                        Table(
+                            Tr(Td(f"{calcData.calculation_rounds_done}"), Td("Value"), Td("Change")), 
+                            Tr(Td("Before gain"), Td(f"{calcData.summary_photons_before:.3e}"), Td("")), 
+                            Tr(Td("After gain"), Td(f"{calcData.summary_photons_after_gain:.3e}"), Td(f"{(calcData.summary_photons_after_gain - calcData.summary_photons_before):.3e}")), 
+                            Tr(Td("After absorber"), Td(f"{calcData.summary_photons_after_absorber:.3e}"), Td(f"{(calcData.summary_photons_after_absorber - calcData.summary_photons_before):.3e}")),
+                            Tr(Td("After OC"), Td(f"{calcData.summary_photons_after_cavity_loss:.3e}"), Td(f"{(calcData.summary_photons_after_cavity_loss - calcData.summary_photons_before):.3e}")),
+                            Tr(Td("Output"), Td(f"{output_photons:.3e}"), Td(f"{(output_photons * energy_of_1064_photon * 10E+9):.3e}nJ")),
+                            ),
+                    )
+                    )),
+                    style="position:sticky; top:0px; background:#f0f8f8;"
+                ),
                 Div(
                     Div(
                         Frame_chart("fc1", [t_list], 

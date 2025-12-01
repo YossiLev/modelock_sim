@@ -421,17 +421,16 @@ void mb_diode_round_trip(
             // amplitude sum in the absorber
             amplitude_loss = pulse_amplitude[idx_loss_a] + pulse_amplitude[idx_loss_b];
 
-            drive = I * kappa * amplitude_loss * (double _Complex)(lossN[i] - N0b);
             /* ------ the P update equation */
+            drive = I * kappa * amplitude_loss * (double _Complex)(lossN[i] - N0b);
             lossP[iN] = alpha * lossP[i] + one_minus_alpha_div_a * drive;
             
-            averageP = 0.5 * (lossP[iN] + lossP[i]);
-
-            delta_loss = I * coupling_out_loss * averageP * dt;
-
-            exchange = cimag(conj(amplitude_loss) * averageP);
             /* ------ the N update equation */
+            averageP = 0.5 * (lossP[iN] + lossP[i]);
+            exchange = cimag(conj(amplitude_loss) * averageP);
             lossN[iN] = lossN[i] + dt * ((N0b - lossN[i]) / tLoss - C_loss * exchange);
+
+            delta_loss = coupling_out_loss * averageP * dt;
 
             // light amplitude change due to absorber
             I_tot = cabs_square(amplitude_loss);
@@ -480,19 +479,20 @@ void mb_diode_round_trip(
             // two beam segments at the gain medium for the gain calculation
             idx_gain_a = (i + gain_distance) % N;
             idx_gain_b = (i + loss_shift - gain_distance) % N;
-
-            
             
             // amplitude sum in the gain medium
             amplitude_gain = pulse_amplitude[idx_gain_a] + pulse_amplitude[idx_gain_b];
             
-            drive = kappa * amplitude_gain * (double _Complex)gainN[i]; /* ensure complex multiply */
+            /* ------ the P update equation */
+            drive = I * kappa * amplitude_gain * (double _Complex)gainN[i]; /* ensure complex multiply */
             gainP[iN] = alpha * gainP[i] + one_minus_alpha_div_a * drive;
 
+            /* ------ the N update equation */
             averageP = 0.5 * (gainP[iN] + gainP[i]);
-            delta_gain = I *  coupling_out_gain * averageP * dt;
             exchange = cimag(conj(amplitude_gain) * averageP);
             gainN[iN] = gainN[i] + dt * ((N0a - gainN[i]) / tGain - C_gain * exchange + Pa);
+
+            delta_gain = coupling_out_gain * averageP * dt;
             // if (gainN[iN] < 0) {
             //     printf("-\nNegative gain carrier detected at index %d (%d %d): %f %f %f\n", i, idx_gain_a, idx_gain_b, gainN[iN], gainN[i], cabs(amplitude_gain));
             //     printf("Negative gain carrier Data1: %f %f %f %e %f %f %f\n", C_gain, exchange, Pa, dt, (N0a - gainN[i]) / tGain, N0a, tGain);

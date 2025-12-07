@@ -422,7 +422,7 @@ void mb_diode_round_trip(
             amplitude_loss = pulse_amplitude[idx_loss_a] + pulse_amplitude[idx_loss_b];
 
             /* ------ the P update equation */
-            drive = I * kappa * amplitude_loss * (double _Complex)(lossN[i] - N0b);
+            drive = I * kappa * amplitude_loss * (double _Complex)lossN[i];
             lossP[iN] = alpha * lossP[i] + one_minus_alpha_div_a * drive;
             
             /* ------ the N update equation */
@@ -430,7 +430,7 @@ void mb_diode_round_trip(
             exchange = cimag(conj(amplitude_loss) * averageP);
             lossN[iN] = lossN[i] + dt * ((N0b - lossN[i]) / tLoss - C_loss * exchange);
 
-            delta_loss = coupling_out_loss * averageP * dt;
+            delta_loss = - I * coupling_out_loss * averageP * dt;
 
             // light amplitude change due to absorber
             I_tot = cabs_square(amplitude_loss);
@@ -443,18 +443,16 @@ void mb_diode_round_trip(
             pulse_amplitude[idx_loss_a] += delta_loss * cabs_square(pulse_amplitude[idx_loss_a]) / (I_tot + 1.0e-12);
             pulse_amplitude[idx_loss_b] += delta_loss * cabs_square(pulse_amplitude[idx_loss_b]) / (I_tot + 1.0e-12);
 
-            if(I_tot > 1e-03) {
+            if(I_tot > 1.0e-02) {
 
                 loss_value[i] = (cabs_square(pulse_amplitude[idx_loss_a]) + cabs_square(pulse_amplitude[idx_loss_b])) / (0.000001 + old_intensity);
-                if (i > 900 && i < 950) {
+                if (i > 900 && i < 950 || loss_value[i] > 2.0) {
                     // printf("Loss idx %d (%d %d) loss_v=%f \n", i, idx_loss_a, idx_loss_b, loss_value[i]);
-                    printf("Loss idx %d (%d %d): lossN=%f lossP=%s, I_tot=%f delta_l=%s old_int=%f new_int=%f loss_v=%f namp_a=%s namp_b=%s oamp_a=%s oamp_b=%s \n",
+                    printf("-----\nLoss idx %d (%d %d): lossN=%f lossP=%s, I_tot=%f\ndelta_l=%s old_int=%f new_int=%f loss_v=%f\n",
                         i, idx_loss_a, idx_loss_b, 
                         lossN[iN], sc(lossP[i]),
                         I_tot, sc(delta_loss),
-                        old_intensity, cabs_square(pulse_amplitude[idx_loss_a]) + cabs_square(pulse_amplitude[idx_loss_b]), loss_value[i],
-                        sc(pulse_amplitude[idx_loss_a]), sc(pulse_amplitude[idx_loss_b]), 
-                        sc(old_amp_a), sc(old_amp_b)
+                        old_intensity, cabs_square(pulse_amplitude[idx_loss_a]) + cabs_square(pulse_amplitude[idx_loss_b]), loss_value[i]
                     );
                     printf("oamp_a=%s oamp_b=%s ==> %f + %f = %f\n",
                         sc(old_amp_a), sc(old_amp_b), 
@@ -484,15 +482,15 @@ void mb_diode_round_trip(
             amplitude_gain = pulse_amplitude[idx_gain_a] + pulse_amplitude[idx_gain_b];
             
             /* ------ the P update equation */
-            drive = I * kappa * amplitude_gain * (double _Complex)gainN[i]; /* ensure complex multiply */
+            drive = I * kappa * amplitude_gain * (double _Complex)gainN[i];
             gainP[iN] = alpha * gainP[i] + one_minus_alpha_div_a * drive;
 
             /* ------ the N update equation */
             averageP = 0.5 * (gainP[iN] + gainP[i]);
             exchange = cimag(conj(amplitude_gain) * averageP);
-            gainN[iN] = gainN[i] + dt * ((N0a - gainN[i]) / tGain - C_gain * exchange + Pa);
+            gainN[iN] = gainN[i] + dt * ((- gainN[i]) / tGain - C_gain * exchange + Pa);
 
-            delta_gain = coupling_out_gain * averageP * dt;
+            delta_gain = - I * coupling_out_gain * averageP * dt;
             // if (gainN[iN] < 0) {
             //     printf("-\nNegative gain carrier detected at index %d (%d %d): %f %f %f\n", i, idx_gain_a, idx_gain_b, gainN[iN], gainN[i], cabs(amplitude_gain));
             //     printf("Negative gain carrier Data1: %f %f %f %e %f %f %f\n", C_gain, exchange, Pa, dt, (N0a - gainN[i]) / tGain, N0a, tGain);
@@ -501,84 +499,60 @@ void mb_diode_round_trip(
             //     if (bugs > 5) {
             //         return;
             //     }
-                
-            // }
-            // if (i <10) {
-            //     printf("-\nat index %d (%d %d): %f %f %f\n", i, idx_gain_a, idx_gain_b, gainN[iN], gainN[i], cabs(amplitude_gain));
-            //     printf("carrier Data1: %f %f %f %e %f %f %f\n", C_gain, exchange, Pa, dt, (N0a - gainN[i]) / tGain, N0a, tGain);
-            //     printf("carrier Data2: amp(%f + i%f) pol(%f + i%f)\n", creal(amplitude_gain), cimag(amplitude_gain), creal(gainP[i]), cimag(gainP[i]));
-            // }
+
             // light amplitude change due to gain medium
-            I_tot = cabs(amplitude_gain);
+            I_tot = cabs_square(amplitude_gain);
 
             old_intensity = cabs_square(pulse_amplitude[idx_gain_a]) + cabs_square(pulse_amplitude[idx_gain_b]);
-            double oamp_a = cabs(pulse_amplitude[idx_gain_a]);
-            double oamp_b = cabs(pulse_amplitude[idx_gain_b]);
-            // if (isnan(creal(pulse_amplitude[idx_gain_a])) || isnan(cimag(pulse_amplitude[idx_gain_a])) ||
-            //     isnan(creal(pulse_amplitude[idx_gain_b])) || isnan(cimag(pulse_amplitude[idx_gain_b]))) {
-            //     printf("NaN detected before gain update at index %d (%d %d): (%f + i%f) (%f + i%f)\n",
-            //         i, idx_gain_a, idx_gain_b, creal(pulse_amplitude[idx_gain_a]), cimag(pulse_amplitude[idx_gain_a]), creal(pulse_amplitude[idx_gain_b]), cimag(pulse_amplitude[idx_gain_b]));
-            //     bugs += 1;
-            //     if (bugs > 10)  {
-            //         return;
-            //     }
-            // }
+            old_amp_a = pulse_amplitude[idx_gain_a];
+            old_amp_b = pulse_amplitude[idx_gain_b];
+            
+            /* ------ the E update equation */
             pulse_amplitude[idx_gain_a] += delta_gain * cabs_square(pulse_amplitude[idx_gain_a]) / (old_intensity + 1.0e-12);
             pulse_amplitude[idx_gain_b] += delta_gain * cabs_square(pulse_amplitude[idx_gain_b]) / (old_intensity + 1.0e-12);
-            //     if (isnan(creal(pulse_amplitude[idx_gain_a])) || isnan(cimag(pulse_amplitude[idx_gain_a])) ||
-            //         isnan(creal(pulse_amplitude[idx_gain_b])) || isnan(cimag(pulse_amplitude[idx_gain_b]))) {
-            //         printf("NaN detected after gain update at index %d (%d %d): (%f + i%f) (%f + i%f)\n",
-            //             i, idx_gain_a, idx_gain_b, creal(pulse_amplitude[idx_gain_a]), cimag(pulse_amplitude[idx_gain_a]), creal(pulse_amplitude[idx_gain_b]), cimag(pulse_amplitude[idx_gain_b]));
-            //          bugs += 1;
-            //         if (bugs > 10)  {
-            //             return;
-            //         }
-            //    }
-            if(I_tot > 1e-5) {
+
+            if(I_tot > 1e-03) {
+
                 gain_value[i] = (cabs_square(pulse_amplitude[idx_gain_a]) + cabs_square(pulse_amplitude[idx_gain_b])) / (old_intensity + 1.0e-12);
-                // if (i > 407 && i < 418) {
-                //     printf("Gain idx %d (%d %d): gainN=%f gainP(%f, %f), I_tot=%f delta_g=(%f, %f) old_int=%f new_int=%f gain_v=%f oamp_a=%f oamp_b=%f\n", i, idx_gain_a, idx_gain_b, 
-                //         gainN[iN], creal(gainP[i]), cimag(gainP[i]),
-                //         I_tot, creal(delta_gain), cimag(delta_gain),
-                //         old_intensity, cabs_square(pulse_amplitude[idx_gain_a]) + cabs_square(pulse_amplitude[idx_gain_b]), gain_value[i], oamp_a, oamp_b);
-                // }
+                if (i > 900 && i < 950) {
+                    // printf("Loss idx %d (%d %d) loss_v=%f \n", i, idx_loss_a, idx_loss_b, loss_value[i]);
+                    printf("-----\nGAIN idx %d (%d %d): gainN=%f gainP=%s, I_tot=%f delta_g=%s old_int=%f new_int=%f gain_v=%f namp_a=%s namp_b=%s oamp_a=%s oamp_b=%s \n",
+                        i, idx_gain_a, idx_gain_b, 
+                        gainN[iN], sc(gainP[i]),
+                        I_tot, sc(delta_gain),
+                        old_intensity, cabs_square(pulse_amplitude[idx_gain_a]) + cabs_square(pulse_amplitude[idx_gain_b]), gain_value[i],
+                        sc(pulse_amplitude[idx_gain_a]), sc(pulse_amplitude[idx_gain_b]), 
+                        sc(old_amp_a), sc(old_amp_b)
+                    );
+                    printf("oamp_a=%s oamp_b=%s ==> %f + %f = %f\n",
+                        sc(old_amp_a), sc(old_amp_b), 
+                        cabs_square(old_amp_a), cabs_square(old_amp_b), 
+                        cabs_square(old_amp_a) + cabs_square(old_amp_b)
+                    );
+                    printf("namp_a=%s namp_b=%s ==> %f + %f = %f  new/old = %f\n",
+                        sc(pulse_amplitude[idx_loss_a]), sc(pulse_amplitude[idx_loss_b]), 
+                        cabs_square(pulse_amplitude[idx_gain_a]), cabs_square(pulse_amplitude[idx_gain_b]), 
+                        cabs_square(pulse_amplitude[idx_gain_a]) + cabs_square(pulse_amplitude[idx_gain_b]),
+                        (cabs_square(pulse_amplitude[idx_gain_a]) + cabs_square(pulse_amplitude[idx_gain_b])) / (old_intensity + 1.0e-12)
+                    );
+                    printf("delta_g=%s averageP=%s drive=%s gainP[i]=%s gainP[iN]=%s\n",
+                        sc(delta_gain), sc(averageP), sc(drive), sc(gainP[i]), sc(gainP[iN])
+                    );
+                }
             } else {
                 gain_value[i] = 0.0;
             }
 
             /* inject small complex Gaussian noise at gain interaction points (spontaneous-like) */
-            double sigma = noise_prefactor * sqrt(fmax(0.0, gainN[i])) * sqrt(dt);
-            double _Complex noise = sigma * gaussian_rand01_complex();
-                // if (isnan(creal(pulse_amplitude[idx_gain_a])) || isnan(cimag(pulse_amplitude[idx_gain_a])) ||
-                //     isnan(creal(pulse_amplitude[idx_gain_b])) || isnan(cimag(pulse_amplitude[idx_gain_b]))) {
-                //     printf("NaN detected before noise update at index %d (%d %d): (%f + i%f) (%f + i%f)\n",
-                //         i, idx_gain_a, idx_gain_b, creal(pulse_amplitude[idx_gain_a]), cimag(pulse_amplitude[idx_gain_a]), creal(pulse_amplitude[idx_gain_b]), cimag(pulse_amplitude[idx_gain_b]));
-                //     bugs += 1;
-                //     if (bugs > 10)  {
-                //         return;
-                //     }
-                // }            
+            double sigma = noise_prefactor * /*sqrt(fmax(0.0, gainN[i])) **/ sqrt(dt);
+            double _Complex noise = sigma * gaussian_rand01_complex();          
             pulse_amplitude[idx_gain_a] += noise;
             pulse_amplitude[idx_gain_b] += noise;
-                // if (isnan(creal(pulse_amplitude[idx_gain_a])) || isnan(cimag(pulse_amplitude[idx_gain_a])) ||
-                //     isnan(creal(pulse_amplitude[idx_gain_b])) || isnan(cimag(pulse_amplitude[idx_gain_b]))) {
-                //     printf("NaN detected after noise update at index %d (%d %d): (%f + i%f) (%f + i%f)\n",
-                //         i, idx_gain_a, idx_gain_b, creal(pulse_amplitude[idx_gain_a]), cimag(pulse_amplitude[idx_gain_a]), creal(pulse_amplitude[idx_gain_b]), cimag(pulse_amplitude[idx_gain_b]));
-                //     bugs += 1;
-                //     if (bugs > 10)  {
-                //         return;
-                //     }
-                // } 
+
             // ---------- output coupler calculation
             //int oc_loc = (oc_shift + i) % N;
             // store the intensity of the output beam at it goes outside the cavity
             pulse_amplitude_after[oc_loc] = pulse_amplitude[oc_loc] * oc_out_val;
-            // if (oc_loc < 100) {
-            //     printf("Output coupler at index %d: amp=%f + i%f, out_amp=%f + i%f\n", 
-            //         oc_loc, 
-            //         creal(pulse_amplitude[oc_loc]), cimag(pulse_amplitude[oc_loc]), 
-            //         creal(pulse_amplitude_after[oc_loc]), cimag(pulse_amplitude_after[oc_loc]));
-            // }
 
             pulse_amplitude[oc_loc] = pulse_amplitude[oc_loc] * oc_val_sqrt + pulse_init[oc_loc];
             pulse_init[oc_loc] = 0.0 + 0.0*I;        }

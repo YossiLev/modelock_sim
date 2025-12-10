@@ -447,28 +447,29 @@ void mb_diode_round_trip(
 
                 loss_value[i] = (cabs_square(pulse_amplitude[idx_loss_a]) + cabs_square(pulse_amplitude[idx_loss_b])) / (0.000001 + old_intensity);
                 // if (i > 900 && i < 950 || loss_value[i] > 2.0) {
-                //     // printf("Loss idx %d (%d %d) loss_v=%f \n", i, idx_loss_a, idx_loss_b, loss_value[i]);
-                //     printf("-----\nLoss idx %d (%d %d): lossN=%f lossP=%s, I_tot=%f\ndelta_l=%s old_int=%f new_int=%f loss_v=%f\n",
-                //         i, idx_loss_a, idx_loss_b, 
-                //         lossN[iN], sc(lossP[i]),
-                //         I_tot, sc(delta_loss),
-                //         old_intensity, cabs_square(pulse_amplitude[idx_loss_a]) + cabs_square(pulse_amplitude[idx_loss_b]), loss_value[i]
-                //     );
-                //     printf("oamp_a=%s oamp_b=%s ==> %f + %f = %f\n",
-                //         sc(old_amp_a), sc(old_amp_b), 
-                //         cabs_square(old_amp_a), cabs_square(old_amp_b), 
-                //         cabs_square(old_amp_a) + cabs_square(old_amp_b)
-                //     );
-                //     printf("namp_a=%s namp_b=%s ==> %f + %f = %f  new/old = %f\n",
-                //         sc(pulse_amplitude[idx_loss_a]), sc(pulse_amplitude[idx_loss_b]), 
-                //         cabs_square(pulse_amplitude[idx_loss_a]), cabs_square(pulse_amplitude[idx_loss_b]), 
-                //         cabs_square(pulse_amplitude[idx_loss_a]) + cabs_square(pulse_amplitude[idx_loss_b]),
-                //         (cabs_square(pulse_amplitude[idx_loss_a]) + cabs_square(pulse_amplitude[idx_loss_b])) / (0.000001 + old_intensity)
-                //     );
-                //     printf("delta_l=%s averageP=%s drive=%s lossP[i]=%s lossP[iN]=%s\n",
-                //         sc(delta_loss), sc(averageP), sc(drive), sc(lossP[i]), sc(lossP[iN])
-                //     );
-                // }
+                if (loss_value[i] > 5.0) {
+                    // printf("Loss idx %d (%d %d) loss_v=%f \n", i, idx_loss_a, idx_loss_b, loss_value[i]);
+                    printf("-----\nLoss idx %d (%d %d): lossN=%f lossP=%s, I_tot=%f\ndelta_l=%s old_int=%f new_int=%f loss_v=%f\n",
+                        i, idx_loss_a, idx_loss_b, 
+                        lossN[iN], sc(lossP[i]),
+                        I_tot, sc(delta_loss),
+                        old_intensity, cabs_square(pulse_amplitude[idx_loss_a]) + cabs_square(pulse_amplitude[idx_loss_b]), loss_value[i]
+                    );
+                    printf("oamp_a=%s oamp_b=%s ==> %f + %f = %f\n",
+                        sc(old_amp_a), sc(old_amp_b), 
+                        cabs_square(old_amp_a), cabs_square(old_amp_b), 
+                        cabs_square(old_amp_a) + cabs_square(old_amp_b)
+                    );
+                    printf("namp_a=%s namp_b=%s ==> %f + %f = %f  new/old = %f\n",
+                        sc(pulse_amplitude[idx_loss_a]), sc(pulse_amplitude[idx_loss_b]), 
+                        cabs_square(pulse_amplitude[idx_loss_a]), cabs_square(pulse_amplitude[idx_loss_b]), 
+                        cabs_square(pulse_amplitude[idx_loss_a]) + cabs_square(pulse_amplitude[idx_loss_b]),
+                        (cabs_square(pulse_amplitude[idx_loss_a]) + cabs_square(pulse_amplitude[idx_loss_b])) / (0.000001 + old_intensity)
+                    );
+                    printf("delta_l=%s averageP=%s drive=%s lossP[i]=%s lossP[iN]=%s\n",
+                        sc(delta_loss), sc(averageP), sc(drive), sc(lossP[i]), sc(lossP[iN])
+                    );
+                }
             } else {
                 loss_value[i] = 0.0;
             }

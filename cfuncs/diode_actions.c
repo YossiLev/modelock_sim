@@ -443,7 +443,7 @@ void mb_diode_round_trip(
             pulse_amplitude[idx_loss_a] += delta_loss * cabs_square(pulse_amplitude[idx_loss_a]) / (0.000001 + old_intensity);
             pulse_amplitude[idx_loss_b] += delta_loss * cabs_square(pulse_amplitude[idx_loss_b]) / (0.000001 + old_intensity);
 
-            if(old_intensity > 1.0e+03) {
+            if(old_intensity > 1.0e+06) {
 
                 loss_value[i] = (cabs_square(pulse_amplitude[idx_loss_a]) + cabs_square(pulse_amplitude[idx_loss_b])) / (0.000001 + old_intensity);
                 // if (i > 900 && i < 950 || loss_value[i] > 2.0) {
@@ -512,7 +512,7 @@ void mb_diode_round_trip(
             pulse_amplitude[idx_gain_a] += delta_gain * cabs_square(pulse_amplitude[idx_gain_a]) / (0.000001 + old_intensity);
             pulse_amplitude[idx_gain_b] += delta_gain * cabs_square(pulse_amplitude[idx_gain_b]) / (0.000001 + old_intensity);
 
-            if(old_intensity > 1.0e+03) {
+            if(old_intensity > 1.0e+06) {
 
                 gain_value[i] = (cabs_square(pulse_amplitude[idx_gain_a]) + cabs_square(pulse_amplitude[idx_gain_b])) / (0.000001 + old_intensity);
                 // if (i > 900 && i < 950) {

@@ -29,6 +29,12 @@ V recored revert
     V allow recording of current status
     V save parameteres of good runs
 
+
+- Maxwell Bloch method
+    - Separate two beam with two different polarizaration
+    - Window for zooming on graphs
+    - spread gain and 
+
 ssh -f -N -L 13389:132.71.147.168:3389 -l levyose1 vpn.esc.biu.ac.il -p 2222
 
 

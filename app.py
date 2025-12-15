@@ -648,6 +648,8 @@ def doCalcUpdate(calcData, form_data):
     except:
         pass
     try:
+        pushParam(calcData, "diode_view_from", lambda: int(form_data.get("DiodeViewFrom")))
+        pushParam(calcData, "diode_view_to", lambda: int(form_data.get("DiodeViewTo")))
         pushParam(calcData, "calculation_rounds", lambda: int(form_data.get("DiodeRounds")))
         pushParam(calcData, "diode_pulse_width", lambda: float(form_data.get("DiodePulseWidth")))
         pushParam(calcData, "diode_alpha", lambda: float(form_data.get("DiodeAlpha")))

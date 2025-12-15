@@ -447,11 +447,10 @@ void mb_diode_round_trip(
 
                 loss_value[i] = (cabs_square(pulse_amplitude[idx_loss_a]) + cabs_square(pulse_amplitude[idx_loss_b])) / (0.000001 + old_intensity);
                 // if (i > 900 && i < 950 || loss_value[i] > 2.0) {
-                if (loss_value[i] > 5.0) {
-                    // printf("Loss idx %d (%d %d) loss_v=%f \n", i, idx_loss_a, idx_loss_b, loss_value[i]);
-                    printf("-----\nLoss idx %d (%d %d): lossN=%f lossP=%s, I_tot=%f\ndelta_l=%s old_int=%f new_int=%f loss_v=%f\n",
-                        i, idx_loss_a, idx_loss_b, 
-                        lossN[iN], sc(lossP[i]),
+                if (loss_value[i] > 500.0) {
+                    printf("\n----- Loss idx %d (%d %d)\nalpha=%s, 1ma=%s\nlossN=%f amp_loss=%s drive=%s\n lossP=(%s + %s)/2 = %s\nI_tot=%f\ndelta_l=%s old_int=%f new_int=%f loss_v=%f\n",
+                        i, idx_loss_a, idx_loss_b, sc(alpha), sc(one_minus_alpha_div_a),
+                        lossN[iN], sc(amplitude_loss), sc(drive), sc(lossP[i]), sc(lossP[iN]), sc(averageP),
                         I_tot, sc(delta_loss),
                         old_intensity, cabs_square(pulse_amplitude[idx_loss_a]) + cabs_square(pulse_amplitude[idx_loss_b]), loss_value[i]
                     );

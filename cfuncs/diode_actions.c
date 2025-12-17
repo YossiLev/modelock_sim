@@ -396,16 +396,17 @@ void mb_diode_round_trip(
     double old_intensity;
     int bugs = 0;
 
-        for (int ii = m_shift; ii < N + m_shift; ii++) {
-            int i = ii % N;    
-            int oc_loc = (oc_shift + i) % N;
-            // if (oc_loc < 10) {
-            //     printf("Output coupler at index %d: amp=%f + i%f\n", 
-            //         oc_loc, 
-            //         creal(pulse_amplitude[oc_loc]), cimag(pulse_amplitude[oc_loc]));
-            // }
-        }
+        // for (int ii = m_shift; ii < N + m_shift; ii++) {
+        //     int i = ii % N;    
+        //     int oc_loc = (oc_shift + i) % N;
+        //     // if (oc_loc < 10) {
+        //     //     printf("Output coupler at index %d: amp=%f + i%f\n", 
+        //     //         oc_loc, 
+        //     //         creal(pulse_amplitude[oc_loc]), cimag(pulse_amplitude[oc_loc]));
+        //     // }
+        // }
     
+    double sigma = noise_prefactor * /*sqrt(fmax(0.0, gainN[i])) **/ sqrt(dt);
 
     for (int i_round = 0; i_round < n_rounds; i_round++) {
         for (int ii = m_shift; ii < N + m_shift; ii++) {
@@ -544,7 +545,6 @@ void mb_diode_round_trip(
             }
 
             /* inject small complex Gaussian noise at gain interaction points (spontaneous-like) */
-            double sigma = noise_prefactor * /*sqrt(fmax(0.0, gainN[i])) **/ sqrt(dt);
             double _Complex noise = sigma * gaussian_rand01_complex();          
             pulse_amplitude[idx_gain_a] += noise;
             pulse_amplitude[idx_gain_b] += noise;

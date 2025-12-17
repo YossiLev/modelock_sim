@@ -339,6 +339,16 @@ class CalculatorData:
         print(f"mm_to_unit_shift mm={mm} shift={shift}")
         return shift
     
+    def zoom_view(self, factor):
+        if (self.diode_view_from == -1) or (self.diode_view_to == -1):
+            self.diode_view_from = 0
+            self.diode_view_to = self.diode_N
+        center = (self.diode_view_from + self.diode_view_to) / 2
+        half_range = (self.diode_view_to - self.diode_view_from) / 2 / factor
+        self.diode_view_from = int(center - half_range)
+        self.diode_view_to = int(center + half_range)
+        print(f"zoom_view factor={factor} from={self.diode_view_from} to={self.diode_view_to}")
+
     def doCalcCommand(self, cmd, params, dataObj):
         match (cmd):
             case "mult":
@@ -437,6 +447,14 @@ class CalculatorData:
 
                 #print(f"Round {i + 1} of {self.calculation_rounds}")
                 match params:
+                    case "view":
+                        return
+                    case "zoomin":
+                        self.zoom_view(2.0)
+                        return
+                    case "zoomout":
+                        self.zoom_view(0.5)
+                        return
                     case "calc":
 
                         self.diode_N = int(self.diode_sampling)
@@ -470,8 +488,8 @@ class CalculatorData:
                         pulseVal = np.array([60000 / self.diode_dt / self.volume], dtype=self.diode_pulse_dtype)
                         match self.diode_intensity:
                             case "Pulse":
-                                w2 = (self.diode_pulse_width * 1.41421356237) if self.diode_pulse_dtype == np.complex128 else self.diode_pulse_width 
-                                self.diode_pulse = pulseVal * np.exp(-np.square(self.diode_t_list - 1000.0) / (2 * w2 * w2))
+                                w2 = (self.diode_pulse_width * 1.0E-12 /self.diode_dt * 1.41421356237) if self.diode_pulse_dtype == np.complex128 else self.diode_pulse_width 
+                                self.diode_pulse = pulseVal * np.exp(-np.square(self.diode_t_list - self.diode_N / 2) / (2 * w2 * w2))
                                 self.diode_accum_pulse = np.add.accumulate(intens(self.diode_pulse)) * self.diode_dt * self.volume
                                 pulse_ratio = self.initial_photons / self.diode_accum_pulse[-1]
                                 self.diode_accum_pulse = np.multiply(self.diode_accum_pulse, pulse_ratio)
@@ -848,6 +866,10 @@ def generate_calc(data_obj, tab, offset = 0):
                         Button("Calculate", hx_post=f'/doCalc/5/diode/calc', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
                         Button("Recalculate", hx_post=f'/doCalc/5/diode/recalc', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
                         InputCalcS(f'DiodeRounds', "Rounds", f'{calcData.calculation_rounds}', width = 80),
+                        Button("View", hx_post=f'/doCalc/5/diode/view', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
+                        Button("ZIN", hx_post=f'/doCalc/5/diode/zoomin', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
+                        Button("ZOUT", hx_post=f'/doCalc/5/diode/zoomout', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
+
                         Div(
                             Button("Save Parameters", onclick="saveMultiTimeParametersProcess()"),
                             Button("Restore Parameters", onclick="restoreMultiTimeParametersProcess('diodeDynamicsOptionsForm')"),
@@ -873,7 +895,7 @@ def generate_calc(data_obj, tab, offset = 0):
                             SelectCalcS(f'DiodeSelectSampling', "Sampling", ["4096", "8192", "16384", "32768", "65536", "131072", "262144", "524288", "1048576"], calcData.diode_sampling, width = 100),
                             SelectCalcS(f'CalcDiodeCavityType', "Cavity Type", ["Ring", "Linear"], calcData.diode_cavity_type, width = 80),
                             SelectCalcS(f'CalcDiodeSelectMode', "mode", ["Intensity", "Amplitude", "MB"], calcData.diode_mode, width = 120),
-                            InputCalcS(f'DiodePulseWidth', "Pulse width", f'{calcData.diode_pulse_width}', width = 80),
+                            InputCalcS(f'DiodePulseWidth', "Pulse width (ps)", f'{calcData.diode_pulse_width}', width = 80),
                             SelectCalcS(f'CalcDiodeSelectIntensity', "Intensity", ["Pulse", "Noise", "CW", "Flat"], calcData.diode_intensity, width = 80),
                             InputCalcS(f'DiodeViewFrom', "View from", f'{calcData.diode_view_from}', width = 80),
                             InputCalcS(f'DiodeViewTo', "View to", f'{calcData.diode_view_to}', width = 80),
@@ -954,8 +976,8 @@ def generate_calc(data_obj, tab, offset = 0):
                                        [cget(shrink_with_max(pulse_after, 1024, calcData.diode_view_from, calcData.diode_view_to)).tolist()], [""], 
                                        "Pulse out (photons/sec)", h=2, color=colors, marker=None, twinx=True),
                         generate_chart([t_list], 
-                                        [cget(np.angle(shrink_with_max(calcData.pulse_after, 1024, calcData.diode_view_from, calcData.diode_view_to))).tolist(), 
-                                         cget(np.absolute(shrink_with_max(calcData.pulse_after, 1024, calcData.diode_view_from, calcData.diode_view_to))).tolist()], [""], 
+                                        [cget(np.angle(shrink_with_max(calcData.diode_pulse_after, 1024, calcData.diode_view_from, calcData.diode_view_to))).tolist(), 
+                                         cget(np.absolute(shrink_with_max(calcData.diode_pulse_after, 1024, calcData.diode_view_from, calcData.diode_view_to))).tolist()], [""], 
                                         "E", color=["green", "red"], h=2, marker=None, lw=[1, 3], twinx=True),
                         generate_chart([t_list], 
                                        [cget(shrink_with_max(calcData.diode_accum_pulse, 1024, calcData.diode_view_from, calcData.diode_view_to)).tolist(), cget(shrink_with_max(calcData.diode_accum_pulse_after, 1024, calcData.diode_view_from, calcData.diode_view_to)).tolist()], [""], 

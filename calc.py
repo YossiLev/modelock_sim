@@ -349,6 +349,17 @@ class CalculatorData:
         self.diode_view_to = int(center + half_range)
         print(f"zoom_view factor={factor} from={self.diode_view_from} to={self.diode_view_to}")
 
+    def shift_view(self, shift_factor):
+        if (self.diode_view_from == -1) or (self.diode_view_to == -1):
+            self.diode_view_from = 0
+            self.diode_view_to = self.diode_N
+        center = (self.diode_view_from + self.diode_view_to) / 2
+        half_range = (self.diode_view_to - self.diode_view_from) / 2
+        shift = int(half_range * shift_factor)
+        self.diode_view_from = int(center - half_range + shift)
+        self.diode_view_to = int(center + half_range + shift)
+        print(f"shift_view factor={shift_factor} from={self.diode_view_from} to={self.diode_view_to}")
+
     def doCalcCommand(self, cmd, params, dataObj):
         match (cmd):
             case "mult":
@@ -454,6 +465,12 @@ class CalculatorData:
                         return
                     case "zoomout":
                         self.zoom_view(0.5)
+                        return
+                    case "shiftright":
+                        self.shift_view(-0.5)
+                        return
+                    case "shiftleft":
+                        self.shift_view(0.5)
                         return
                     case "calc":
 
@@ -869,6 +886,8 @@ def generate_calc(data_obj, tab, offset = 0):
                         Button("View", hx_post=f'/doCalc/5/diode/view', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
                         Button("ZIN", hx_post=f'/doCalc/5/diode/zoomin', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
                         Button("ZOUT", hx_post=f'/doCalc/5/diode/zoomout', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
+                        Button("S>", hx_post=f'/doCalc/5/diode/shiftright', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
+                        Button("S<", hx_post=f'/doCalc/5/diode/shiftleft', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
 
                         Div(
                             Button("Save Parameters", onclick="saveMultiTimeParametersProcess()"),

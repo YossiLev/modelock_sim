@@ -3,6 +3,7 @@
 #include <complex.h>
 #include <math.h>
 #include "fft_filter.h"
+#include "diode_cavity.h"
 
 // for linux compilation:
 // if using cuda:
@@ -558,6 +559,95 @@ void mb_diode_round_trip(
             pulse_init[oc_loc] = 0.0 + 0.0*I;        }
         printf("Round %d complete\n", i_round);
     }
+
+}
+
+// maxwell bloch method with gpu function for electric field amplitude
+void mbg_diode_round_trip(
+    /* state arrays (length N) */
+    double *gainN,          /* N per spatial cell for gain (shared inversion) */
+    double _Complex *gainP, /* N per spatial cell for gain (polarization) */
+    double *lossN,          /* inversion for absorber (shared) */
+    double _Complex *lossP, /* N per spatial cell for loss (polarization) */
+
+    /* diagnostics / outputs (length N) */
+    double *gain_value,     /* optional diagnostics: local gain change fraction */
+    double *loss_value,     /* optional diagnostics: local loss change fraction */
+
+    /* field arrays */
+    double _Complex *pulse_init,       /* full-round complex samples array (length N) */
+    double _Complex *pulse_amplitude,       /* full-round complex samples array (length N) */
+    double _Complex *pulse_amplitude_after, /* output coupler extracted amplitude */
+
+    /* simulation control */
+    int n_rounds,          /* number of round trips */
+    int N,                 /* number of spatial cells */
+    int loss_shift,       /* index separation so absorber sees pair (i, i+loss_shift) */
+    int oc_shift,         /* output coupler shift (in spatial cells) */
+    int gain_distance,    /* distance between absorber and gain indices */
+
+    /* physical & numeric parameters */
+    double dt,            /* time step (s) */
+    double gainWidth_THz, /* gain linewidth in THz (converted to rad/s inside) */
+    double Pa,            /* pump amplitude A */
+    double Ta_ps,        /* pump duration A */
+    double Ga,            /* intrinsic polarization decay for gain (rad/s) or use gainWidth_THz */
+    double N0a,           /* initial inversion A */
+    double Pb,            /* pump amplitude B */
+    double Tb_ps,        /* pump duration B */
+    double Gb,            /* gain coefficient B */
+    double N0b,           /* initial inversion B */
+    double oc_val,         /* output coupler reflectivity */
+    double rand_factor_seed,
+    double kappa,
+    double C_loss,
+    double C_gain,
+    double coupling_out_loss,
+    double coupling_out_gain
+) {  
+    double gAbs;
+
+    double rand_factor = rand_factor_seed * dt / (Ta_ps * 1E-12)  / (double)RAND_MAX;
+    double oc_val_sqrt = sqrt(oc_val); // output coupler retention amplitude factor
+    double oc_out_val = sqrt(1.0 - oc_val); // output coupler output amplitude factor
+    double omega0 = 0.0; // transition frequency, set to zero for simplicity
+    // double kappa = 3.0E07; // coupling constant, adjust as needed
+    // double C_loss = 95.0E+06; // inversion to polarization coupling, adjust as needed
+    // double C_gain = 300.0E+05; // inversion to polarization coupling, adjust as needed
+    // double coupling_out_loss = -5000E+06; // coupling from polarization to field, adjust as needed
+    // double coupling_out_gain = 2800E+05; // coupling from polarization to field, adjust as needed
+    double Gamma =  gainWidth_THz * 2.0 * 3.14159 * 1E12; // gain width is given in THz, convert to rad/s
+
+    double _Complex a = (Gamma + I * omega0);
+    double _Complex alpha = cexp(-a * dt);
+    double _Complex one_minus_alpha = 1.0 + 0.0*I - alpha; /* (1 - alpha) */
+    double _Complex one_minus_alpha_div_a = one_minus_alpha / a; /* (1 - alpha) / a */
+
+    /* noise prefactor: tune to your units */
+    const double noise_prefactor = rand_factor;
+
+    int idx_gain_a, idx_gain_b, idx_loss_a, idx_loss_b;
+    double _Complex amplitude_gain, amplitude_loss;
+    double _Complex averageP, drive;
+    double _Complex delta_gain, delta_loss;
+    double exchange, I_tot;
+    double tGain = Ta_ps * 1E-12, tLoss = Tb_ps * 1E-12;
+    double old_intensity;
+    int bugs = 0;
+
+        // for (int ii = m_shift; ii < N + m_shift; ii++) {
+        //     int i = ii % N;    
+        //     int oc_loc = (oc_shift + i) % N;
+        //     // if (oc_loc < 10) {
+        //     //     printf("Output coupler at index %d: amp=%f + i%f\n", 
+        //     //         oc_loc, 
+        //     //         creal(pulse_amplitude[oc_loc]), cimag(pulse_amplitude[oc_loc]));
+        //     // }
+        // }
+    
+    double sigma = noise_prefactor * /*sqrt(fmax(0.0, gainN[i])) **/ sqrt(dt);
+
+
 
 
 }

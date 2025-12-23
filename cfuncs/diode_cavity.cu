@@ -44,9 +44,9 @@ __global__ void diode_cavity_round_trip_kernel(DiodeCavityCtx *data, int offset)
     //averageP = 0.5 * (gainP[iN] + gainP[i]);
     double exchange = (cuCadd(cuCmul(cuConj(*E1), *P1), cuCmul(cuConj(*E2), *P2))).y;
     if (data->diode_type[blockIdx.x] == 1 /* gain */) {
-        *N0 = data->diode_N0[i] + data->dt * ((- *N0) / data->tGain + data->C_gain * exchange + data->Pa);
+        *N0 = *N0 + data->dt * ((- *N0) / data->tGain + data->C_gain * exchange + data->Pa);
     } else if (data->diode_type[blockIdx.x] == 2 /* absorber */) {
-        *N0 = data->diode_N0[i] + data->dt * ((data->N0b - *N0) / data->tLoss + data->C_loss * exchange);
+        *N0 = *N0 + data->dt * ((data->N0b - *N0) / data->tLoss + data->C_loss * exchange);
     }
 
     /* ------ the E update equation */

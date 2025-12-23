@@ -373,11 +373,6 @@ void mb_diode_round_trip(
     double oc_val_sqrt = sqrt(oc_val); // output coupler retention amplitude factor
     double oc_out_val = sqrt(1.0 - oc_val); // output coupler output amplitude factor
     double omega0 = 0.0; // transition frequency, set to zero for simplicity
-    // double kappa = 3.0E07; // coupling constant, adjust as needed
-    // double C_loss = 95.0E+06; // inversion to polarization coupling, adjust as needed
-    // double C_gain = 300.0E+05; // inversion to polarization coupling, adjust as needed
-    // double coupling_out_loss = -5000E+06; // coupling from polarization to field, adjust as needed
-    // double coupling_out_gain = 2800E+05; // coupling from polarization to field, adjust as needed
     double Gamma =  gainWidth_THz * 2.0 * 3.14159 * 1E12; // gain width is given in THz, convert to rad/s
 
     double _Complex a = (Gamma + I * omega0);
@@ -564,24 +559,36 @@ void mb_diode_round_trip(
 
 // maxwell bloch method with gpu function for electric field amplitude
 void mbg_diode_round_trip(
-    /* state arrays (length N) */
-    double *gainN,          /* N per spatial cell for gain (shared inversion) */
-    double _Complex *gainP, /* N per spatial cell for gain (polarization) */
-    double *lossN,          /* inversion for absorber (shared) */
-    double _Complex *lossP, /* N per spatial cell for loss (polarization) */
+    int N,                  /* cavity length (beam length) */
+    int N_x,                /* spatial size in x (beam width) */
+    
+    /* diode configuration */
+    int diode_length,      /* number of diode total components */
+    int *diode_type,    /* type of diode component (1=gain, 2=absorber, 0=free space) */
+    int *diode_index_1,   /* index mapping from diode component to cavity index (meeting first part of the beam) */
+    int *diode_index_2,   /* index mapping from diode component to cavity index (meeting second part of the beam) */
+    /* diode state */
+    double *diode_inversion,          /* inversion current value of each part of the diode  (size diode_length * N_x) */
+    double _Complex *diode_polarization_1, /* polarization value respecting of first part of the beam */
+    double _Complex *diode_polarization_2, /* polarization value respecting of second part of the beam */
+
+    /* diode history */
+    int diode_history_length, /* length of history for diode state */
+    double *diode_history_inverion,        
+    double _Complex *diode_history_polarization_1,
+    double _Complex *diode_history_polarization_2,
 
     /* diagnostics / outputs (length N) */
     double *gain_value,     /* optional diagnostics: local gain change fraction */
     double *loss_value,     /* optional diagnostics: local loss change fraction */
 
     /* field arrays */
-    double _Complex *pulse_init,       /* full-round complex samples array (length N) */
+    double _Complex *pulse_amplitude_init,  /* full-round complex samples array (length N) */
     double _Complex *pulse_amplitude,       /* full-round complex samples array (length N) */
-    double _Complex *pulse_amplitude_after, /* output coupler extracted amplitude */
+    double _Complex *pulse_amplitude_out,   /* output coupler extracted amplitude */
 
     /* simulation control */
     int n_rounds,          /* number of round trips */
-    int N,                 /* number of spatial cells */
     int loss_shift,       /* index separation so absorber sees pair (i, i+loss_shift) */
     int oc_shift,         /* output coupler shift (in spatial cells) */
     int gain_distance,    /* distance between absorber and gain indices */
@@ -611,11 +618,6 @@ void mbg_diode_round_trip(
     double oc_val_sqrt = sqrt(oc_val); // output coupler retention amplitude factor
     double oc_out_val = sqrt(1.0 - oc_val); // output coupler output amplitude factor
     double omega0 = 0.0; // transition frequency, set to zero for simplicity
-    // double kappa = 3.0E07; // coupling constant, adjust as needed
-    // double C_loss = 95.0E+06; // inversion to polarization coupling, adjust as needed
-    // double C_gain = 300.0E+05; // inversion to polarization coupling, adjust as needed
-    // double coupling_out_loss = -5000E+06; // coupling from polarization to field, adjust as needed
-    // double coupling_out_gain = 2800E+05; // coupling from polarization to field, adjust as needed
     double Gamma =  gainWidth_THz * 2.0 * 3.14159 * 1E12; // gain width is given in THz, convert to rad/s
 
     double _Complex a = (Gamma + I * omega0);
@@ -647,7 +649,36 @@ void mbg_diode_round_trip(
     
     double sigma = noise_prefactor * /*sqrt(fmax(0.0, gainN[i])) **/ sqrt(dt);
 
+    DiodeCavityCtx ctx;
 
+    ctx.dt = dt;
+    ctx.tGain = tGain;
+    ctx.tLoss = tLoss;
+    ctx.C_gain = C_gain;
+    ctx.C_loss = C_loss;
+    ctx.N0b = N0b;
+    ctx.Pa = Pa;
+    ctx.kappa = kappa;
+    ctx.alpha = alpha;
+    ctx.one_minus_alpha_div_a = one_minus_alpha_div_a;
+    ctx.coupling_out_gain = coupling_out_gain;
+    cuDoubleComplex I1;
+
+    int diode_length; // number of diode total components
+    int *diode_type; // type of diode component (1=gain, 2=absorber)
+    int *diode_pos_1; // position index of each diode component at the left to right beam direction
+    int *diode_pos_2; // position index of each diode component at the right to left beam direction
+
+    double *diode_N0; // equilibrium inversion for each diode component (unified for both directions, size diode_length * N_x)
+    cuDoubleComplex *diode_P_dir_1; // polarization for each diode component, left to right direction (size diode_length * N_x)
+    cuDoubleComplex *diode_P_dir_2; // polarization for each diode component, right to left direction (size diode_length * N_x)
+
+    ctx.amplitude = pulse_amplitude;
+
+    double left_linear_cavity[4]; // ABCD matrix elements for left linear cavity section
+    double right_linear_cavity[4]; // ABCD matrix elements for right linear cavity section
+
+    DiodeCavityCtx *d_ctx; // device context pointer
 
 
 }

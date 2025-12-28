@@ -25,33 +25,45 @@ inline cuDoubleComplex cneg(cuDoubleComplex z) {
 __global__ void diode_cavity_round_trip_kernel(DiodeCavityCtx *data, int offset) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
 
+    /* position on the left and right beams*/
     int index_1 = ((data->diode_pos_1[i] + offset) % data->N) * data->N_x + threadIdx.x;
     int index_2 = ((data->diode_pos_2[i] + offset) % data->N) * data->N_x + threadIdx.x;
 
-    double *N0 = &(data->diode_N0[i]);
-    cuDoubleComplex *P1 = &(data->diode_P_dir_1[i]);
-    cuDoubleComplex *P2 = &(data->diode_P_dir_2[i]);
-    cuDoubleComplex *E1 = &(data->amplitude[index_1]);
-    cuDoubleComplex *E2 = &(data->amplitude[index_2]);
+    /* access arrays with restrict pointers */
+    double *__restrict__ pN0 = data->diode_N0;
+    double N0 = pN0[i];
+    cuDoubleComplex *__restrict__ pP1 = data->diode_P_dir_1;
+    cuDoubleComplex *__restrict__ pP2 = data->diode_P_dir_2;
+    cuDoubleComplex P1 = pP1[i];
+    cuDoubleComplex P2 = pP2[i];
+    cuDoubleComplex *__restrict__ pE1 = data->amplitude;
+    cuDoubleComplex E1 = pE1[index_1];
+    cuDoubleComplex *__restrict__ pE2 = data->amplitude;
+    cuDoubleComplex E2 = pE2[index_2];
 
     /* ------ the P update equation */
-    cuDoubleComplex drive = cuCmul(data->I1, cmul_real(data->kappa * *N0, *E1));
-    *P1 = cuCsub(cmul_real(data->alpha, *P1), cmul_real(data->one_minus_alpha_div_a, drive));
-    drive = cuCmul(data->I1, cmul_real(data->kappa * *N0, *E2));
-    *P2 = cuCsub(cmul_real(data->alpha, *P2), cmul_real(data->one_minus_alpha_div_a, drive));
+    cuDoubleComplex drive = cuCmul(data->I1, cmul_real(data->one_minus_alpha_div_a * data->kappa * N0, E1));
+    P1 = cuCsub(cmul_real(data->alpha, P1), drive);
+    drive = cuCmul(data->I1, cmul_real(data->one_minus_alpha_div_a * data->kappa * N0, E2));
+    P2 = cuCsub(cmul_real(data->alpha, P2), drive);
 
     /* ------ the N update equation */
     //averageP = 0.5 * (gainP[iN] + gainP[i]);
-    double exchange = (cuCadd(cuCmul(cuConj(*E1), *P1), cuCmul(cuConj(*E2), *P2))).y;
+    double exchange = (cuCadd(cuCmul(cuConj(E1), P1), cuCmul(cuConj(E2), P2))).y;
     if (data->diode_type[blockIdx.x] == 1 /* gain */) {
-        *N0 = *N0 + data->dt * ((- *N0) / data->tGain + data->C_gain * exchange + data->Pa);
+        N0 = N0 + data->dt * ((- N0) / data->tGain + data->C_gain * exchange + data->Pa);
     } else if (data->diode_type[blockIdx.x] == 2 /* absorber */) {
-        *N0 = *N0 + data->dt * ((data->N0b - *N0) / data->tLoss + data->C_loss * exchange);
+        N0 = N0 + data->dt * ((data->N0b - N0) / data->tLoss + data->C_loss * exchange);
     }
 
     /* ------ the E update equation */
-    *E1 = cuCadd(*E1, cmul_real(data->dt * data->coupling_out_gain , cuCmul(data->I1, *P1)));
-    *E2 = cuCadd(*E2, cmul_real(data->dt * data->coupling_out_gain , cuCmul(data->I1, *P2)));
+    pE1[index_1] = cuCadd(pE1[index_1], cmul_real(data->dt * data->coupling_out_gain , cuCmul(data->I1, P1)));
+    pE2[index_2] = cuCadd(pE2[index_2], cmul_real(data->dt * data->coupling_out_gain , cuCmul(data->I1, P2)));
+
+    /* store back updated values */
+    pN0[i] = N0;
+    pP1[i] = P1;
+    pP2[i] = P2;
 }
 
 // Initialize
@@ -106,9 +118,11 @@ int diode_cavity_init(DiodeCavityCtx *ctx_host) {
 // Run one Cavity tick
 int diode_cavity_run(DiodeCavityCtx *ctx) {
 
+    /* perform n_rounds of cavity round trips */
     for (int i_round = 0; i_round < ctx->n_rounds; i_round++) {
+        /* perform one round trip */
         for (int offset = 0; offset < ctx->N_x; offset++) {
-            // Call the CUDA kernel to process the cavity round trip
+            // Call the CUDA kernel to process a single step in ther round trip
             int threads = ctx->N_x;
             int blocks = ctx->diode_length;
             diode_cavity_round_trip_kernel<<<blocks, threads>>>(ctx->d_ctx, offset);

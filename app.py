@@ -619,8 +619,8 @@ async def clUpdate(request: Request, tab: int, localId: str):
 def doCalcUpdate(calcData, form_data):
     try:
         pushParam(calcData, "M1", lambda: collect_mat_data(calcData.M1, form_data, "M1"))
-        pushParam(calcData, "M2", lambda: collect_mat_data(calcData.M2,form_data, "M2"))
-        pushParam(calcData, "M3", lambda: collect_mat_data(calcData.M3,form_data, "M3"))
+        pushParam(calcData, "M2", lambda: collect_mat_data(calcData.M2, form_data, "M2"))
+        pushParam(calcData, "M3", lambda: collect_mat_data(calcData.M3, form_data, "M3"))
         pushParam(calcData, "t_fixer", lambda: float(form_data.get("MatFixer")))
     except:
         pass
@@ -680,6 +680,7 @@ def doCalcUpdate(calcData, form_data):
         pushParam(calcData, "diode_cavity_type", lambda: form_data.get("CalcDiodeCavityType"))
         pushParam(calcData, "diode_mode", lambda: form_data.get("CalcDiodeSelectMode"))
         pushParam(calcData, "diode_sampling", lambda: form_data.get("DiodeSelectSampling"))
+        pushParam(calcData, "diode_sampling_x", lambda: form_data.get("DiodeSelectSamplingX"))
         pushParam(calcData, "start_gain", lambda: float(form_data.get("start_gain")))
         pushParam(calcData, "start_absorber", lambda: float(form_data.get("start_absorber")))
         pushParam(calcData, "rand_factor_seed", lambda: float(form_data.get("rand_factor_seed")))

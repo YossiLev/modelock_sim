@@ -230,6 +230,11 @@ function AbcdMatEigenValuesCalc(name) {
     toggleVisibility(eigenText);
 }
 
+function ToggleCavity(name) {
+    let cavityDiv = document.getElementById(`${name}_cavity_frame`);
+    toggleVisibility(cavityDiv);
+}
+
 function MatOnQvec(M, Q) {
     let [A, B, C, D] = [M[0][0], M[0][1], M[1][0], M[1][1]];
     let [x, y] = Q;

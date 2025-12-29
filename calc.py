@@ -249,6 +249,7 @@ class CalculatorData:
         self.diode_cavity_type = "Ring"
         self.diode_mode = "Amplitude"
         self.diode_sampling = "4096"
+        self.diode_sampling_x = "32"
         self.diode_pulse_dtype = np.complex128
 
         self.diode_cavity_time = 3.95138389E-09 #4E-09
@@ -269,6 +270,10 @@ class CalculatorData:
         self.oc_shift = self.mm_to_unit_shift(self.diode_output_coupler_shift)
         self.oc_val = 0.02
 
+        self.left_arm_mat = [[1, 0], [0, 1]]
+        self.right_arm_mat = [[1, 0], [0, 1]]
+        self.left_arm_cavity = ""
+        self.right_arm_cavity = ""
         self.start_gain = 7.44E+10
         self.start_absorber = 0.0 #18200000000.0
         self.initial_photons = 1E+07
@@ -912,6 +917,7 @@ def generate_calc(data_obj, tab, offset = 0):
                     Div(
                         Div(
                             SelectCalcS(f'DiodeSelectSampling', "Sampling", ["4096", "8192", "16384", "32768", "65536", "131072", "262144", "524288", "1048576"], calcData.diode_sampling, width = 100),
+                            SelectCalcS(f'DiodeSelectSamplingX', "Sampling X", ["32", "64", "128", "256"], calcData.diode_sampling_x, width = 80),
                             SelectCalcS(f'CalcDiodeCavityType', "Cavity Type", ["Ring", "Linear"], calcData.diode_cavity_type, width = 80),
                             SelectCalcS(f'CalcDiodeSelectMode', "mode", ["Intensity", "Amplitude", "MB", "MBX"], calcData.diode_mode, width = 120),
                             InputCalcS(f'DiodePulseWidth', "Pulse width (ps)", f'{calcData.diode_pulse_width}', width = 80),
@@ -956,8 +962,9 @@ def generate_calc(data_obj, tab, offset = 0):
                             InputCalcS(f'C_gain', "C_gain", f'{calcData.C_gain}', width = 100),
                             InputCalcS(f'coupling_out_loss', "coupling_out_loss", f'{calcData.coupling_out_loss}', width = 120 ),
                             InputCalcS(f'coupling_out_gain', "coupling_out_gain", f'{calcData.coupling_out_gain}', width = 120)
-
-
+                        ),
+                        FlexN((ABCDMatControl("Left Arm", calcData.left_arm_mat, calcData.left_arm_cavity),
+                            ABCDMatControl("Right Arm", calcData.right_arm_mat, calcData.right_arm_cavity)),
                         ),
                         id="diodeDynamicsOptionsForm"
                                         

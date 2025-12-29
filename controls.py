@@ -83,12 +83,13 @@ def InputCalcM(id, title, value, step=0.01, width = 150):
             style="display: inline-block; position: relative;"
     )
 
-def ABCDMatControl(name, M):
+def ABCDMatControl(name, M, cavity=""):
     det = M[0][0] * M[1][1] - M[0][1] * M[1][0]
     msg = f'&#9888; det={det}'
     return Div(
         Div(
             Div(
+                Img(src="/static/cavity.png", title="Open as cavity", width=20, height=20, onclick=f"ToggleCavity('{name}');"),
                 Img(src="/static/eigen.png", title="Copy", width=20, height=20, onclick=f"AbcdMatEigenValuesCalc('{name}');"),
                 Img(src="/static/copy.png", title="Copy", width=20, height=20, onclick=f"AbcdMatCopy('{name}');"),
                 Img(src="/static/paste.png", title="Paste", width=20, height=20, onclick=f"AbcdMatPaste('{name}');"),
@@ -99,13 +100,20 @@ def ABCDMatControl(name, M):
                     style=f"visibility: {'hidden' if abs(det - 1.0) < 0.000001 else 'visible'}; color: yellow; background-color: red; padding: 1px; border-radius: 4px; margin-left: 30px; ") if len(msg) > 0 else "",
         ),
         Div(
-            InputCalcM(f'{name}_A', "A", f'{M[0][0]}', width = 180),
-            InputCalcM(f'{name}_B', "B", f'{M[0][1]}', width = 180),
+            InputCalcM(f'{name}_A', "A", f'{M[0][0]}', width = 150),
+            InputCalcM(f'{name}_B', "B", f'{M[0][1]}', width = 150),
         ),
         Div(
-            InputCalcM(f'{name}_C', "C", f'{M[1][0]}', width = 180),
-            InputCalcM(f'{name}_D', "D", f'{M[1][1]}', width = 180),
+            InputCalcM(f'{name}_C', "C", f'{M[1][0]}', width = 150),
+            InputCalcM(f'{name}_D', "D", f'{M[1][1]}', width = 150),
         ),
+        Div(
+            Textarea(cavity, id=f'{name}_cavity', style="min-height: 400px;", spellcheck="false"),
+            Div(Img(src="/static/matABCD.png", title="Calc matrix", width=20, height=20, onclick=f"CavityToABCD('{name}');ToggleCavity('{name}');")),
+            id=f'{name}_cavity_frame',
+            style="visibility: hidden; position: absolute; right: 15px; top: 25px; z-index: 1000;"
+        ),
+
         Div("", id=f"{name}_eigen", style="visibility: hidden;"),
         cls="ABCDMatControl"
     )

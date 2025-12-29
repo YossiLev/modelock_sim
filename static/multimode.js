@@ -966,6 +966,34 @@ function buildLength(lengthObj) {
     return `${valStr}${lengthObj.units}`;
 }
 
+function CavityToABCD(namePrefix) {
+    let lines = document.getElementById(`${namePrefix}_cavity`).value.split("\n");
+    let M = [[1, 0], [0, 1]];
+    for (let i = 0; i < lines.length; i++) {
+        let el = lines[i].toUpperCase().split(" ");
+        if (el.length >= 1) {
+            switch (el[0]) {
+                case "P":
+                    M = MMult(MDist(extractLength(el[1]).val), M);
+                    break;
+                case "L":
+                    M = MMult(MLens(extractLength(el[1]).val), M);
+                    break;
+                case "C":
+                    M = MMult(MLens(- extractLength(el[1]).val), M);
+                    break;
+                case "M":
+                    M = MMult([[1, 0], [0, -1]], M);
+                    break;
+            }
+        }
+    }
+    document.getElementById(`${namePrefix}_A`).value = M[0][0].toFixed(6);
+    document.getElementById(`${namePrefix}_B`).value = M[0][1].toFixed(6);
+    document.getElementById(`${namePrefix}_C`).value = M[1][0].toFixed(6);
+    document.getElementById(`${namePrefix}_D`).value = M[1][1].toFixed(6);
+}
+
 function initElementsFromCavityText(text) {
     let elementsT = [];
     let lines = text.split("\n");
@@ -2233,7 +2261,8 @@ function saveMultiTimeParameters(isSave, formName) {
             } else if (item instanceof HTMLSelectElement) {
                 obj[item.id] = item.selectedIndex;
             }  else if (item instanceof HTMLTextAreaElement) {
-                console.log(item.id, "TEXTAREA")
+                console.log(item.id, "TEXTAREAOK save")
+                obj[item.id] = item.value;
             }  else {
                 console.log(item.id, "ERROR")
             }
@@ -2257,7 +2286,8 @@ function restoreMultiTimeParameters(index, formName) {
                 } else if (item instanceof HTMLSelectElement) {
                     item.selectedIndex = obj[item.id];
                 }  else if (item instanceof HTMLTextAreaElement) {
-                    console.log(item.id, "TEXTAREA")
+                    console.log(item.id, "TEXTAREAOK restore")
+                    item.value = obj[item.id];
                 }  else {
                     console.log(item.id, "ERROR")
                 }

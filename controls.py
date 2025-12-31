@@ -109,7 +109,8 @@ def ABCDMatControl(name, M, cavity=""):
         ),
         Div(
             Textarea(cavity, id=f'{name}_cavity', style="min-height: 400px;", spellcheck="false"),
-            Div(Img(src="/static/matABCD.png", title="Calc matrix", width=20, height=20, onclick=f"CavityToABCD('{name}');ToggleCavity('{name}');")),
+            Div(Img(src="/static/matABCD.png", title="Calc matrix", width=20, height=20, onclick=f"CavityToABCD('{name}');ToggleCavity('{name}');"),
+                Img(src="/static/flip.png", title="Flip cavity", width=20, height=20, onclick=f"FlipCavity('{name}');")),
             id=f'{name}_cavity_frame',
             style="visibility: hidden; position: absolute; right: 15px; top: 25px; z-index: 1000;"
         ),

@@ -966,12 +966,22 @@ function buildLength(lengthObj) {
     return `${valStr}${lengthObj.units}`;
 }
 
+function FlipCavity(namePrefix) {
+    let lines = document.getElementById(`${namePrefix}_cavity`).value.split("\n");
+    let l = lines.length;
+    lines.push("#m");
+    for (let i = l - 1; i >= 0; i--) {
+        lines.push(lines[i]);
+    }
+    document.getElementById(`${namePrefix}_cavity`).value = lines.join("\n");
+}
+
 function CavityToABCD(namePrefix) {
     let lines = document.getElementById(`${namePrefix}_cavity`).value.split("\n");
     let M = [[1, 0], [0, 1]];
     for (let i = 0; i < lines.length; i++) {
         let el = lines[i].toUpperCase().split(" ");
-        if (el.length >= 1) {
+        if (el.length >= 1 && el[0] != "#") {
             switch (el[0]) {
                 case "P":
                     M = MMult(MDist(extractLength(el[1]).val), M);

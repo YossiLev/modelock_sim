@@ -5,6 +5,7 @@ from fasthtml.common import *
 from controls import *
 from multi_mode import cget, cylindrical_fresnel_prepare, prepare_linear_fresnel_calc_data, prepare_linear_fresnel_straight_calc_data, linear_fresnel_propogate
 from calc_diode import *
+from calc_dispersion import *
 
 def MMult(M1, M2):
     res = [[
@@ -45,15 +46,6 @@ def to_meters(s):
     else:
         raise ValueError(f"Unknown unit: '{unit}'")
 
-def intens(arr):
-    if len(arr) == 0 or arr.dtype != np.complex128:
-        return arr
-    if (np.isnan(arr.real)).any():
-        print("NaN in real part **** could be an error")
-        print(f"arr={arr[0]},{arr[1]},{arr[2]},{arr[3]}, ")
-        raise Exception("NaN in real part **** could be an error")
-    return np.square(arr.real) + np.square(arr.imag)
-
 class CalculatorData:
     def __init__(self):
         self.M1 = [[1, 0], [0, 1]]
@@ -85,6 +77,8 @@ class CalculatorData:
         self.harmony = 2
 
         self.diode = diode_calc()
+
+        self.dispersion = dispersion_calc()
 
     def set(self, params):
         for key, value in params.items():
@@ -189,6 +183,9 @@ class CalculatorData:
 
             case "diode":
                 self.diode.doCalcCommand(params)
+
+            case "dispersion":
+                self.dispersion.doCalcCommand(params)
 
     def exec_cavity_command(self, com):
         if len(com) == 0:

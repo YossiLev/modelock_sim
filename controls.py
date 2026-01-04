@@ -82,6 +82,22 @@ def InputCalcM(id, title, value, step=0.01, width = 150):
                     'onpaste':f"validateMat(event);",}),
             style="display: inline-block; position: relative;"
     )
+           
+def InputCalcS(id, title, value, step=0.01, width = 150):
+    return Div(
+            Div(title, cls="floatRight", style="font-size: 10px; top:-1px; right:10px; padding: 0px 4px; background: #e7f0f0;"),
+            Input(type="number", id=id, title=title,
+                value=value, step=f"{step}", 
+                # hx_trigger="input changed delay:1s", hx_post=f"/clUpdate/{tab}", hx_target="#gen_calc", 
+                # hx_vals='js:{localId: getLocalId()}',
+                style=f"width:{width}px; margin:2px;"),
+            style="display: inline-block; position: relative;"
+    )
+
+def SelectCalcS(tab, id, title, options, selected, width = 150):
+    return Select(*[Option(o) if o != selected else Option(o, selected="1") for o in options], id=id,
+                hx_trigger="input changed", hx_post=f"/clUpdate/{tab}", hx_target="#gen_calc", hx_include="#calcForm *", 
+                hx_vals='js:{localId: getLocalId()}', style=f"width:{width}px;")
 
 def ABCDMatControl(name, M, cavity=""):
     det = M[0][0] * M[1][1] - M[0][1] * M[1][0]

@@ -13,6 +13,7 @@ import json
 import numpy as np
 from fasthtml.common import *
 from controls import *
+from calc_common import *
 
 lib_suffix = {
     "Linux": "so",
@@ -161,8 +162,6 @@ lib_diode.mb_diode_round_trip.argtypes = [
 ]
 lib_diode.mb_diode_round_trip.restype = None
 
-
-
 def intens(arr):
     if len(arr) == 0 or arr.dtype != np.complex128:
         return arr
@@ -182,38 +181,7 @@ def loss_function(Gb, N0b, N):
     gAbs = Gb * 0.02 * (N - N0b)
     return gAbs
 
-def shrink_with_max(arrp, max_size, fromX=-1, toX=-1):
-    if (fromX >= 0 and toX > fromX and toX <= arrp.size):
-        arr = arrp[fromX:toX]
-    else:
-        arr = arrp
-    if arr.size <= 40000:
-        return arr
-    
-    rc = arr.reshape(max_size, arr.size // max_size).max(axis=1)
-    return rc
-
-def cget(x):
-    return x.get() if hasattr(x, "get") else x
-
-                        
-def InputCalcS(id, title, value, step=0.01, width = 150):
-    return Div(
-            Div(title, cls="floatRight", style="font-size: 10px; top:-1px; right:10px; padding: 0px 4px; background: #e7f0f0;"),
-            Input(type="number", id=id, title=title,
-                value=value, step=f"{step}", 
-                # hx_trigger="input changed delay:1s", hx_post=f"/clUpdate/{tab}", hx_target="#gen_calc", 
-                # hx_vals='js:{localId: getLocalId()}',
-                style=f"width:{width}px; margin:2px;"),
-            style="display: inline-block; position: relative;"
-    )
-
-def SelectCalcS(tab, id, title, options, selected, width = 150):
-    return Select(*[Option(o) if o != selected else Option(o, selected="1") for o in options], id=id,
-                hx_trigger="input changed", hx_post=f"/clUpdate/{tab}", hx_target="#gen_calc", hx_include="#calcForm *", 
-                hx_vals='js:{localId: getLocalId()}', style=f"width:{width}px;")
-
-class diode_calc:
+class diode_calc(CalcCommon):
     def __init__(self):
         self.diode_view_from = -1
         self.diode_view_to = -1
@@ -297,21 +265,6 @@ class diode_calc:
         self.summary_photons_after_absorber = 0.0
         self.summary_photons_after_cavity_loss = 0.0
 
-
-    def set(self, params):
-        for key, value in params.items():
-            if hasattr(self, key):
-                if type(value) is list:
-                    setattr(self, key, np.asarray(value))
-                else:
-                    setattr(self, key, value)
-
-    def get(self, params):
-        for key in params.keys():
-            if hasattr(self, key):
-                params[key] = getattr(self, cget(key)[0])
-        return params
-
     def mm_to_unit_shift(self, mm):
         shift = int(mm / 1E+03 / (self.diode_dt * 3E+08))
         print(f"mm_to_unit_shift mm={mm} shift={shift}")
@@ -341,123 +294,123 @@ class diode_calc:
 
     def doCalcCommand(self, params):
 
-                smooth = np.asarray([1, 6, 15, 20, 15, 6, 1], dtype=np.float32) / 64.0         
+        smooth = np.asarray([1, 6, 15, 20, 15, 6, 1], dtype=np.float32) / 64.0         
 
-                # Conditions for self-sustained pulsation and bistability in semiconductor lasers - Masayasu Ueno and Roy Lang
-                # d Na / dt = - Na / Ta - Ga(Na - N0a) * N + Pa
-                # d Nb / dt = - Nb / Tb - Gb(Nb - N0b) * N + Pb
-                # d N  / dt = [(1 - h) * Ga(Na - N0a) + h * Gb(Nb - N0b) - GAMMA] * N
+        # Conditions for self-sustained pulsation and bistability in semiconductor lasers - Masayasu Ueno and Roy Lang
+        # d Na / dt = - Na / Ta - Ga(Na - N0a) * N + Pa
+        # d Nb / dt = - Nb / Tb - Gb(Nb - N0b) * N + Pb
+        # d N  / dt = [(1 - h) * Ga(Na - N0a) + h * Gb(Nb - N0b) - GAMMA] * N
 
-                #print(f"Round {i + 1} of {self.calculation_rounds}")
-                match params:
-                    case "view":
-                        return
-                    case "zoomin":
-                        self.zoom_view(2.0)
-                        return
-                    case "zoomout":
-                        self.zoom_view(0.5)
-                        return
-                    case "shiftright":
-                        self.shift_view(-0.5)
-                        return
-                    case "shiftleft":
-                        self.shift_view(0.5)
-                        return
-                    case "calc":
+        #print(f"Round {i + 1} of {self.calculation_rounds}")
+        match params:
+            case "view":
+                return
+            case "zoomin":
+                self.zoom_view(2.0)
+                return
+            case "zoomout":
+                self.zoom_view(0.5)
+                return
+            case "shiftright":
+                self.shift_view(-0.5)
+                return
+            case "shiftleft":
+                self.shift_view(0.5)
+                return
+            case "calc":
 
-                        self.diode_N = int(self.diode_sampling)
-                        self.diode_dt = self.diode_cavity_time / self.diode_N
-                        self.loss_shift = self.diode_N // 2 + self.mm_to_unit_shift(self.diode_absorber_shift) # zero shift means that the absorber is in the middle of the cavity
-                        self.gain_distance = self.mm_to_unit_shift(self.diode_gain_shift)
-                        self.oc_shift = self.mm_to_unit_shift(self.diode_output_coupler_shift)
-                        print(f"diode_N={self.diode_N} dt={self.diode_dt} loss_shift={self.loss_shift} gain_distance={self.gain_distance} oc_shift={self.oc_shift}")
- 
-                        gg = 20
-                        ll = 0.4
-                        oo = np.exp(- self.cavity_loss)
-                        self.diode_levels_x = [0, self.gain_distance - 1, 
-                                               self.gain_distance, self.oc_shift - 1, 
-                                               self.oc_shift, self.loss_shift - self.gain_distance - 1, 
-                                               self.loss_shift - self.gain_distance, self.loss_shift - 1, 
-                                               self.loss_shift, self.diode_N]
-                        #self.diode_levels_x.reverse()
-                        self.diode_levels_y = [1, 1, 1 / gg, 1 / gg, 
-                                               1 / gg / oo, 1 / gg / oo, 1 / gg / oo / gg, 1 / gg / oo / gg, 
-                                               1 / gg / oo / gg / ll, 1 / gg / oo / gg / ll]
+                self.diode_N = int(self.diode_sampling)
+                self.diode_dt = self.diode_cavity_time / self.diode_N
+                self.loss_shift = self.diode_N // 2 + self.mm_to_unit_shift(self.diode_absorber_shift) # zero shift means that the absorber is in the middle of the cavity
+                self.gain_distance = self.mm_to_unit_shift(self.diode_gain_shift)
+                self.oc_shift = self.mm_to_unit_shift(self.diode_output_coupler_shift)
+                print(f"diode_N={self.diode_N} dt={self.diode_dt} loss_shift={self.loss_shift} gain_distance={self.gain_distance} oc_shift={self.oc_shift}")
 
-                        self.diode_t_list = np.arange(self.diode_N, dtype=np.float64)
-                        self.diode_gain_value = np.full_like(self.diode_t_list, 0.0)
-                        self.diode_loss_value = np.full_like(self.diode_t_list, 0.0)
-                        self.diode_pulse_dtype = np.complex128 if self.diode_mode != "Intensity" else np.float64 
-                        self.diode_pulse = np.array([], dtype=self.diode_pulse_dtype)
-                        self.diode_pulse_original = np.array([], dtype=self.diode_pulse_dtype)
-                        self.diode_pulse_after = np.array([], dtype=self.diode_pulse_dtype)
+                gg = 20
+                ll = 0.4
+                oo = np.exp(- self.cavity_loss)
+                self.diode_levels_x = [0, self.gain_distance - 1, 
+                                        self.gain_distance, self.oc_shift - 1, 
+                                        self.oc_shift, self.loss_shift - self.gain_distance - 1, 
+                                        self.loss_shift - self.gain_distance, self.loss_shift - 1, 
+                                        self.loss_shift, self.diode_N]
+                #self.diode_levels_x.reverse()
+                self.diode_levels_y = [1, 1, 1 / gg, 1 / gg, 
+                                        1 / gg / oo, 1 / gg / oo, 1 / gg / oo / gg, 1 / gg / oo / gg, 
+                                        1 / gg / oo / gg / ll, 1 / gg / oo / gg / ll]
+
+                self.diode_t_list = np.arange(self.diode_N, dtype=np.float64)
+                self.diode_gain_value = np.full_like(self.diode_t_list, 0.0)
+                self.diode_loss_value = np.full_like(self.diode_t_list, 0.0)
+                self.diode_pulse_dtype = np.complex128 if self.diode_mode != "Intensity" else np.float64 
+                self.diode_pulse = np.array([], dtype=self.diode_pulse_dtype)
+                self.diode_pulse_original = np.array([], dtype=self.diode_pulse_dtype)
+                self.diode_pulse_after = np.array([], dtype=self.diode_pulse_dtype)
+            
+                pulseVal = np.array([60000 / self.diode_dt / self.volume], dtype=self.diode_pulse_dtype)
+                match self.diode_intensity:
+                    case "Pulse":
+                        w2 = (self.diode_pulse_width * 1.0E-12 /self.diode_dt * 1.41421356237) if self.diode_pulse_dtype == np.complex128 else self.diode_pulse_width 
+                        self.diode_pulse = pulseVal * np.exp(-np.square(self.diode_t_list - self.diode_N / 2) / (2 * w2 * w2))
+                        self.diode_accum_pulse = np.add.accumulate(intens(self.diode_pulse)) * self.diode_dt * self.volume
+                        pulse_ratio = self.initial_photons / self.diode_accum_pulse[-1]
+                        self.diode_accum_pulse = np.multiply(self.diode_accum_pulse, pulse_ratio)
+                        if self.diode_pulse_dtype == np.complex128:
+                            pulse_ratio = np.sqrt(pulse_ratio)
+                        self.diode_pulse = np.multiply(self.diode_pulse, pulse_ratio)
+                        for i in range(990, 1010):
+                            print(f"diode_pulse[{i}]={self.diode_pulse[i]}, angle={np.angle(self.diode_pulse[i])}")
+                    case "Noise":
+                        self.diode_pulse = np.random.random(self.diode_t_list.shape).astype(self.diode_pulse_dtype)
+                        self.diode_accum_pulse = np.add.accumulate(intens(self.diode_pulse)) * self.diode_dt * self.volume
+                        pulse_ratio = self.initial_photons / self.diode_accum_pulse[-1]
+                        self.diode_accum_pulse = np.multiply(self.diode_accum_pulse, pulse_ratio)
+                        if self.diode_pulse_dtype == np.complex128:
+                            pulse_ratio = np.sqrt(pulse_ratio)
+                        self.diode_pulse = np.multiply(self.diode_pulse, pulse_ratio)
+                    case "CW":
+                        self.diode_pulse = np.full(self.diode_N, 1.0, dtype=self.diode_pulse_dtype)
+                        self.diode_accum_pulse = np.add.accumulate(intens(self.diode_pulse)) * self.diode_dt * self.volume
+                        pulse_ratio = self.initial_photons / self.diode_accum_pulse[-1]
+                        self.diode_accum_pulse = np.multiply(self.diode_accum_pulse, pulse_ratio)
+                        if self.diode_pulse_dtype == np.complex128:
+                            pulse_ratio = np.sqrt(pulse_ratio)
+                        self.diode_pulse = np.multiply(self.diode_pulse, pulse_ratio)
+                    case "Flat":
+                        self.diode_pulse = np.full_like(self.diode_t_list, 0).astype(self.diode_pulse_dtype)
+                        self.diode_accum_pulse = np.add.accumulate(intens(self.diode_pulse)) * self.diode_dt * self.volume
+                        
+                # if self.diode_pulse_dtype == np.complex128:
+                #     lambda_ = 1064E-09
+                #     omega0 = 2.0 * np.pi * 3E+08 / lambda_
+                #     phase = self.diode_t_list * (-1.j * omega0 * self.diode_dt)
+                #     self.diode_pulse = self.diode_pulse * np.exp(phase)
                     
-                        pulseVal = np.array([60000 / self.diode_dt / self.volume], dtype=self.diode_pulse_dtype)
-                        match self.diode_intensity:
-                            case "Pulse":
-                                w2 = (self.diode_pulse_width * 1.0E-12 /self.diode_dt * 1.41421356237) if self.diode_pulse_dtype == np.complex128 else self.diode_pulse_width 
-                                self.diode_pulse = pulseVal * np.exp(-np.square(self.diode_t_list - self.diode_N / 2) / (2 * w2 * w2))
-                                self.diode_accum_pulse = np.add.accumulate(intens(self.diode_pulse)) * self.diode_dt * self.volume
-                                pulse_ratio = self.initial_photons / self.diode_accum_pulse[-1]
-                                self.diode_accum_pulse = np.multiply(self.diode_accum_pulse, pulse_ratio)
-                                if self.diode_pulse_dtype == np.complex128:
-                                    pulse_ratio = np.sqrt(pulse_ratio)
-                                self.diode_pulse = np.multiply(self.diode_pulse, pulse_ratio)
-                                for i in range(990, 1010):
-                                    print(f"diode_pulse[{i}]={self.diode_pulse[i]}, angle={np.angle(self.diode_pulse[i])}")
-                            case "Noise":
-                                self.diode_pulse = np.random.random(self.diode_t_list.shape).astype(self.diode_pulse_dtype)
-                                self.diode_accum_pulse = np.add.accumulate(intens(self.diode_pulse)) * self.diode_dt * self.volume
-                                pulse_ratio = self.initial_photons / self.diode_accum_pulse[-1]
-                                self.diode_accum_pulse = np.multiply(self.diode_accum_pulse, pulse_ratio)
-                                if self.diode_pulse_dtype == np.complex128:
-                                    pulse_ratio = np.sqrt(pulse_ratio)
-                                self.diode_pulse = np.multiply(self.diode_pulse, pulse_ratio)
-                            case "CW":
-                                self.diode_pulse = np.full(self.diode_N, 1.0, dtype=self.diode_pulse_dtype)
-                                self.diode_accum_pulse = np.add.accumulate(intens(self.diode_pulse)) * self.diode_dt * self.volume
-                                pulse_ratio = self.initial_photons / self.diode_accum_pulse[-1]
-                                self.diode_accum_pulse = np.multiply(self.diode_accum_pulse, pulse_ratio)
-                                if self.diode_pulse_dtype == np.complex128:
-                                    pulse_ratio = np.sqrt(pulse_ratio)
-                                self.diode_pulse = np.multiply(self.diode_pulse, pulse_ratio)
-                            case "Flat":
-                                self.diode_pulse = np.full_like(self.diode_t_list, 0).astype(self.diode_pulse_dtype)
-                                self.diode_accum_pulse = np.add.accumulate(intens(self.diode_pulse)) * self.diode_dt * self.volume
-                               
-                        # if self.diode_pulse_dtype == np.complex128:
-                        #     lambda_ = 1064E-09
-                        #     omega0 = 2.0 * np.pi * 3E+08 / lambda_
-                        #     phase = self.diode_t_list * (-1.j * omega0 * self.diode_dt)
-                        #     self.diode_pulse = self.diode_pulse * np.exp(phase)
-                            
-                        self.diode_pulse_original = np.copy(self.diode_pulse)
-                        # for i in range(990, 1010):
-                        #     print(f"diode_pulse_original: pulse[{i}] = ({self.diode_pulse_original[i].real}, {self.diode_pulse_original[i].imag}) angle={np.angle(self.diode_pulse_original[i])}") 
-                        self.diode_gain = np.full_like(self.diode_t_list, self.start_gain)
-                        self.diode_loss = np.full_like(self.diode_t_list, self.start_absorber)
-                        shape = self.diode_t_list.shape
-                        self.diode_gain_polarization = np.full_like(self.diode_t_list, 0.j, dtype=np.complex128)
-                        self.diode_loss_polarization = np.full_like(self.diode_t_list, 0.j, dtype=np.complex128)
-                        self.calculation_rounds_done = 0
-                        if self.diode_mode == "MB":
-                            self.diode_pulse_init = np.copy(self.diode_pulse)
-                            self.diode_pulse = np.full_like(self.diode_t_list, 0.0 + 0.0j,dtype=np.complex128)
+                self.diode_pulse_original = np.copy(self.diode_pulse)
+                # for i in range(990, 1010):
+                #     print(f"diode_pulse_original: pulse[{i}] = ({self.diode_pulse_original[i].real}, {self.diode_pulse_original[i].imag}) angle={np.angle(self.diode_pulse_original[i])}") 
+                self.diode_gain = np.full_like(self.diode_t_list, self.start_gain)
+                self.diode_loss = np.full_like(self.diode_t_list, self.start_absorber)
+                shape = self.diode_t_list.shape
+                self.diode_gain_polarization = np.full_like(self.diode_t_list, 0.j, dtype=np.complex128)
+                self.diode_loss_polarization = np.full_like(self.diode_t_list, 0.j, dtype=np.complex128)
+                self.calculation_rounds_done = 0
+                if self.diode_mode == "MB":
+                    self.diode_pulse_init = np.copy(self.diode_pulse)
+                    self.diode_pulse = np.full_like(self.diode_t_list, 0.0 + 0.0j,dtype=np.complex128)
 
-                    case "recalc":
-                        if self.diode_cavity_type == "Ring" and self.diode_update_pulse == "Update Pulse":
-                            self.diode_pulse = np.copy(self.diode_pulse_after)
-                        if self.diode_mode == "MB" and self.diode_update_pulse != "Update Pulse":
-                            self.diode_pulse = np.copy(self.diode_pulse_save)
+            case "recalc":
+                if self.diode_cavity_type == "Ring" and self.diode_update_pulse == "Update Pulse":
+                    self.diode_pulse = np.copy(self.diode_pulse_after)
+                if self.diode_mode == "MB" and self.diode_update_pulse != "Update Pulse":
+                    self.diode_pulse = np.copy(self.diode_pulse_save)
 
-                if self.diode_cavity_type == "Ring":
-                    self.diode_round_trip_old()
-                else:
-                    self.diode_round_trip_new()
+        if self.diode_cavity_type == "Ring":
+            self.diode_round_trip_old()
+        else:
+            self.diode_round_trip_new()
 
-                self.calculation_rounds_done += self.calculation_rounds
+        self.calculation_rounds_done += self.calculation_rounds
 
     def diode_round_trip_new(self):
         self.oc_val = np.exp(- self.cavity_loss)

@@ -6,20 +6,20 @@ from fasthtml.common import *
 from controls import *
 from calc_common import *
 
-class dispersion_calc(CalcCommon):
+class dispersion_calc(CalcCommonBeam):
     def __init__(self):
-        self.dispersion_view_from = -1
-        self.dispersion_view_to = -1
+        super().__init__()
 
-        self.dispersion_cavity_type = "Ring"
+        self.beam_view_from = -1
+        self.beam_view_to = -1
+
         self.dispersion_mode = "Amplitude"
-        self.dispersion_sampling = "4096"
-        self.dispersion_sampling_x = "32"
+        self.beam_sampling = "4096"
         self.dispersion_pulse_dtype = np.complex128
 
-        self.dispersion_cavity_time = 3.95138389E-09 #4E-09
-        self.dispersion_N = 4096 # * 4
-        self.dispersion_dt = self.dispersion_cavity_time / self.dispersion_N
+        self.beam_time = 3.95138389E-09 #4E-09
+        self.beam_N = 4096 # * 4
+        self.beam_dt = self.beam_time / self.beam_N
         self.dispersion_intensity = "Pulse"
         self.calculation_rounds = 1
         self.calculation_rounds_done = 0
@@ -30,43 +30,13 @@ class dispersion_calc(CalcCommon):
         self.dispersion_gain_shift = 11.0
         self.dispersion_output_coupler_shift = 130.0
 
-        self.loss_shift = self.dispersion_N // 2 + self.mm_to_unit_shift(self.dispersion_absorber_shift) # zero shift means that the absorber is in the middle of the cavity
-        self.gain_distance = self.mm_to_unit_shift(self.dispersion_gain_shift)
-        self.oc_shift = self.mm_to_unit_shift(self.dispersion_output_coupler_shift)
-        self.oc_val = 0.02
 
-        self.left_arm_mat = [[1, 0], [0, 1]]
-        self.right_arm_mat = [[1, 0], [0, 1]]
-        self.left_arm_cavity = ""
-        self.right_arm_cavity = ""
-        self.start_gain = 7.44E+10
-        self.start_absorber = 0.0 #18200000000.0
         self.initial_photons = 1E+07
-        self.gain_saturation = 5E+07
-        self.gain_length = 0.46
-        self.loss_length = 0.04
-        self.gain_factor = 1.0
-        self.Ta = 3000    # in pico seconds
-        self.Tb = 300 # in pico seconds
-        self.Pa = 2.48e+19 #2.8e+23
-        self.Pb = 0
-        self.gain_width = 7.1 # in THz
-        self.Ga = 5.024E-09#2.2379489747279815e-10 # 2.0 * np.log(100.0) / 7.44E+10 #2E-16
-        self.Gb = 8.07e-10
-        self.N0a = 20000000000.0 #0.0 # 1.6E+18
-        self.N0b = 30000000000.0
 
         self.volume = 1 #0.46 * 0.03 * 2E-05
         self.cavity_loss = 4.5
         self.dispersion_update_pulse = "Update Pulse"
         self.h = 0.1
-
-        self.rand_factor_seed = 0.0000000005
-        self.kappa = 3.0E07
-        self.C_loss = 95.0E+06
-        self.C_gain = 300.0E+05
-        self.coupling_out_loss =-5000E+06
-        self.coupling_out_gain = 2800E+05
 
         # diode dynamics parameters
         self.dispersion_t_list = np.array([1], dtype=np.float64)
@@ -75,27 +45,118 @@ class dispersion_calc(CalcCommon):
         self.dispersion_pulse_save = np.array([], dtype=self.dispersion_pulse_dtype)
         self.dispersion_pulse_original = np.array([], dtype=self.dispersion_pulse_dtype)
         self.dispersion_pulse_after = np.array([], dtype=self.dispersion_pulse_dtype)
-        self.dispersion_accum_pulse = []
-        self.dispersion_accum_pulse_after = []
-        self.dispersion_gain = np.array([1], dtype=np.float64)
-        self.dispersion_loss = np.array([1], dtype=np.float64)
-        self.dispersion_gain_polarization = np.array([1], dtype=np.complex128)
-        self.dispersion_loss_polarization = np.array([1], dtype=np.complex128)
-        self.dispersion_gain_value = np.array([1], dtype=np.float64)
-        self.dispersion_loss_value = np.array([1], dtype=np.float64)
+        self.dispersion_calculated_fft = np.array([], dtype=np.float64)
+        self.dispersion_calculated_cn = np.array([], dtype=np.float64)
 
-        # diode summary parameters
-        self.summary_photons_before = 0.0
-        self.summary_photons_after_gain = 0.0
-        self.summary_photons_after_absorber = 0.0
-        self.summary_photons_after_cavity_loss = 0.0
-
+    def mm_to_unit_shift(self, mm):
+        shift = int(mm / 1E+03 / (self.beam_dt * 3E+08))
+        print(f"mm_to_unit_shift mm={mm} shift={shift}")
+        return shift
+    
     def doCalcCommand(self, params):
-        pass
+        match params:
+            case "view":
+                return
+            case "zoomin":
+                self.zoom_view(2.0)
+                return
+            case "zoomout":
+                self.zoom_view(0.5)
+                return
+            case "shiftright":
+                self.shift_view(-0.5)
+                return
+            case "shiftleft":
+                self.shift_view(0.5)
+                return
+            case "calc":
+
+                self.dispersion_N = int(self.beam_sampling)
+                self.beam_dt = self.beam_time / self.dispersion_N
+                self.loss_shift = self.dispersion_N // 2 + self.mm_to_unit_shift(self.dispersion_absorber_shift) # zero shift means that the absorber is in the middle of the cavity
+                self.gain_distance = self.mm_to_unit_shift(self.dispersion_gain_shift)
+                self.oc_shift = self.mm_to_unit_shift(self.dispersion_output_coupler_shift)
+                print(f"dispersion_N={self.dispersion_N} dt={self.beam_dt} loss_shift={self.loss_shift} gain_distance={self.gain_distance} oc_shift={self.oc_shift}")
+
+                self.dispersion_t_list = np.arange(self.dispersion_N, dtype=np.float64)
+                print(f"Generated time list of size {self.dispersion_t_list.size} dt={self.dispersion_N}")
+                self.dispersion_pulse_dtype = np.complex128 if self.dispersion_mode != "Intensity" else np.float64 
+                self.dispersion_pulse = np.array([], dtype=self.dispersion_pulse_dtype)
+                self.dispersion_pulse_original = np.array([], dtype=self.dispersion_pulse_dtype)
+                self.dispersion_pulse_after = np.array([], dtype=self.dispersion_pulse_dtype)
+            
+                pulseVal = np.array([60000 / self.beam_dt / self.volume], dtype=self.dispersion_pulse_dtype)
+                match self.dispersion_intensity:
+                    case "Pulse":
+                        print("Generating Pulse", self.dispersion_intensity)
+
+                        w2 = (self.dispersion_pulse_width * 1.0E-12 /self.beam_dt * 1.41421356237) if self.dispersion_pulse_dtype == np.complex128 else self.dispersion_pulse_width 
+                        print(w2)
+                        self.dispersion_pulse = pulseVal * np.exp(-np.square(self.dispersion_t_list - self.dispersion_N / 2) / (2 * w2 * w2))
+                        self.dispersion_accum_pulse = np.add.accumulate(intens(self.dispersion_pulse)) * self.beam_dt * self.volume
+                        pulse_ratio = self.initial_photons / self.dispersion_accum_pulse[-1]
+                        self.dispersion_accum_pulse = np.multiply(self.dispersion_accum_pulse, pulse_ratio)
+                        if self.dispersion_pulse_dtype == np.complex128:
+                            pulse_ratio = np.sqrt(pulse_ratio)
+                        self.dispersion_pulse = np.multiply(self.dispersion_pulse, pulse_ratio)
+                    case "Noise":
+                        self.dispersion_pulse = np.random.random(self.dispersion_t_list.shape).astype(self.dispersion_pulse_dtype)
+                        self.dispersion_accum_pulse = np.add.accumulate(intens(self.dispersion_pulse)) * self.beam_dt * self.volume
+                        pulse_ratio = self.initial_photons / self.dispersion_accum_pulse[-1]
+                        self.dispersion_accum_pulse = np.multiply(self.dispersion_accum_pulse, pulse_ratio)
+                        if self.dispersion_pulse_dtype == np.complex128:
+                            pulse_ratio = np.sqrt(pulse_ratio)
+                        self.dispersion_pulse = np.multiply(self.dispersion_pulse, pulse_ratio)
+                    case "CW":
+                        self.dispersion_pulse = np.full(self.dispersion_N, 1.0, dtype=self.dispersion_pulse_dtype)
+                        self.dispersion_accum_pulse = np.add.accumulate(intens(self.dispersion_pulse)) * self.beam_dt * self.volume
+                        pulse_ratio = self.initial_photons / self.dispersion_accum_pulse[-1]
+                        self.dispersion_accum_pulse = np.multiply(self.dispersion_accum_pulse, pulse_ratio)
+                        if self.dispersion_pulse_dtype == np.complex128:
+                            pulse_ratio = np.sqrt(pulse_ratio)
+                        self.dispersion_pulse = np.multiply(self.dispersion_pulse, pulse_ratio)
+                    case "Flat":
+                        self.dispersion_pulse = np.full_like(self.dispersion_t_list, 0).astype(self.dispersion_pulse_dtype)
+                        self.dispersion_accum_pulse = np.add.accumulate(intens(self.dispersion_pulse)) * self.beam_dt * self.volume
+                        
+                # if self.dispersion_pulse_dtype == np.complex128:
+                #     lambda_ = 1064E-09
+                #     omega0 = 2.0 * np.pi * 3E+08 / lambda_
+                #     phase = self.dispersion_t_list * (-1.j * omega0 * self.beam_dt)
+                #     self.dispersion_pulse = self.dispersion_pulse * np.exp(phase)
+                    
+                self.dispersion_pulse_original = np.copy(self.dispersion_pulse)
+                # for i in range(990, 1010):
+                #     print(f"dispersion_pulse_original: pulse[{i}] = ({self.dispersion_pulse_original[i].real}, {self.dispersion_pulse_original[i].imag}) angle={np.angle(self.dispersion_pulse_original[i])}") 
+                shape = self.dispersion_t_list.shape
+                self.calculation_rounds_done = 0
+                if self.dispersion_mode == "MB":
+                    self.dispersion_pulse_init = np.copy(self.dispersion_pulse)
+                    self.dispersion_pulse = np.full_like(self.dispersion_t_list, 0.0 + 0.0j,dtype=np.complex128)
+
+                self.dispersion_pulse_after = np.copy(self.dispersion_pulse)
+
+                self.dispersion_calculated_fft = apply_dispersion(self.dispersion_pulse, self.beam_dt, L=1.0E-2, beta2=-6E-23, beta3=0.0, beta4=0.0)
+                self.dispersion_calculated_cn = propagate_dispersion_CN(self.dispersion_pulse, self.beam_dt, -6E-23, 1.0E-2/200, 200)
+
+            case "recalc":
+                self.dispersion_pulse_after = np.copy(self.dispersion_pulse)
+
+                if self.dispersion_cavity_type == "Ring" and self.dispersion_update_pulse == "Update Pulse":
+                    self.dispersion_pulse = np.copy(self.dispersion_pulse_after)
+                if self.dispersion_mode == "MB" and self.dispersion_update_pulse != "Update Pulse":
+                    self.dispersion_pulse = np.copy(self.dispersion_pulse_save)
 
     def generate_calc(self):
         tab = 6
-        t_list = cget(shrink_with_max(self.diode_t_list, 1024, self.diode_view_from, self.diode_view_to)).tolist()
+        colors = ["#ff0000", "#ff8800", "#aaaa00", "#008800", "#0000ff", "#ff00ff", "#110011"]
+
+        pulse = intens(self.dispersion_pulse)
+        pulse_after = intens(self.dispersion_pulse_after)
+        pulse_original = intens(self.dispersion_pulse_original)
+        t_list = cget(shrink_with_max(self.dispersion_t_list, 1024, self.beam_view_from, self.beam_view_to)).tolist()
+
+        print(self.beam_view_from, self.beam_view_to, len(self.dispersion_t_list), len(t_list), len(pulse_after))
 
         added = Div(
             Div(
@@ -111,16 +172,16 @@ class dispersion_calc(CalcCommon):
 
                     Div(
                         Button("Save Parameters", onclick="saveMultiTimeParametersProcess()"),
-                        Button("Restore Parameters", onclick="restoreMultiTimeParametersProcess('diodeDynamicsOptionsForm')"),
+                        Button("Restore Parameters", onclick="restoreMultiTimeParametersProcess('dispersionDynamicsOptionsForm')"),
                         Div(Div("Give a name to saved parameters"),
                             Div(Input(type="text", id=f'parametersName', placeholder="Descibe", style="width:450px;", value="")),
-                            Button("Save", onclick="saveMultiTimeParameters(1, 'diodeDynamicsOptionsForm')"),
-                            Button("Cancel", onclick="saveMultiTimeParameters(0, 'diodeDynamicsOptionsForm')"),
+                            Button("Save", onclick="saveMultiTimeParameters(1, 'dispersionDynamicsOptionsForm')"),
+                            Button("Cancel", onclick="saveMultiTimeParameters(0, 'dispersionDynamicsOptionsForm')"),
                             id="saveParametersDialog", cls="pophelp", style="position: absolute; visibility: hidden"),
                         Div(Div("Select the parameters set"),
                             Div("", id="restoreParametersList"),
                             Div("", id="copyParametersList"),
-                            Button("Cancel", onclick="restoreMultiTimeParameters(-1, 'diodeDynamicsOptionsForm')"),
+                            Button("Cancel", onclick="restoreMultiTimeParameters(-1, 'dispersionDynamicsOptionsForm')"),
                             Button("Export", onclick="exportMultiTimeParameters()"),
                             Button("Import", onclick="importMultiTimeParameters()"),
                             id="restoreParametersDialog", cls="pophelp", style="position: absolute; visibility: hidden"),
@@ -131,38 +192,21 @@ class dispersion_calc(CalcCommon):
                 (
                 Div(
                     Div(
-                        SelectCalcS(tab, f'DiodeSelectSampling', "Sampling", ["4096", "8192", "16384", "32768", "65536", "131072", "262144", "524288", "1048576"], self.dispersion_sampling, width = 100),
-                        SelectCalcS(tab, f'DiodeSelectSamplingX', "Sampling X", ["32", "64", "128", "256"], self.dispersion_sampling_x, width = 80),
-                        SelectCalcS(tab, f'CalcDiodeCavityType', "Cavity Type", ["Ring", "Linear"], self.dispersion_cavity_type, width = 80),
-                        SelectCalcS(tab, f'CalcDiodeSelectMode', "mode", ["Intensity", "Amplitude", "MB", "MBGPU"], self.dispersion_mode, width = 120),
-                        InputCalcS(f'DiodePulseWidth', "Pulse width (ps)", f'{self.dispersion_pulse_width}', width = 80),
-                        SelectCalcS(tab, f'CalcDiodeSelectIntensity', "Intensity", ["Pulse", "Noise", "CW", "Flat"], self.dispersion_intensity, width = 80),
-                        InputCalcS(f'DiodeViewFrom', "View from", f'{self.dispersion_view_from}', width = 80),
-                        InputCalcS(f'DiodeViewTo', "View to", f'{self.dispersion_view_to}', width = 80),
+                        SelectCalcS(tab, f'DispersionSelectSampling', "Sampling", ["4096", "8192", "16384", "32768", "65536", "131072", "262144", "524288", "1048576"], self.beam_sampling, width = 100),
+                        SelectCalcS(tab, f'CalcDispersionSelectMode', "mode", ["Intensity", "Amplitude", "MB", "MBGPU"], self.dispersion_mode, width = 120),
+                        InputCalcS(f'DispersionPulseWidth', "Pulse width (ps)", f'{self.dispersion_pulse_width}', width = 80),
+                        SelectCalcS(tab, f'CalcDispersionSelectIntensity', "Intensity", ["Pulse", "Noise", "CW", "Flat"], self.dispersion_intensity, width = 80),
+                        InputCalcS(f'DispersionViewFrom', "View from", f'{self.beam_view_from}', width = 80),
+                        InputCalcS(f'DispersionViewTo', "View to", f'{self.beam_view_to}', width = 80),
                     ),
                     Div(
                         InputCalcS(f'DiodeAbsorberShift', "Absorber Shift (mm)", f'{self.dispersion_absorber_shift}', width = 100),
                         InputCalcS(f'DiodeGainShift', "Gain Shift (mm)", f'{self.dispersion_gain_shift}', width = 100),
                         InputCalcS(f'DiodeOutputCouplerShift', "OC Shift (mm)", f'{self.dispersion_output_coupler_shift}', width = 100),
                     ),
-                    Div(
-                        InputCalcS(f'Ta', "Gain Half-life (ps)", f'{self.Ta}', width = 80),
-                        InputCalcS(f'gain_width', "Gain Width (THz)", f'{self.gain_width}', width = 80),
-                        InputCalcS(f'Pa', "Gain current", f'{self.Pa}', width = 80),
-                        InputCalcS(f'Ga', "Gain diff gain (cm^2)", f'{self.Ga}', width = 100),
-                        InputCalcS(f'N0a', "Gain N0(tr) (cm^-3)", f'{self.N0a}', width = 100),
-                        InputCalcS(f'start_gain', "Gain start val", f'{self.start_gain}', width = 100),
 
-                    ),
                     Div(
-                        InputCalcS(f'Tb', "Abs half-life (ps)", f'{self.Tb}', width = 80),
-                        InputCalcS(f'Pb', "Abs current", f'{self.Pb}', width = 80),
-                        InputCalcS(f'Gb', "Abs diff gain (cm^2)", f'{self.Gb}', width = 100),
-                        InputCalcS(f'N0b', "Abs N0(tr) (cm^2)", f'{self.N0b}', width = 100),
-                        InputCalcS(f'start_absorber', "Abs start val", f'{self.start_absorber}', width = 100),
-                    ),
-                    Div(
-                        InputCalcS(f'dt', "dt (ps)", f'{format(self.dispersion_dt * 1E+12, ".4f")}', width = 80),
+                        InputCalcS(f'dt', "dt (ps)", f'{format(self.beam_dt * 1E+12, ".4f")}', width = 80),
                         InputCalcS(f'volume', "Volume cm^3", f'{self.volume}', width = 80),
                         InputCalcS(f'initial_photons', "Initial Photns", f'{self.initial_photons}', width = 100),
                         InputCalcS(f'cavity_loss', "OC (Cavity loss)", f'{self.cavity_loss}', width = 80),
@@ -170,89 +214,156 @@ class dispersion_calc(CalcCommon):
                         #InputCalcS(f'h', "Abs ratio", f'{self.h}', width = 50),
                     ),
 
-                    Div(
-                        InputCalcS(f'rand_factor_seed', "rand seed", f'{self.rand_factor_seed}', width = 60),
-                        InputCalcS(f'kappa', "kappa", f'{self.kappa}', width = 100),
-                        InputCalcS(f'C_loss', "C_loss", f'{self.C_loss}', width = 100),
-                        InputCalcS(f'C_gain', "C_gain", f'{self.C_gain}', width = 100),
-                        InputCalcS(f'coupling_out_loss', "coupling_out_loss", f'{self.coupling_out_loss}', width = 120 ),
-                        InputCalcS(f'coupling_out_gain', "coupling_out_gain", f'{self.coupling_out_gain}', width = 120)
-                    ),
-                    FlexN((ABCDMatControl("Left Arm", self.left_arm_mat, self.left_arm_cavity),
-                        ABCDMatControl("Right Arm", self.right_arm_mat, self.right_arm_cavity)),
-                    ),
-                    id="diodeDynamicsOptionsForm"
+                    id="dispersionDynamicsOptionsForm"
                                     
                 ),
-
-                Div(
-                    Table(
-                        Tr(Td(f"{self.calculation_rounds_done}"), Td("Value"), Td("Change")), 
-                        Tr(Td("Before gain"), Td(f"{self.summary_photons_before:.3e}"), Td("")), 
-                        Tr(Td("After gain"), Td(f"{self.summary_photons_after_gain:.3e}"), Td(f"{(self.summary_photons_after_gain - self.summary_photons_before):.3e}")), 
-                        Tr(Td("After absorber"), Td(f"{self.summary_photons_after_absorber:.3e}"), Td(f"{(self.summary_photons_after_absorber - self.summary_photons_before):.3e}")),
-                        Tr(Td("After OC"), Td(f"{self.summary_photons_after_cavity_loss:.3e}"), Td(f"{(self.summary_photons_after_cavity_loss - self.summary_photons_before):.3e}")),
-                        Tr(Td("Output"), Td(f"{output_photons:.3e}"), Td(f"{(output_photons * energy_of_1064_photon * 10E+9):.3e}nJ")),
-                        ),
-                )
                 )),
                 style="position:sticky; top:0px; background:#f0f8f8;"
             ),
             Div(
                 Div(
-                    Frame_chart("fc1", [t_list], 
-                                    [cget(shrink_with_max(pulse_original, 1024, self.dispersion_view_from, self.dispersion_view_to)).tolist(), 
-                                    cget(shrink_with_max(np.log(pulse_after+ 0.000000001), 1024, self.dispersion_view_from, self.dispersion_view_to)).tolist()], [""], 
-                                    "Original Pulse and Pulse after (photons/sec)", h=2, color=colors, marker=None, twinx=True),
 
-                    generate_chart([cget(self.dispersion_t_list).tolist(), self.dispersion_levels_x], 
-                                    [cget(pulse).tolist(), self.dispersion_levels_y], [""], 
-                                    "Pulse in (photons/sec)", h=2, color=["red", "black"], marker=None, twinx=True),
+
+                    generate_chart([cget(self.dispersion_t_list).tolist()], 
+                                    [cget(pulse).tolist()], [""], 
+                                    "Pulse in (photons/sec)", h=2, color=["red"], marker=None, twinx=True),
                     # Div(
                     #    Div(cls="handle", draggable="true"),
                     #        FlexN([graphCanvas(id="dispersion_pulse_chart", width=1100, height=300, options=False, mode = 2), 
                     #        ]), cls="container"
                     # ),
                     generate_chart([t_list], 
-                                    [cget(shrink_with_max(pulse_after, 1024, self.dispersion_view_from, self.dispersion_view_to)).tolist()], [""], 
-                                    "Pulse out (photons/sec)", h=2, color=colors, marker=None, twinx=True),
-                    generate_chart([t_list], 
-                                    [cget(np.angle(shrink_with_max(self.dispersion_pulse_after, 1024, self.dispersion_view_from, self.dispersion_view_to))).tolist(), 
-                                        cget(np.absolute(shrink_with_max(self.dispersion_pulse_after, 1024, self.dispersion_view_from, self.dispersion_view_to))).tolist()], [""], 
+                                    [cget(np.angle(shrink_with_max(self.dispersion_pulse, 1024, self.beam_view_from, self.beam_view_to))).tolist(), 
+                                        cget(np.absolute(shrink_with_max(self.dispersion_pulse, 1024, self.beam_view_from, self.beam_view_to))).tolist()], [""], 
                                     "E", color=["green", "red"], h=2, marker=None, lw=[1, 3], twinx=True),
                     generate_chart([t_list], 
-                                    [cget(shrink_with_max(self.dispersion_accum_pulse, 1024, self.dispersion_view_from, self.dispersion_view_to)).tolist(), cget(shrink_with_max(self.dispersion_accum_pulse_after, 1024, self.dispersion_view_from, self.dispersion_view_to)).tolist()], [""], 
-                                    f"Accumulate Pulse AND after (photons) [difference: {(self.dispersion_accum_pulse_after[-1] - self.dispersion_accum_pulse[-1]):.2e}]", 
-                                    h=2, color=colors, marker=None, twinx=True),
+                                    [cget(np.angle(shrink_with_max(self.dispersion_calculated_fft, 1024, self.beam_view_from, self.beam_view_to))).tolist(), 
+                                        cget(np.absolute(shrink_with_max(self.dispersion_calculated_fft, 1024, self.beam_view_from, self.beam_view_to))).tolist()], [""], 
+                                    "Using FFT", color=["green", "red"], h=2, marker=None, lw=[1, 3], twinx=True),
                     generate_chart([t_list], 
-                                    [cget(shrink_with_max(self.dispersion_gain, 1024, self.dispersion_view_from, self.dispersion_view_to)).tolist(), cget(shrink_with_max(self.dispersion_gain_value, 1024, self.dispersion_view_from, self.dispersion_view_to )).tolist()], [""], 
-                                    f"Gain carriers (1/cm^3) [{(max_gain - min_gain):.2e} = {max_gain:.4e} - {min_gain:.4e}] and Gain (cm^-1)", 
-                                    color=["black", "green"], h=2, marker=None, twinx=True),
-                    generate_chart([t_list], 
-                                    [cget(np.angle(shrink_with_max(self.dispersion_gain_polarization, 1024, self.dispersion_view_from, self.dispersion_view_to))).tolist(), 
-                                        cget(np.absolute(shrink_with_max(self.dispersion_gain_polarization, 1024, self.dispersion_view_from, self.dispersion_view_to))).tolist()], [""], 
-                                    "Gain Polarization", color=["green", "red"], h=2, marker=None, lw=[1, 3], twinx=True),
-                    generate_chart([t_list], 
-                                    [cget(shrink_with_max(self.dispersion_loss, 1024, self.dispersion_view_from, self.dispersion_view_to)).tolist(), 
-                                    cget(shrink_with_max(self.dispersion_loss_value, 1024, self.dispersion_view_from, self.dispersion_view_to)).tolist()], [""], 
-                                    f"Abs carrs (cm^-3) [{(max_loss - min_loss):.2e} = {max_loss:.3e} - {min_loss:.3e}] and Loss (cm^-1)", 
-                                    color=["black", "red"], h=2, marker=None, twinx=True),
-                    generate_chart([t_list], 
-                                    [cget(np.angle(shrink_with_max(self.dispersion_loss_polarization, 1024, self.dispersion_view_from, self.dispersion_view_to))).tolist(), 
-                                        cget(np.absolute(shrink_with_max(self.dispersion_loss_polarization, 1024, self.dispersion_view_from, self.dispersion_view_to))).tolist()], [""], 
-                                    "Loss Polarization", color=["green", "red"], h=2, marker=None, lw=[1, 3], twinx=True),
-                    generate_chart([t_list], 
-                                    [cget(np.exp(- self.cavity_loss) * 
-                                            np.multiply(shrink_with_max(self.dispersion_gain_value, 1024, self.dispersion_view_from, self.dispersion_view_to),
-                                            shrink_with_max(self.dispersion_loss_value, 1024, self.dispersion_view_from, self.dispersion_view_to))).tolist(),
-                                    cget(shrink_with_max(pulse, 1024, self.dispersion_view_from, self.dispersion_view_to)).tolist()], [""],
-                                    "Net gain", color=["blue", "red"], h=2, marker=None, twinx=True),
-                    generate_chart(xVec, yVec, [""], "Gain By Pop", h=4, color=["black", "black", "green", "red"], marker=".", lw=[5, 5, 1, 1]),
+                                    [cget(np.angle(shrink_with_max(self.dispersion_calculated_cn, 1024, self.beam_view_from, self.beam_view_to))).tolist(), 
+                                        cget(np.absolute(shrink_with_max(self.dispersion_calculated_cn, 1024, self.beam_view_from, self.beam_view_to))).tolist()], [""], 
+                                    "Using Crank–Nicolson", color=["green", "red"], h=2, marker=None, lw=[1, 3], twinx=True),
 
                     #Div(self.collectDiodeData(), id="numData"),
 
                     cls="box", style="background-color: #008080;"
                 ),
-            ) if (len(self.dispersion_pulse) > 0 and len(self.dispersion_gain) > 0) else Div(),
+            ) if (len(self.dispersion_pulse) > 0) else Div(),
         )
-        return added        
+        return added
+    
+import numpy as np
+
+def apply_dispersion(
+    A_t,
+    dt,
+    L,
+    beta2=0.0,
+    beta3=0.0,
+    beta4=0.0
+):
+    """
+    code from chatGPT
+
+    Apply linear dispersion to a complex time-domain envelope.
+
+    Parameters
+    ----------
+    A_t : np.ndarray (complex)
+        Complex envelope in time domain
+    dt : float
+        Time step [s]
+    L : float
+        Propagation length [m]
+    beta2 : float
+        Second-order dispersion [s^2 / m]
+    beta3 : float
+        Third-order dispersion [s^3 / m]
+    beta4 : float
+        Fourth-order dispersion [s^4 / m]
+
+    Returns
+    -------
+    A_out : np.ndarray (complex)
+        Dispersed complex envelope in time domain
+    """
+
+    N = A_t.size
+
+    # Angular frequency grid (rad/s), centered
+    omega = 2 * np.pi * np.fft.fftfreq(N, dt)
+
+    # Forward FFT
+    A_w = np.fft.fft(A_t)
+
+    # Dispersion phase
+    phase = (
+        0.5 * beta2 * omega**2 +
+        (1.0/6.0) * beta3 * omega**3 +
+        (1.0/24.0) * beta4 * omega**4
+    ) * L
+
+    # Apply dispersion
+    A_w *= np.exp(1j * phase)
+
+    # Inverse FFT
+    A_out = np.fft.ifft(A_w)
+
+    return A_out
+
+import numpy as np
+
+def propagate_dispersion_CN(A_t, dt, beta2, dz, n_steps):
+    """
+    Time-domain Crank–Nicolson propagation for pure dispersion.
+
+    Parameters
+    ----------
+    A_t : np.ndarray (complex)
+        Initial complex envelope A(t)
+    dt : float
+        Time step [s]
+    beta2 : float
+        GVD [s^2 / m]
+    dz : float
+        Propagation step [m]
+    n_steps : int
+        Number of propagation steps
+
+    Returns
+    -------
+    A_t : np.ndarray (complex)
+        Envelope after propagation
+    """
+
+    N = A_t.size
+    alpha = 1j * beta2 * dz / (4 * dt**2)
+
+    # Tridiagonal matrix coefficients
+    main_diag = (1 + 2*alpha) * np.ones(N, dtype=complex)
+    off_diag  = -alpha * np.ones(N-1, dtype=complex)
+
+    # Assemble LHS matrix (with periodic BCs)
+    A_mat = np.diag(main_diag) \
+          + np.diag(off_diag,  1) \
+          + np.diag(off_diag, -1)
+
+    A_mat[0, -1] = -alpha
+    A_mat[-1, 0] = -alpha
+
+    # Precompute inverse once (matrix is constant)
+    A_mat_inv = np.linalg.inv(A_mat)
+
+    for _ in range(n_steps):
+        # RHS
+        rhs = (
+            (1 - 2*alpha) * A_t
+            + alpha * np.roll(A_t,  1)
+            + alpha * np.roll(A_t, -1)
+        )
+
+        # Solve
+        A_t = A_mat_inv @ rhs
+
+    return A_t

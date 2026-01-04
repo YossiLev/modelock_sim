@@ -77,8 +77,9 @@ class CalculatorData:
         self.harmony = 2
 
         self.diode = diode_calc()
-
         self.dispersion = dispersion_calc()
+        self.beam = self.diode
+
 
     def set(self, params):
         for key, value in params.items():
@@ -182,9 +183,10 @@ class CalculatorData:
                     self.vf_out.append(res)
 
             case "diode":
+                self.beam = self.diode
                 self.diode.doCalcCommand(params)
-
             case "dispersion":
+                self.beam = self.dispersion
                 self.dispersion.doCalcCommand(params)
 
     def exec_cavity_command(self, com):
@@ -325,19 +327,11 @@ def generate_calc(data_obj, tab, offset = 0):
                 ),
             )
         case 5: # "Diode Dynamics"
+            calcData.beam = calcData.diode
             added = calcData.diode.generate_calc()
         case 6: # Dispersion
-            added = Div(
-                Div(
-                    Button("Calc Dispersion", hx_post=f'/doCalc/6/dispersion/calc', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
-                ),
-                ABCDMatControl("MDispersion", calcData.dispersion_mat),
-                Div(
-                    InputCalcS(f'DispersionN', "N samples", f'{calcData.dispersion_N}', width = 80),
-                    InputCalcS(f'DispersionDX', "dx", f'{calcData.dispersion_dx}', width = 140),
-                    InputCalcS(f'DispersionWaist', "Waist", f'{calcData.dispersion_waist}', width = 80),
-                ),
-            )
+            calcData.beam = calcData.dispersion
+            added = calcData.dispersion.generate_calc()
     return Div(
         Div(
             TabMaker("Matrix", "/tabcalc/1", tab == 1, target="#gen_calc", inc="#calcForm *"),

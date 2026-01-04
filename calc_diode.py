@@ -162,15 +162,6 @@ lib_diode.mb_diode_round_trip.argtypes = [
 ]
 lib_diode.mb_diode_round_trip.restype = None
 
-def intens(arr):
-    if len(arr) == 0 or arr.dtype != np.complex128:
-        return arr
-    if (np.isnan(arr.real)).any():
-        print("NaN in real part **** could be an error")
-        print(f"arr={arr[0]},{arr[1]},{arr[2]},{arr[3]}, ")
-        raise Exception("NaN in real part **** could be an error")
-    return np.square(arr.real) + np.square(arr.imag)
-
 def gain_function(Ga, N):
     xh1 = Ga * 4468377122.5 * 0.46 * 16.5
     xh2 = Ga * 4468377122.5 * 0.46 * 0.32 * np.exp(0.000000000041*14E+10)
@@ -181,20 +172,22 @@ def loss_function(Gb, N0b, N):
     gAbs = Gb * 0.02 * (N - N0b)
     return gAbs
 
-class diode_calc(CalcCommon):
+class diode_calc(CalcCommonBeam):
     def __init__(self):
-        self.diode_view_from = -1
-        self.diode_view_to = -1
+        super().__init__()
+
+        self.beam_view_from = -1
+        self.beam_view_to = -1
 
         self.diode_cavity_type = "Ring"
-        self.diode_mode = "Amplitude"
-        self.diode_sampling = "4096"
-        self.diode_sampling_x = "32"
+        self.diode_mode = "Amplitude    "
+        self.beam_sampling = "4096"
+        self.beam_sampling_x = "32"
         self.diode_pulse_dtype = np.complex128
 
-        self.diode_cavity_time = 3.95138389E-09 #4E-09
-        self.diode_N = 4096 # * 4
-        self.diode_dt = self.diode_cavity_time / self.diode_N
+        self.beam_time = 3.95138389E-09 #4E-09
+        self.beam_N = 4096 # * 4
+        self.beam_dt = self.beam_time / self.beam_N
         self.diode_intensity = "Pulse"
         self.calculation_rounds = 1
         self.calculation_rounds_done = 0
@@ -205,7 +198,7 @@ class diode_calc(CalcCommon):
         self.diode_gain_shift = 11.0
         self.diode_output_coupler_shift = 130.0
 
-        self.loss_shift = self.diode_N // 2 + self.mm_to_unit_shift(self.diode_absorber_shift) # zero shift means that the absorber is in the middle of the cavity
+        self.loss_shift = self.beam_N // 2 + self.mm_to_unit_shift(self.diode_absorber_shift) # zero shift means that the absorber is in the middle of the cavity
         self.gain_distance = self.mm_to_unit_shift(self.diode_gain_shift)
         self.oc_shift = self.mm_to_unit_shift(self.diode_output_coupler_shift)
         self.oc_val = 0.02
@@ -266,35 +259,11 @@ class diode_calc(CalcCommon):
         self.summary_photons_after_cavity_loss = 0.0
 
     def mm_to_unit_shift(self, mm):
-        shift = int(mm / 1E+03 / (self.diode_dt * 3E+08))
+        shift = int(mm / 1E+03 / (self.beam_dt * 3E+08))
         print(f"mm_to_unit_shift mm={mm} shift={shift}")
         return shift
-    
-    def zoom_view(self, factor):
-        if (self.diode_view_from == -1) or (self.diode_view_to == -1):
-            self.diode_view_from = 0
-            self.diode_view_to = self.diode_N
-        center = (self.diode_view_from + self.diode_view_to) / 2
-        half_range = (self.diode_view_to - self.diode_view_from) / 2 / factor
-        self.diode_view_from = int(center - half_range)
-        self.diode_view_to = int(center + half_range)
-        print(f"zoom_view factor={factor} from={self.diode_view_from} to={self.diode_view_to}")
-
-    def shift_view(self, shift_factor):
-        if (self.diode_view_from == -1) or (self.diode_view_to == -1):
-            self.diode_view_from = 0
-            self.diode_view_to = self.diode_N
-        center = (self.diode_view_from + self.diode_view_to) / 2
-        half_range = (self.diode_view_to - self.diode_view_from) / 2
-        shift = int(half_range * shift_factor)
-        self.diode_view_from = int(center - half_range + shift)
-        self.diode_view_to = int(center + half_range + shift)
-        print(f"shift_view factor={shift_factor} from={self.diode_view_from} to={self.diode_view_to}")
-
 
     def doCalcCommand(self, params):
-
-        smooth = np.asarray([1, 6, 15, 20, 15, 6, 1], dtype=np.float32) / 64.0         
 
         # Conditions for self-sustained pulsation and bistability in semiconductor lasers - Masayasu Ueno and Roy Lang
         # d Na / dt = - Na / Ta - Ga(Na - N0a) * N + Pa
@@ -319,12 +288,12 @@ class diode_calc(CalcCommon):
                 return
             case "calc":
 
-                self.diode_N = int(self.diode_sampling)
-                self.diode_dt = self.diode_cavity_time / self.diode_N
-                self.loss_shift = self.diode_N // 2 + self.mm_to_unit_shift(self.diode_absorber_shift) # zero shift means that the absorber is in the middle of the cavity
+                self.beam_N = int(self.beam_sampling)
+                self.beam_dt = self.beam_time / self.beam_N
+                self.loss_shift = self.beam_N // 2 + self.mm_to_unit_shift(self.diode_absorber_shift) # zero shift means that the absorber is in the middle of the cavity
                 self.gain_distance = self.mm_to_unit_shift(self.diode_gain_shift)
                 self.oc_shift = self.mm_to_unit_shift(self.diode_output_coupler_shift)
-                print(f"diode_N={self.diode_N} dt={self.diode_dt} loss_shift={self.loss_shift} gain_distance={self.gain_distance} oc_shift={self.oc_shift}")
+                print(f"beam_N={self.beam_N} dt={self.beam_dt} loss_shift={self.loss_shift} gain_distance={self.gain_distance} oc_shift={self.oc_shift}")
 
                 gg = 20
                 ll = 0.4
@@ -333,13 +302,13 @@ class diode_calc(CalcCommon):
                                         self.gain_distance, self.oc_shift - 1, 
                                         self.oc_shift, self.loss_shift - self.gain_distance - 1, 
                                         self.loss_shift - self.gain_distance, self.loss_shift - 1, 
-                                        self.loss_shift, self.diode_N]
+                                        self.loss_shift, self.beam_N]
                 #self.diode_levels_x.reverse()
                 self.diode_levels_y = [1, 1, 1 / gg, 1 / gg, 
                                         1 / gg / oo, 1 / gg / oo, 1 / gg / oo / gg, 1 / gg / oo / gg, 
                                         1 / gg / oo / gg / ll, 1 / gg / oo / gg / ll]
 
-                self.diode_t_list = np.arange(self.diode_N, dtype=np.float64)
+                self.diode_t_list = np.arange(self.beam_N, dtype=np.float64)
                 self.diode_gain_value = np.full_like(self.diode_t_list, 0.0)
                 self.diode_loss_value = np.full_like(self.diode_t_list, 0.0)
                 self.diode_pulse_dtype = np.complex128 if self.diode_mode != "Intensity" else np.float64 
@@ -347,12 +316,12 @@ class diode_calc(CalcCommon):
                 self.diode_pulse_original = np.array([], dtype=self.diode_pulse_dtype)
                 self.diode_pulse_after = np.array([], dtype=self.diode_pulse_dtype)
             
-                pulseVal = np.array([60000 / self.diode_dt / self.volume], dtype=self.diode_pulse_dtype)
+                pulseVal = np.array([60000 / self.beam_dt / self.volume], dtype=self.diode_pulse_dtype)
                 match self.diode_intensity:
                     case "Pulse":
-                        w2 = (self.diode_pulse_width * 1.0E-12 /self.diode_dt * 1.41421356237) if self.diode_pulse_dtype == np.complex128 else self.diode_pulse_width 
-                        self.diode_pulse = pulseVal * np.exp(-np.square(self.diode_t_list - self.diode_N / 2) / (2 * w2 * w2))
-                        self.diode_accum_pulse = np.add.accumulate(intens(self.diode_pulse)) * self.diode_dt * self.volume
+                        w2 = (self.diode_pulse_width * 1.0E-12 /self.beam_dt * 1.41421356237) if self.diode_pulse_dtype == np.complex128 else self.diode_pulse_width 
+                        self.diode_pulse = pulseVal * np.exp(-np.square(self.diode_t_list - self.beam_N / 2) / (2 * w2 * w2))
+                        self.diode_accum_pulse = np.add.accumulate(intens(self.diode_pulse)) * self.beam_dt * self.volume
                         pulse_ratio = self.initial_photons / self.diode_accum_pulse[-1]
                         self.diode_accum_pulse = np.multiply(self.diode_accum_pulse, pulse_ratio)
                         if self.diode_pulse_dtype == np.complex128:
@@ -362,15 +331,15 @@ class diode_calc(CalcCommon):
                             print(f"diode_pulse[{i}]={self.diode_pulse[i]}, angle={np.angle(self.diode_pulse[i])}")
                     case "Noise":
                         self.diode_pulse = np.random.random(self.diode_t_list.shape).astype(self.diode_pulse_dtype)
-                        self.diode_accum_pulse = np.add.accumulate(intens(self.diode_pulse)) * self.diode_dt * self.volume
+                        self.diode_accum_pulse = np.add.accumulate(intens(self.diode_pulse)) * self.beam_dt * self.volume
                         pulse_ratio = self.initial_photons / self.diode_accum_pulse[-1]
                         self.diode_accum_pulse = np.multiply(self.diode_accum_pulse, pulse_ratio)
                         if self.diode_pulse_dtype == np.complex128:
                             pulse_ratio = np.sqrt(pulse_ratio)
                         self.diode_pulse = np.multiply(self.diode_pulse, pulse_ratio)
                     case "CW":
-                        self.diode_pulse = np.full(self.diode_N, 1.0, dtype=self.diode_pulse_dtype)
-                        self.diode_accum_pulse = np.add.accumulate(intens(self.diode_pulse)) * self.diode_dt * self.volume
+                        self.diode_pulse = np.full(self.beam_N, 1.0, dtype=self.diode_pulse_dtype)
+                        self.diode_accum_pulse = np.add.accumulate(intens(self.diode_pulse)) * self.beam_dt * self.volume
                         pulse_ratio = self.initial_photons / self.diode_accum_pulse[-1]
                         self.diode_accum_pulse = np.multiply(self.diode_accum_pulse, pulse_ratio)
                         if self.diode_pulse_dtype == np.complex128:
@@ -378,12 +347,12 @@ class diode_calc(CalcCommon):
                         self.diode_pulse = np.multiply(self.diode_pulse, pulse_ratio)
                     case "Flat":
                         self.diode_pulse = np.full_like(self.diode_t_list, 0).astype(self.diode_pulse_dtype)
-                        self.diode_accum_pulse = np.add.accumulate(intens(self.diode_pulse)) * self.diode_dt * self.volume
+                        self.diode_accum_pulse = np.add.accumulate(intens(self.diode_pulse)) * self.beam_dt * self.volume
                         
                 # if self.diode_pulse_dtype == np.complex128:
                 #     lambda_ = 1064E-09
                 #     omega0 = 2.0 * np.pi * 3E+08 / lambda_
-                #     phase = self.diode_t_list * (-1.j * omega0 * self.diode_dt)
+                #     phase = self.diode_t_list * (-1.j * omega0 * self.beam_dt)
                 #     self.diode_pulse = self.diode_pulse * np.exp(phase)
                     
                 self.diode_pulse_original = np.copy(self.diode_pulse)
@@ -434,8 +403,8 @@ class diode_calc(CalcCommon):
             round_trip_func = lib_diode.mb_diode_round_trip
             round_trip_func(c_gain, c_gain_polarization, c_loss, c_loss_polarization, c_gain_value, c_loss_value,
                             c_pulse_init, c_pulse, c_pulse_after,
-                            self.calculation_rounds, self.diode_N, self.loss_shift, self.oc_shift, self.gain_distance,
-                            self.diode_dt, self.gain_width, self.Pa, self.Ta, self.Ga, self.N0a, self.Pb, self.Tb, self.Gb, self.N0b, self.oc_val,
+                            self.calculation_rounds, self.beam_N, self.loss_shift, self.oc_shift, self.gain_distance,
+                            self.beam_dt, self.gain_width, self.Pa, self.Ta, self.Ga, self.N0a, self.Pb, self.Tb, self.Gb, self.N0b, self.oc_val,
                             self.rand_factor_seed, self.kappa, self.C_loss, self.C_gain, self.coupling_out_loss, self.coupling_out_gain)
             print("MB round trip done")
             k = 0
@@ -445,7 +414,7 @@ class diode_calc(CalcCommon):
                     print(f"NAN index {i}: val=({self.diode_pulse_after[i].real}, {self.diode_pulse_after[i].imag})\n")
                 if k > 100:
                     break
-            self.diode_accum_pulse_after = np.add.accumulate(intens(self.diode_pulse_after)) * self.diode_dt * self.volume
+            self.diode_accum_pulse_after = np.add.accumulate(intens(self.diode_pulse_after)) * self.beam_dt * self.volume
 
             print("MB accumulation done")
             return
@@ -454,10 +423,10 @@ class diode_calc(CalcCommon):
 
         round_trip_func(c_gain, c_loss, c_gain_value, c_loss_value,
                         c_pulse, c_pulse_after,
-                        self.calculation_rounds, self.diode_N, self.loss_shift, self.oc_shift, self.gain_distance,
-                        self.diode_dt, self.gain_width, self.Pa, self.Ta, self.Ga, self.Pb, self.Tb, self.Gb, self.N0b, self.oc_val)
+                        self.calculation_rounds, self.beam_N, self.loss_shift, self.oc_shift, self.gain_distance,
+                        self.beam_dt, self.gain_width, self.Pa, self.Ta, self.Ga, self.Pb, self.Tb, self.Gb, self.N0b, self.oc_val)
 
-        self.diode_accum_pulse_after = np.add.accumulate(intens(self.diode_pulse_after)) * self.diode_dt * self.volume
+        self.diode_accum_pulse_after = np.add.accumulate(intens(self.diode_pulse_after)) * self.beam_dt * self.volume
 
     def diode_round_trip_old(self):
 
@@ -468,7 +437,7 @@ class diode_calc(CalcCommon):
             if self.diode_update_pulse == "Update Pulse":
                 self.diode_pulse = np.copy(self.diode_pulse_after)
 
-            self.diode_accum_pulse = np.add.accumulate(intens(self.diode_pulse)) * self.diode_dt * self.volume
+            self.diode_accum_pulse = np.add.accumulate(intens(self.diode_pulse)) * self.beam_dt * self.volume
             self.summary_photons_before = self.diode_accum_pulse[-1]
 
             self.gain_factor = 0.46 
@@ -487,23 +456,23 @@ class diode_calc(CalcCommon):
             # gain calculations
             gain_func = lib_diode.cmp_diode_gain if self.diode_pulse_dtype == np.complex128 else lib_diode.diode_gain
             gain_func(c_pulse, c_gain, c_gain_value, c_pulse_after, 
-                                self.diode_N, self.diode_dt, self.Pa, self.Ta, self.Ga, self.gain_factor)
+                                self.beam_N, self.beam_dt, self.Pa, self.Ta, self.Ga, self.gain_factor)
 
-            self.summary_photons_after_gain = np.sum(intens(self.diode_pulse_after)) * self.diode_dt * self.volume
+            self.summary_photons_after_gain = np.sum(intens(self.diode_pulse_after)) * self.beam_dt * self.volume
 
             # absorber calculations
             loss_func = lib_diode.cmp_diode_loss if self.diode_pulse_dtype == np.complex128 else lib_diode.diode_loss
             loss_func(c_loss, c_loss_value, c_pulse_after,
-                                self.diode_N, self.diode_dt, self.Pb, self.Tb, self.Gb, self.N0b)
+                                self.beam_N, self.beam_dt, self.Pb, self.Tb, self.Gb, self.N0b)
 
-            self.summary_photons_after_absorber = np.sum(intens(self.diode_pulse_after)) * self.diode_dt * self.volume
+            self.summary_photons_after_absorber = np.sum(intens(self.diode_pulse_after)) * self.beam_dt * self.volume
 
             #cavity loss
             cavity_loss = self.cavity_loss if self.diode_pulse_dtype == np.float64 else self.cavity_loss / 2.0
             self.diode_pulse_after *= np.exp(- cavity_loss)
-            self.summary_photons_after_cavity_loss = np.sum(intens(self.diode_pulse_after)) * self.diode_dt * self.volume
+            self.summary_photons_after_cavity_loss = np.sum(intens(self.diode_pulse_after)) * self.beam_dt * self.volume
 
-            self.diode_accum_pulse_after = np.add.accumulate(intens(self.diode_pulse_after)) * self.diode_dt * self.volume
+            self.diode_accum_pulse_after = np.add.accumulate(intens(self.diode_pulse_after)) * self.beam_dt * self.volume
 
     def serialize_diode_graphs_data(self):
         graphs = []
@@ -568,7 +537,7 @@ class diode_calc(CalcCommon):
         pulse_after = intens(self.diode_pulse_after)
         pulse_original = intens(self.diode_pulse_original)
 
-        t_list = cget(shrink_with_max(self.diode_t_list, 1024, self.diode_view_from, self.diode_view_to)).tolist()
+        t_list = cget(shrink_with_max(self.diode_t_list, 1024, self.beam_view_from, self.beam_view_to)).tolist()
 
         added = Div(
             Div(
@@ -604,14 +573,14 @@ class diode_calc(CalcCommon):
                 (
                 Div(
                     Div(
-                        SelectCalcS(tab, f'DiodeSelectSampling', "Sampling", ["4096", "8192", "16384", "32768", "65536", "131072", "262144", "524288", "1048576"], self.diode_sampling, width = 100),
-                        SelectCalcS(tab, f'DiodeSelectSamplingX', "Sampling X", ["32", "64", "128", "256"], self.diode_sampling_x, width = 80),
+                        SelectCalcS(tab, f'DiodeSelectSampling', "Sampling", ["4096", "8192", "16384", "32768", "65536", "131072", "262144", "524288", "1048576"], self.beam_sampling, width = 100),
+                        SelectCalcS(tab, f'DiodeSelectSamplingX', "Sampling X", ["32", "64", "128", "256"], self.beam_sampling_x, width = 80),
                         SelectCalcS(tab, f'CalcDiodeCavityType', "Cavity Type", ["Ring", "Linear"], self.diode_cavity_type, width = 80),
                         SelectCalcS(tab, f'CalcDiodeSelectMode', "mode", ["Intensity", "Amplitude", "MB", "MBGPU"], self.diode_mode, width = 120),
                         InputCalcS(f'DiodePulseWidth', "Pulse width (ps)", f'{self.diode_pulse_width}', width = 80),
                         SelectCalcS(tab, f'CalcDiodeSelectIntensity', "Intensity", ["Pulse", "Noise", "CW", "Flat"], self.diode_intensity, width = 80),
-                        InputCalcS(f'DiodeViewFrom', "View from", f'{self.diode_view_from}', width = 80),
-                        InputCalcS(f'DiodeViewTo', "View to", f'{self.diode_view_to}', width = 80),
+                        InputCalcS(f'DiodeViewFrom', "View from", f'{self.beam_view_from}', width = 80),
+                        InputCalcS(f'DiodeViewTo', "View to", f'{self.beam_view_to}', width = 80),
                     ),
                     Div(
                         InputCalcS(f'DiodeAbsorberShift', "Absorber Shift (mm)", f'{self.diode_absorber_shift}', width = 100),
@@ -635,7 +604,7 @@ class diode_calc(CalcCommon):
                         InputCalcS(f'start_absorber', "Abs start val", f'{self.start_absorber}', width = 100),
                     ),
                     Div(
-                        InputCalcS(f'dt', "dt (ps)", f'{format(self.diode_dt * 1E+12, ".4f")}', width = 80),
+                        InputCalcS(f'dt', "dt (ps)", f'{format(self.beam_dt * 1E+12, ".4f")}', width = 80),
                         InputCalcS(f'volume', "Volume cm^3", f'{self.volume}', width = 80),
                         InputCalcS(f'initial_photons', "Initial Photns", f'{self.initial_photons}', width = 100),
                         InputCalcS(f'cavity_loss', "OC (Cavity loss)", f'{self.cavity_loss}', width = 80),
@@ -674,8 +643,8 @@ class diode_calc(CalcCommon):
             Div(
                 Div(
                     Frame_chart("fc1", [t_list], 
-                                    [cget(shrink_with_max(pulse_original, 1024, self.diode_view_from, self.diode_view_to)).tolist(), 
-                                    cget(shrink_with_max(np.log(pulse_after+ 0.000000001), 1024, self.diode_view_from, self.diode_view_to)).tolist()], [""], 
+                                    [cget(shrink_with_max(pulse_original, 1024, self.beam_view_from, self.beam_view_to)).tolist(), 
+                                    cget(shrink_with_max(np.log(pulse_after+ 0.000000001), 1024, self.beam_view_from, self.beam_view_to)).tolist()], [""], 
                                     "Original Pulse and Pulse after (photons/sec)", h=2, color=colors, marker=None, twinx=True),
 
                     generate_chart([cget(self.diode_t_list).tolist(), self.diode_levels_x], 
@@ -687,38 +656,38 @@ class diode_calc(CalcCommon):
                     #        ]), cls="container"
                     # ),
                     generate_chart([t_list], 
-                                    [cget(shrink_with_max(pulse_after, 1024, self.diode_view_from, self.diode_view_to)).tolist()], [""], 
+                                    [cget(shrink_with_max(pulse_after, 1024, self.beam_view_from, self.beam_view_to)).tolist()], [""], 
                                     "Pulse out (photons/sec)", h=2, color=colors, marker=None, twinx=True),
                     generate_chart([t_list], 
-                                    [cget(np.angle(shrink_with_max(self.diode_pulse_after, 1024, self.diode_view_from, self.diode_view_to))).tolist(), 
-                                        cget(np.absolute(shrink_with_max(self.diode_pulse_after, 1024, self.diode_view_from, self.diode_view_to))).tolist()], [""], 
+                                    [cget(np.angle(shrink_with_max(self.diode_pulse_after, 1024, self.beam_view_from, self.beam_view_to))).tolist(), 
+                                        cget(np.absolute(shrink_with_max(self.diode_pulse_after, 1024, self.beam_view_from, self.beam_view_to))).tolist()], [""], 
                                     "E", color=["green", "red"], h=2, marker=None, lw=[1, 3], twinx=True),
                     generate_chart([t_list], 
-                                    [cget(shrink_with_max(self.diode_accum_pulse, 1024, self.diode_view_from, self.diode_view_to)).tolist(), cget(shrink_with_max(self.diode_accum_pulse_after, 1024, self.diode_view_from, self.diode_view_to)).tolist()], [""], 
+                                    [cget(shrink_with_max(self.diode_accum_pulse, 1024, self.beam_view_from, self.beam_view_to)).tolist(), cget(shrink_with_max(self.diode_accum_pulse_after, 1024, self.beam_view_from, self.beam_view_to)).tolist()], [""], 
                                     f"Accumulate Pulse AND after (photons) [difference: {(self.diode_accum_pulse_after[-1] - self.diode_accum_pulse[-1]):.2e}]", 
                                     h=2, color=colors, marker=None, twinx=True),
                     generate_chart([t_list], 
-                                    [cget(shrink_with_max(self.diode_gain, 1024, self.diode_view_from, self.diode_view_to)).tolist(), cget(shrink_with_max(self.diode_gain_value, 1024, self.diode_view_from, self.diode_view_to )).tolist()], [""], 
+                                    [cget(shrink_with_max(self.diode_gain, 1024, self.beam_view_from, self.beam_view_to)).tolist(), cget(shrink_with_max(self.diode_gain_value, 1024, self.beam_view_from, self.beam_view_to )).tolist()], [""], 
                                     f"Gain carriers (1/cm^3) [{(max_gain - min_gain):.2e} = {max_gain:.4e} - {min_gain:.4e}] and Gain (cm^-1)", 
                                     color=["black", "green"], h=2, marker=None, twinx=True),
                     generate_chart([t_list], 
-                                    [cget(np.angle(shrink_with_max(self.diode_gain_polarization, 1024, self.diode_view_from, self.diode_view_to))).tolist(), 
-                                        cget(np.absolute(shrink_with_max(self.diode_gain_polarization, 1024, self.diode_view_from, self.diode_view_to))).tolist()], [""], 
+                                    [cget(np.angle(shrink_with_max(self.diode_gain_polarization, 1024, self.beam_view_from, self.beam_view_to))).tolist(), 
+                                        cget(np.absolute(shrink_with_max(self.diode_gain_polarization, 1024, self.beam_view_from, self.beam_view_to))).tolist()], [""], 
                                     "Gain Polarization", color=["green", "red"], h=2, marker=None, lw=[1, 3], twinx=True),
                     generate_chart([t_list], 
-                                    [cget(shrink_with_max(self.diode_loss, 1024, self.diode_view_from, self.diode_view_to)).tolist(), 
-                                    cget(shrink_with_max(self.diode_loss_value, 1024, self.diode_view_from, self.diode_view_to)).tolist()], [""], 
+                                    [cget(shrink_with_max(self.diode_loss, 1024, self.beam_view_from, self.beam_view_to)).tolist(), 
+                                    cget(shrink_with_max(self.diode_loss_value, 1024, self.beam_view_from, self.beam_view_to)).tolist()], [""], 
                                     f"Abs carrs (cm^-3) [{(max_loss - min_loss):.2e} = {max_loss:.3e} - {min_loss:.3e}] and Loss (cm^-1)", 
                                     color=["black", "red"], h=2, marker=None, twinx=True),
                     generate_chart([t_list], 
-                                    [cget(np.angle(shrink_with_max(self.diode_loss_polarization, 1024, self.diode_view_from, self.diode_view_to))).tolist(), 
-                                        cget(np.absolute(shrink_with_max(self.diode_loss_polarization, 1024, self.diode_view_from, self.diode_view_to))).tolist()], [""], 
+                                    [cget(np.angle(shrink_with_max(self.diode_loss_polarization, 1024, self.beam_view_from, self.beam_view_to))).tolist(), 
+                                        cget(np.absolute(shrink_with_max(self.diode_loss_polarization, 1024, self.beam_view_from, self.beam_view_to))).tolist()], [""], 
                                     "Loss Polarization", color=["green", "red"], h=2, marker=None, lw=[1, 3], twinx=True),
                     generate_chart([t_list], 
                                     [cget(np.exp(- self.cavity_loss) * 
-                                            np.multiply(shrink_with_max(self.diode_gain_value, 1024, self.diode_view_from, self.diode_view_to),
-                                            shrink_with_max(self.diode_loss_value, 1024, self.diode_view_from, self.diode_view_to))).tolist(),
-                                    cget(shrink_with_max(pulse, 1024, self.diode_view_from, self.diode_view_to)).tolist()], [""],
+                                            np.multiply(shrink_with_max(self.diode_gain_value, 1024, self.beam_view_from, self.beam_view_to),
+                                            shrink_with_max(self.diode_loss_value, 1024, self.beam_view_from, self.beam_view_to))).tolist(),
+                                    cget(shrink_with_max(pulse, 1024, self.beam_view_from, self.beam_view_to)).tolist()], [""],
                                     "Net gain", color=["blue", "red"], h=2, marker=None, twinx=True),
                     generate_chart(xVec, yVec, [""], "Gain By Pop", h=4, color=["black", "black", "green", "red"], marker=".", lw=[5, 5, 1, 1]),
 

@@ -1,7 +1,11 @@
 from fasthtml.common import *
+import numpy as np
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
+
+def cget(x):
+    return x.get() if hasattr(x, "get") else x
 
 def FlexN(v, style = ""):
     return Div(*v, style=f"display: flex; gap: 3px; {style}")
@@ -69,6 +73,11 @@ def generate_chart(x, y, l, t, w=11, h=2, color="blue", marker=None, twinx=False
     my_base64_jpgData = base64.b64encode(my_stringIOBytes.read())
 
     return Img(src=f'data:image/jpg;base64,{str(my_base64_jpgData, "utf-8")}')
+
+# y is complex and its intensity and phase will be resented together
+def generate_chart_complex(x, y, t, w=11, h=2, marker=None, lw=1):
+    generate_chart([x], [cget(np.angle(y)).tolist(), cget(np.absolute(y)).tolist()], [""], t, w=w, h=h, color=["green", "red"], marker=marker, twinx=True, lw=[1, 3]),
+
 
 def InputCalcM(id, title, value, step=0.01, width = 150):
     return Div(

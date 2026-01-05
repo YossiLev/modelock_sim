@@ -44,7 +44,17 @@ class CalcCommonBeam(CalcCommon):
         half_range = (self.beam_view_to - self.beam_view_from) / 2
         shift = int(half_range * shift_factor)
         self.beam_view_from = int(center - half_range + shift)
-        self.beam_view_to = int(center + half_range + shift)        
+        self.beam_view_to = int(center + half_range + shift)
+
+
+    def shift_center(self):
+        if (self.beam_view_from == -1) or (self.beam_view_to == -1):
+            self.beam_view_from = 0
+            self.beam_view_to = self.beam_N
+        center = self.beam_N / 2
+        half_range = (self.beam_view_to - self.beam_view_from) / 2
+        self.beam_view_from = int(center - half_range)
+        self.beam_view_to = int(center + half_range)                
 
 def intens(arr):
     if len(arr) == 0 or arr.dtype != np.complex128:

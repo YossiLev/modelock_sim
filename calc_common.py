@@ -46,7 +46,6 @@ class CalcCommonBeam(CalcCommon):
         self.beam_view_from = int(center - half_range + shift)
         self.beam_view_to = int(center + half_range + shift)
 
-
     def shift_center(self):
         if (self.beam_view_from == -1) or (self.beam_view_to == -1):
             self.beam_view_from = 0
@@ -56,6 +55,25 @@ class CalcCommonBeam(CalcCommon):
         self.beam_view_from = int(center - half_range)
         self.beam_view_to = int(center + half_range)                
 
+    def doCalcCommand(self, params):
+
+        match params:
+            case "view":
+                return 1
+            case "zoomin":
+                self.zoom_view(2.0)
+                return 1
+            case "zoomout":
+                self.zoom_view(0.5)
+                return 1
+            case "shiftright":
+                self.shift_view(-0.5)
+                return 1
+            case "shiftleft":
+                self.shift_view(0.5)
+                return 1
+        return 0
+    
 def intens(arr):
     if len(arr) == 0 or arr.dtype != np.complex128:
         return arr

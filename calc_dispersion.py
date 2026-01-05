@@ -52,24 +52,11 @@ class dispersion_calc(CalcCommonBeam):
         return shift
     
     def doCalcCommand(self, params):
+        if super().doCalcCommand(params) == 1:
+            return 1
+        
         match params:
-            case "view":
-                return
-            case "zoomin":
-                self.zoom_view(2.0)
-                return
-            case "zoomout":
-                self.zoom_view(0.5)
-                return
-            case "shiftright":
-                self.shift_view(-0.5)
-                return
-            case "shiftleft":
-                self.shift_view(0.5)
-                return
-            case "center":
-                self.shift_center()
-                return
+
             case "calc":
 
 

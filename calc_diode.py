@@ -264,28 +264,14 @@ class diode_calc(CalcCommonBeam):
         return shift
 
     def doCalcCommand(self, params):
-
+        if super().doCalcCommand(params) == 1:
+            return 1
         # Conditions for self-sustained pulsation and bistability in semiconductor lasers - Masayasu Ueno and Roy Lang
         # d Na / dt = - Na / Ta - Ga(Na - N0a) * N + Pa
         # d Nb / dt = - Nb / Tb - Gb(Nb - N0b) * N + Pb
         # d N  / dt = [(1 - h) * Ga(Na - N0a) + h * Gb(Nb - N0b) - GAMMA] * N
 
-        #print(f"Round {i + 1} of {self.calculation_rounds}")
         match params:
-            case "view":
-                return
-            case "zoomin":
-                self.zoom_view(2.0)
-                return
-            case "zoomout":
-                self.zoom_view(0.5)
-                return
-            case "shiftright":
-                self.shift_view(-0.5)
-                return
-            case "shiftleft":
-                self.shift_view(0.5)
-                return
             case "calc":
 
                 self.beam_N = int(self.beam_sampling)

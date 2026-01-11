@@ -55,6 +55,9 @@ class CalcCommonBeam(CalcCommon):
         self.beam_view_from = int(center - half_range)
         self.beam_view_to = int(center + half_range)                
 
+    def shrink_def(self, arrp):
+        return shrink_with_max(arrp, 1024, self.beam_view_from, self.beam_view_to)
+
     def doCalcCommand(self, params):
 
         match params:

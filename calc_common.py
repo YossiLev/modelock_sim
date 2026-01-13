@@ -74,6 +74,9 @@ class CalcCommonBeam(CalcCommon):
                 return 1
             case "shiftleft":
                 self.shift_view(0.5)
+                return 1 
+            case "center":
+                self.shift_center()
                 return 1
         return 0
     

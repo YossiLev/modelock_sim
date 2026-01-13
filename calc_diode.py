@@ -260,7 +260,6 @@ class diode_calc(CalcCommonBeam):
 
     def mm_to_unit_shift(self, mm):
         shift = int(mm / 1E+03 / (self.beam_dt * 3E+08))
-        print(f"mm_to_unit_shift mm={mm} shift={shift}")
         return shift
 
     def doCalcCommand(self, params):
@@ -535,7 +534,9 @@ class diode_calc(CalcCommonBeam):
                     Button("ZIN", hx_post=f'/doCalc/5/diode/zoomin', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
                     Button("ZOUT", hx_post=f'/doCalc/5/diode/zoomout', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
                     Button("S>", hx_post=f'/doCalc/5/diode/shiftright', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
-                    Button("S<", hx_post=f'/doCalc/5/diode/shiftleft', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
+                    Button("S<", hx_post=f'/doCalc/5/diode/shiftleft', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'),
+                    Button("><", hx_post=f'/doCalc/5/diode/center', hx_include="#calcForm *", hx_target="#gen_calc", hx_vals='js:{localId: getLocalId()}'), 
+
 
                     Div(
                         Button("Save Parameters", onclick="saveMultiTimeParametersProcess()"),

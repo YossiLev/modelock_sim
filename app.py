@@ -698,6 +698,7 @@ def doCalcUpdate(calcData, form_data):
         pushParam(calcData.beam, "beam_sampling", lambda: form_data.get("DispersionSelectSampling"))
         pushParam(calcData.beam, "beam_sampling_x", lambda: form_data.get("DispersionSelectSamplingX"))
         pushParam(calcData.beam, "dispersion_pulse_width", lambda: float(form_data.get("DispersionPulseWidth")))
+        pushParam(calcData.beam, "dispersion_beta2", lambda: float(form_data.get("DispersionBeta2")))
 
 
     except:

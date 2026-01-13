@@ -26,7 +26,7 @@ class dispersion_calc(CalcCommonBeam):
         self.dispersion_pulse_width = 100.0
 
         # actual shift parameters in millimeters
-        self.dispersion_absorber_shift = 0.0
+        self.dispersion_beta2 = 6E-23
         self.dispersion_gain_shift = 11.0
         self.dispersion_output_coupler_shift = 130.0
 
@@ -49,7 +49,6 @@ class dispersion_calc(CalcCommonBeam):
 
     def mm_to_unit_shift(self, mm):
         shift = int(mm / 1E+03 / (self.beam_dt * 3E+08))
-        print(f"mm_to_unit_shift mm={mm} shift={shift}")
         return shift
     
     def doCalcCommand(self, params):
@@ -63,10 +62,8 @@ class dispersion_calc(CalcCommonBeam):
 
                 self.beam_N = int(self.beam_sampling)
                 self.beam_dt = self.beam_time / self.beam_N
-                self.loss_shift = self.beam_N // 2 + self.mm_to_unit_shift(self.dispersion_absorber_shift) # zero shift means that the absorber is in the middle of the cavity
                 self.gain_distance = self.mm_to_unit_shift(self.dispersion_gain_shift)
                 self.oc_shift = self.mm_to_unit_shift(self.dispersion_output_coupler_shift)
-                print(f"beam_N={self.beam_N} dt={self.beam_dt} loss_shift={self.loss_shift} gain_distance={self.gain_distance} oc_shift={self.oc_shift}")
 
                 self.dispersion_t_list = np.arange(self.beam_N, dtype=np.float64)
                 print(f"Generated time list of size {self.dispersion_t_list.size} dt={self.beam_N}")
@@ -74,6 +71,7 @@ class dispersion_calc(CalcCommonBeam):
                 self.dispersion_pulse = np.array([], dtype=self.dispersion_pulse_dtype)
                 self.dispersion_calculated_fd = np.array([], dtype=self.dispersion_pulse_dtype)
                 self.dispersion_calculated_fd_s5 = np.array([], dtype=self.dispersion_pulse_dtype)
+                self.dispersion_calculated_fd_m5 = np.array([], dtype=self.dispersion_pulse_dtype)
                 self.dispersion_calculated_fd2 = np.array([], dtype=self.dispersion_pulse_dtype)
                 self.dispersion_calculated_mem = np.array([], dtype=self.dispersion_pulse_dtype)
             
@@ -121,7 +119,7 @@ class dispersion_calc(CalcCommonBeam):
                 shape = self.dispersion_t_list.shape
                 self.calculation_rounds_done = 0
 
-                beta2 = 6E-23  # s^2/m
+                beta2 = self.dispersion_beta2
                 dz = 5.0E-3    # m
                 dt = self.beam_dt
                 self.dispersion_calculated_fft = apply_dispersion(self.dispersion_pulse, dt, L=dz, beta2=beta2, beta3=0.0, beta4=0.0)
@@ -145,14 +143,22 @@ class dispersion_calc(CalcCommonBeam):
                     dispersion_fd_step(self.dispersion_calculated_fd_s5, self.dispersion_calculated_fd2, p + start, p + end, alpha, 5)
                     dispersion_fd_step(self.dispersion_calculated_fd2, self.dispersion_calculated_fd_s5, p + start + 1, p + end + 1, alpha, 5)
 
+                self.dispersion_calculated_fd_m5 = np.copy(self.dispersion_pulse)
+                self.dispersion_calculated_fd2 = np.copy(self.dispersion_pulse)
+                for start in range(0, df_diode_cells + 1000, 2):
+                    end = start + df_diode_cells
+                    #print(f"FD dispersion step from {p + start} to {p + end} with alpha={alpha} p={p} df_diode_cells={df_diode_cells}, beam_n={self.beam_N}")
+                    dispersion_fd_step(self.dispersion_calculated_fd_m5, self.dispersion_calculated_fd2, p + start, p + end, alpha, -5)
+                    dispersion_fd_step(self.dispersion_calculated_fd2, self.dispersion_calculated_fd_m5, p + start + 1, p + end + 1, alpha, -5)
+
                 #self.dispersion_calculated_cn = propagate_dispersion_CN(self.dispersion_pulse, self.beam_dt, 6E-23, 1.0E-2/200, 200)
 
                 print(f"df_diode_cells {df_diode_cells}")
-                self.dispersion_calculated_mem = np.copy(self.dispersion_pulse)
-                self.dispersion_past = np.zeros((5, df_diode_cells), dtype=np.complex128)
-                coeff = (alpha / 1200.0) * np.array([35.0,  - 104.0,  114.0, - 56.0, 11.0], dtype=np.float64)
-                for start in range(0, df_diode_cells + 1000):
-                    dispersion_memory_step(self.dispersion_calculated_mem, self.dispersion_past, p + start, coeff, start % 5)
+                # self.dispersion_calculated_mem = np.copy(self.dispersion_pulse)
+                # self.dispersion_past = np.zeros((5, df_diode_cells), dtype=np.complex128)
+                # coeff = (alpha / 12.0) * np.array([35.0,  - 104.0,  114.0, - 56.0, 11.0], dtype=np.float64)
+                # for start in range(0, df_diode_cells + 1000):
+                #     dispersion_memory_step(self.dispersion_calculated_mem, self.dispersion_past, p + start, coeff, start % 5)
 
 
     def generate_calc(self):
@@ -161,8 +167,6 @@ class dispersion_calc(CalcCommonBeam):
 
         pulse = intens(self.dispersion_pulse)
         t_list = cget(shrink_with_max(self.dispersion_t_list, 1024, self.beam_view_from, self.beam_view_to)).tolist()
-
-        print(self.beam_view_from, self.beam_view_to, len(self.dispersion_t_list), len(t_list))
 
         added = Div(
             Div(
@@ -207,7 +211,7 @@ class dispersion_calc(CalcCommonBeam):
                         InputCalcS(f'DispersionViewTo', "View to", f'{self.beam_view_to}', width = 80),
                     ),
                     Div(
-                        InputCalcS(f'DiodeAbsorberShift', "Absorber Shift (mm)", f'{self.dispersion_absorber_shift}', width = 100),
+                        InputCalcS(f'DispersionBeta2', "Beta 2 (s^2/m)", f'{self.dispersion_beta2}', width = 100),
                         InputCalcS(f'DiodeGainShift', "Gain Shift (mm)", f'{self.dispersion_gain_shift}', width = 100),
                         InputCalcS(f'DiodeOutputCouplerShift', "OC Shift (mm)", f'{self.dispersion_output_coupler_shift}', width = 100),
                     ),
@@ -243,22 +247,27 @@ class dispersion_calc(CalcCommonBeam):
                                     [cget(np.angle(self.shrink_def(self.dispersion_pulse))).tolist(), 
                                         cget(np.absolute(self.shrink_def(self.dispersion_pulse))).tolist()], [""], 
                                     "E", color=["green", "red"], h=2, marker=None, lw=[1, 3], twinx=True),
+                    #generate_chart_complex(t_list, self.shrink_def(self.dispersion_calculated_fft), "Using FFT"),
                     generate_chart([t_list], 
-                                    [cget(np.angle(shrink_with_max(self.dispersion_calculated_fft, 1024, self.beam_view_from, self.beam_view_to))).tolist(), 
-                                        cget(np.absolute(shrink_with_max(self.dispersion_calculated_fft, 1024, self.beam_view_from, self.beam_view_to))).tolist()], [""], 
+                                    [cget(np.angle(self.shrink_def(self.dispersion_calculated_fft))).tolist(), 
+                                        cget(np.absolute(self.shrink_def(self.dispersion_calculated_fft))).tolist()], [""], 
                                     "Using FFT", color=["green", "red"], h=2, marker=None, lw=[1, 3], twinx=True),
                     generate_chart([t_list], 
-                                    [cget(np.angle(shrink_with_max(self.dispersion_calculated_fd, 1024, self.beam_view_from, self.beam_view_to))).tolist(), 
-                                        cget(np.absolute(shrink_with_max(self.dispersion_calculated_fd, 1024, self.beam_view_from, self.beam_view_to))).tolist()], [""], 
+                                    [cget(np.angle(self.shrink_def(self.dispersion_calculated_fd))).tolist(), 
+                                        cget(np.absolute(self.shrink_def(self.dispersion_calculated_fd))).tolist()], [""], 
                                     "Using FD S3", color=["green", "red"], h=2, marker=None, lw=[1, 3], twinx=True),
                     generate_chart([t_list], 
-                                    [cget(np.angle(shrink_with_max(self.dispersion_calculated_fd_s5, 1024, self.beam_view_from, self.beam_view_to))).tolist(), 
-                                        cget(np.absolute(shrink_with_max(self.dispersion_calculated_fd_s5, 1024, self.beam_view_from, self.beam_view_to))).tolist()], [""], 
+                                    [cget(np.angle(self.shrink_def(self.dispersion_calculated_fd_s5))).tolist(), 
+                                        cget(np.absolute(self.shrink_def(self.dispersion_calculated_fd_s5))).tolist()], [""], 
                                     "Using FD S5", color=["green", "red"], h=2, marker=None, lw=[1, 3], twinx=True),
                     generate_chart([t_list], 
-                                    [cget(np.angle(shrink_with_max(self.dispersion_calculated_mem, 1024, self.beam_view_from, self.beam_view_to))).tolist(), 
-                                        cget(np.absolute(shrink_with_max(self.dispersion_calculated_mem, 1024, self.beam_view_from, self.beam_view_to))).tolist()], [""], 
-                                    "Using Past Memory", color=["green", "red"], h=2, marker=None, lw=[1, 3], twinx=True),
+                                    [cget(np.angle(self.shrink_def(self.dispersion_calculated_fd_m5))).tolist(), 
+                                        cget(np.absolute(self.shrink_def(self.dispersion_calculated_fd_m5))).tolist()], [""], 
+                                    "Using FD 5 Past only", color=["green", "red"], h=2, marker=None, lw=[1, 3], twinx=True),
+                    # generate_chart([t_list], 
+                    #                 [cget(np.angle(self.shrink_def(self.dispersion_calculated_mem))).tolist(), 
+                    #                     cget(np.absolute(self.shrink_def(self.dispersion_calculated_mem))).tolist()], [""], 
+                    #                 "Using Past Memory", color=["green", "red"], h=2, marker=None, lw=[1, 3], twinx=True),
 
                     #Div(self.collectDiodeData(), id="numData"),
 
@@ -270,14 +279,7 @@ class dispersion_calc(CalcCommonBeam):
     
 import numpy as np
 
-def apply_dispersion(
-    A_t,
-    dt,
-    L,
-    beta2=0.0,
-    beta3=0.0,
-    beta4=0.0
-):
+def apply_dispersion(A_t, dt, L, beta2=0.0, beta3=0.0, beta4=0.0):
     """
     code from chatGPT
 
@@ -331,14 +333,8 @@ import numpy as np
 
 import numpy as np
 
-def dispersion_fd_step(
-    A_in: np.ndarray,
-    A_out: np.ndarray,
-    n_start: int,
-    n_end: int,
-    alpha: complex,
-    n_stencil: int
-):
+def dispersion_fd_step(A_in: np.ndarray, A_out: np.ndarray,
+    n_start: int, n_end: int, alpha: complex, n_stencil: int):
     """
     One explicit finite-difference dispersion step.
 
@@ -366,6 +362,13 @@ def dispersion_fd_step(
         for n in range(n_start, n_end):
             lap = (-A_in[n+2] - A_in[n-2] + 16.0*(A_in[n+1]+ A_in[n-1]) - 30.0*A_in[n]) / 12.0
             A_out[n] = A_in[n] + alpha * lap
+
+    if n_stencil == -5:
+        for n in range(n_start, n_end):
+            a = alpha / 12.0
+            lap = ((35.0 * a) * A_in[n] - (104.0 * a) * A_in[n - 1] + (114.0 * a) * A_in[n - 2] - (56.0 * a) * A_in[n - 3] + (11.0 * a) * A_in[n - 4])
+            A_out[n] = A_in[n] + lap
+
 
 def propagate_dispersion_CN(A_t, dt, beta2, dz, n_steps):
     """
@@ -423,7 +426,10 @@ def propagate_dispersion_CN(A_t, dt, beta2, dz, n_steps):
 
 def dispersion_memory_step(A_t, past, pStart, coeff, startMod):
     pEnd = pStart + past[0].size
-    B = np.roll(coeff, startMod) @ past
+    shift = coeff.size - 1 - startMod
+
+    past[shift][:] = A_t[pStart:pEnd]
+    B = np.roll(coeff, shift) @ past
     A_t[pStart:pEnd] += B
-    past[(startMod + coeff.size - 1) % coeff.size] = A_t[pStart:pEnd]
-    
+    past[shift][:] = A_t[pStart:pEnd]
+

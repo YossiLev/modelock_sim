@@ -14,19 +14,22 @@ class dispersion_calc(CalcCommonBeam):
         self.beam_view_to = -1
 
         self.dispersion_mode = "Amplitude"
-        self.beam_sampling = "4096"
+        self.beam_sampling = "65536"
         self.dispersion_pulse_dtype = np.complex128
 
         self.beam_time = 3.95138389E-09 #4E-09
-        self.beam_N = 4096 # * 4
+        self.beam_N = int(self.beam_sampling) # * 4
         self.beam_dt = self.beam_time / self.beam_N
         self.dispersion_intensity = "Pulse"
         self.calculation_rounds = 1
         self.calculation_rounds_done = 0
-        self.dispersion_pulse_width = 100.0
+        self.dispersion_pulse_width = 1.0
 
         # actual shift parameters in millimeters
-        self.dispersion_beta2 = 6E-23
+        #self.dispersion_beta2 = 6E-23
+        self.medium_length_mm = 5.0
+        self.dispersion_beta2 = 2E-24
+        self.dispersion_epsilon = 1E-10
         self.dispersion_gain_shift = 11.0
         self.dispersion_output_coupler_shift = 130.0
 
@@ -58,8 +61,6 @@ class dispersion_calc(CalcCommonBeam):
         match params:
 
             case "calc":
-
-
                 self.beam_N = int(self.beam_sampling)
                 self.beam_dt = self.beam_time / self.beam_N
                 self.gain_distance = self.mm_to_unit_shift(self.dispersion_gain_shift)
@@ -116,15 +117,19 @@ class dispersion_calc(CalcCommonBeam):
                 #     self.dispersion_pulse = self.dispersion_pulse * np.exp(phase)
                     
                 # for i in range(990, 1010):
+                global count
+                count = 20
+
                 shape = self.dispersion_t_list.shape
                 self.calculation_rounds_done = 0
 
                 beta2 = self.dispersion_beta2
-                dz = 5.0E-3    # m
+                epsilon = self.dispersion_epsilon
+                dz = self.medium_length_mm * 0.001
                 dt = self.beam_dt
                 self.dispersion_calculated_fft = apply_dispersion(self.dispersion_pulse, dt, L=dz, beta2=beta2, beta3=0.0, beta4=0.0)
-                df_diode_cells = np.floor(0.004 / (dt * 3E+08 / 3)).astype(np.int32)
-                alpha = 1j * beta2 * (dz / df_diode_cells) / (2 * dt**2)
+                df_diode_cells = np.floor(dz / (dt * 3E+08 / 3)).astype(np.int32)
+                alpha = (-epsilon + 1j * beta2) * (dz / df_diode_cells) / (2 * dt**2)
                 self.dispersion_calculated_fd = np.copy(self.dispersion_pulse)
                 self.dispersion_calculated_fd2 = np.copy(self.dispersion_pulse)
                 p = self.beam_N // 2 - df_diode_cells - 500
@@ -143,17 +148,17 @@ class dispersion_calc(CalcCommonBeam):
                     dispersion_fd_step(self.dispersion_calculated_fd_s5, self.dispersion_calculated_fd2, p + start, p + end, alpha, 5)
                     dispersion_fd_step(self.dispersion_calculated_fd2, self.dispersion_calculated_fd_s5, p + start + 1, p + end + 1, alpha, 5)
 
-                self.dispersion_calculated_fd_m5 = np.copy(self.dispersion_pulse)
-                self.dispersion_calculated_fd2 = np.copy(self.dispersion_pulse)
-                for start in range(0, df_diode_cells + 1000, 2):
-                    end = start + df_diode_cells
-                    #print(f"FD dispersion step from {p + start} to {p + end} with alpha={alpha} p={p} df_diode_cells={df_diode_cells}, beam_n={self.beam_N}")
-                    dispersion_fd_step(self.dispersion_calculated_fd_m5, self.dispersion_calculated_fd2, p + start, p + end, alpha, -5)
-                    dispersion_fd_step(self.dispersion_calculated_fd2, self.dispersion_calculated_fd_m5, p + start + 1, p + end + 1, alpha, -5)
+                # self.dispersion_calculated_fd_m5 = np.copy(self.dispersion_pulse)
+                # self.dispersion_calculated_fd2 = np.copy(self.dispersion_pulse)
+                # for start in range(0, df_diode_cells + 1000, 2):
+                #     end = start + df_diode_cells
+                #     #print(f"FD dispersion step from {p + start} to {p + end} with alpha={alpha} p={p} df_diode_cells={df_diode_cells}, beam_n={self.beam_N}")
+                #     dispersion_fd_step(self.dispersion_calculated_fd_m5, self.dispersion_calculated_fd2, p + start, p + end, alpha, -5)
+                #     dispersion_fd_step(self.dispersion_calculated_fd2, self.dispersion_calculated_fd_m5, p + start + 1, p + end + 1, alpha, -5)
 
                 #self.dispersion_calculated_cn = propagate_dispersion_CN(self.dispersion_pulse, self.beam_dt, 6E-23, 1.0E-2/200, 200)
 
-                print(f"df_diode_cells {df_diode_cells}")
+                # print(f"df_diode_cells {df_diode_cells}")
                 # self.dispersion_calculated_mem = np.copy(self.dispersion_pulse)
                 # self.dispersion_past = np.zeros((5, df_diode_cells), dtype=np.complex128)
                 # coeff = (alpha / 12.0) * np.array([35.0,  - 104.0,  114.0, - 56.0, 11.0], dtype=np.float64)
@@ -211,7 +216,9 @@ class dispersion_calc(CalcCommonBeam):
                         InputCalcS(f'DispersionViewTo', "View to", f'{self.beam_view_to}', width = 80),
                     ),
                     Div(
+                        InputCalcS(f'MediumLengthMM', "Medium Length (mm)", f'{self.medium_length_mm}', width = 100),
                         InputCalcS(f'DispersionBeta2', "Beta 2 (s^2/m)", f'{self.dispersion_beta2}', width = 100),
+                        InputCalcS(f'DispersionEpsilon', "Epsilon (s^2/m)", f'{self.dispersion_epsilon}', width = 100),
                         InputCalcS(f'DiodeGainShift', "Gain Shift (mm)", f'{self.dispersion_gain_shift}', width = 100),
                         InputCalcS(f'DiodeOutputCouplerShift', "OC Shift (mm)", f'{self.dispersion_output_coupler_shift}', width = 100),
                     ),
@@ -260,10 +267,10 @@ class dispersion_calc(CalcCommonBeam):
                                     [cget(np.angle(self.shrink_def(self.dispersion_calculated_fd_s5))).tolist(), 
                                         cget(np.absolute(self.shrink_def(self.dispersion_calculated_fd_s5))).tolist()], [""], 
                                     "Using FD S5", color=["green", "red"], h=2, marker=None, lw=[1, 3], twinx=True),
-                    generate_chart([t_list], 
-                                    [cget(np.angle(self.shrink_def(self.dispersion_calculated_fd_m5))).tolist(), 
-                                        cget(np.absolute(self.shrink_def(self.dispersion_calculated_fd_m5))).tolist()], [""], 
-                                    "Using FD 5 Past only", color=["green", "red"], h=2, marker=None, lw=[1, 3], twinx=True),
+                    # generate_chart([t_list], 
+                    #                 [cget(np.angle(self.shrink_def(self.dispersion_calculated_fd_m5))).tolist(), 
+                    #                     cget(np.absolute(self.shrink_def(self.dispersion_calculated_fd_m5))).tolist()], [""], 
+                    #                 "Using FD 5 Past only", color=["green", "red"], h=2, marker=None, lw=[1, 3], twinx=True),
                     # generate_chart([t_list], 
                     #                 [cget(np.angle(self.shrink_def(self.dispersion_calculated_mem))).tolist(), 
                     #                     cget(np.absolute(self.shrink_def(self.dispersion_calculated_mem))).tolist()], [""], 
@@ -333,6 +340,8 @@ import numpy as np
 
 import numpy as np
 
+count = 20
+
 def dispersion_fd_step(A_in: np.ndarray, A_out: np.ndarray,
     n_start: int, n_end: int, alpha: complex, n_stencil: int):
     """
@@ -350,22 +359,33 @@ def dispersion_fd_step(A_in: np.ndarray, A_out: np.ndarray,
         Dispersion coefficient:
         alpha = 1j * beta2 * dz / (2 * dt**2)
     """
+    global count
     N = A_in.shape[0]
 
     if n_stencil == 3:
         for n in range(n_start, n_end):
-            nm = (n - 1)
-            np_ = (n + 1)
-            lap = A_in[np_] - 2.0 * A_in[n] + A_in[nm]
-            A_out[n] = A_in[n] + alpha * lap
+            f = 1.0
+            if (n - n_start < 10):
+                f = (n  - n_start) * 0.1
+            elif (n_end - n < 10):
+                f = (n_end - n) * 0.1
+            lap = A_in[n + 1] - 2.0 * A_in[n] + A_in[n - 1]
+
+            if (np.abs(lap) > 0.000000000000001 and abs(A_in[n]) > 0.000000000000001):
+                A_out[n] = A_in[n] + alpha * lap * f
+            else:
+                A_out[n] = A_in[n]
     if n_stencil == 5:
         for n in range(n_start, n_end):
             lap = (-A_in[n+2] - A_in[n-2] + 16.0*(A_in[n+1]+ A_in[n-1]) - 30.0*A_in[n]) / 12.0
-            A_out[n] = A_in[n] + alpha * lap
+            if (np.abs(lap) > 0.000000000000001 and abs(A_in[n]) > 0.000000000000001):
+                A_out[n] = A_in[n] + alpha * lap
+            else:
+                A_out[n] = A_in[n]
 
     if n_stencil == -5:
+        a = alpha / 12.0
         for n in range(n_start, n_end):
-            a = alpha / 12.0
             lap = ((35.0 * a) * A_in[n] - (104.0 * a) * A_in[n - 1] + (114.0 * a) * A_in[n - 2] - (56.0 * a) * A_in[n - 3] + (11.0 * a) * A_in[n - 4])
             A_out[n] = A_in[n] + lap
 

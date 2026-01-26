@@ -563,11 +563,8 @@ void mbg_diode_cavity_destroy(DiodeCavityCtx *ctx) {
 }
 void mbg_diode_cavity_prepare(DiodeCavityCtx *ctx);
 void mbg_diode_cavity_run(DiodeCavityCtx *ctx) {
-    if (ctx->d_ctx == NULL) {
-        fprintf(stderr, "Device context not initialized\n");
-        return;
-    }
-    diode_cavity_run(ctx->d_ctx);
+
+    diode_cavity_run(ctx);
 }
 void mbg_diode_cavity_extract(DiodeCavityCtx *ctx);
 

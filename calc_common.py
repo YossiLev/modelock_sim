@@ -1,7 +1,10 @@
 import numpy as np
 
+from controls import cget
+
 class CalcCommon:
     def __init__(self):
+        self.current_run_parameters = []
         pass
 
     def set(self, params):
@@ -17,6 +20,12 @@ class CalcCommon:
             if hasattr(self, key):
                 params[key] = getattr(self, cget(key)[0])
         return params
+
+    def keep_current_run_parameters(self, parameters):
+        self.current_run_parameters = parameters.copy()
+
+    def verify_current_run_parameters(self, parameters):
+        return self.current_run_parameters == parameters
 
 class CalcCommonBeam(CalcCommon):
     def __init__(self):
@@ -58,6 +67,9 @@ class CalcCommonBeam(CalcCommon):
     def shrink_def(self, arrp):
         return shrink_with_max(arrp, 1024, self.beam_view_from, self.beam_view_to)
 
+    def shrink_list(self, arrp):
+        return cget(self.shrink_def(arrp)).tolist()
+
     def doCalcCommand(self, params):
 
         match params:
@@ -79,7 +91,38 @@ class CalcCommonBeam(CalcCommon):
                 self.shift_center()
                 return 1
         return 0
+
+    def serialize_graphs_data(self):
+        graphs = []
+        graphs.append({
+            "id": "diode_pulse_chart",
+            "title": "Pulse in (photons/sec)",
+            "x_label": "Time (s)",
+            "y_label": "Intensity",
+            "lines": [
+                {"color": "orange", "values": cget(intens(self.diode_pulse)).tolist(), "text": f"rrrrrrrrrr"}
+            ],
+            # "x_values": cget(self.diode_t_list).tolist(),
+            # "y_values": cget(intens(self.diode_pulse)).tolist(),
+        })
+
+        return graphs
     
+    def collectCommonData(self, delay=20, more=False):
+        data = {
+            "type": "diode",
+            "delay": delay,
+            "more": more,
+            "title": "Pulse in (photons/sec)",
+            "graphs": self.serialize_graphs_data(),
+        }
+        try:
+            s = json.dumps(data)
+        except TypeError as e:
+            print("error: json exeption", data)
+            s = ""
+        return s  
+  
 def intens(arr):
     if len(arr) == 0 or arr.dtype != np.complex128:
         return arr

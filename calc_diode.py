@@ -14,6 +14,8 @@ import numpy as np
 from fasthtml.common import *
 from controls import *
 from calc_common import *
+from cffi import FFI
+ffi = FFI()
 
 lib_suffix = {
     "Linux": "so",
@@ -162,6 +164,29 @@ lib_diode.mb_diode_round_trip.argtypes = [
 ]
 lib_diode.mb_diode_round_trip.restype = None
 
+
+# ---------------------------
+
+mbg_diode_cavity_destroy = lib_diode.mbg_diode_cavity_destroy
+mbg_diode_cavity_destroy.argtypes = [ctypes.c_void_p]
+mbg_diode_cavity_destroy.restype = None
+
+# mbg_diode_cavity_build = lib_diode.mbg_diode_cavity_build
+# mbg_diode_cavity_build.argtypes = [ctypes.c_void_p]
+# mbg_diode_cavity_build.restype = ctypes.c_void_p
+
+# mbg_diode_cavity_prepare = lib_diode.mbg_diode_cavity_prepare
+# mbg_diode_cavity_prepare.argtypes = [ctypes.c_void_p]
+# mbg_diode_cavity_prepare.restype = ctypes.c_int
+
+# mbg_diode_cavity_run = lib_diode.mbg_diode_cavity_run
+# mbg_diode_cavity_run.argtypes = [ctypes.c_void_p]
+# mbg_diode_cavity_run.restype = ctypes.c_int
+
+# mbg_diode_cavity_extract = lib_diode.mbg_diode_cavity_extract
+# mbg_diode_cavity_extract.argtypes = [ctypes.c_void_p]
+# mbg_diode_cavity_extract.restype = ctypes.c_int
+
 def gain_function(Ga, N):
     xh1 = Ga * 4468377122.5 * 0.46 * 16.5
     xh2 = Ga * 4468377122.5 * 0.46 * 0.32 * np.exp(0.000000000041*14E+10)
@@ -258,6 +283,9 @@ class diode_calc(CalcCommonBeam):
         self.summary_photons_after_absorber = 0.0
         self.summary_photons_after_cavity_loss = 0.0
 
+        self.gpu_memory = None
+        self.gpu_memory_exists = False
+
     def mm_to_unit_shift(self, mm):
         shift = int(mm / 1E+03 / (self.beam_dt * 3E+08))
         return shift
@@ -288,7 +316,6 @@ class diode_calc(CalcCommonBeam):
                                         self.oc_shift, self.loss_shift - self.gain_distance - 1, 
                                         self.loss_shift - self.gain_distance, self.loss_shift - 1, 
                                         self.loss_shift, self.beam_N]
-                #self.diode_levels_x.reverse()
                 self.diode_levels_y = [1, 1, 1 / gg, 1 / gg, 
                                         1 / gg / oo, 1 / gg / oo, 1 / gg / oo / gg, 1 / gg / oo / gg, 
                                         1 / gg / oo / gg / ll, 1 / gg / oo / gg / ll]
@@ -296,7 +323,9 @@ class diode_calc(CalcCommonBeam):
                 self.diode_t_list = np.arange(self.beam_N, dtype=np.float64)
                 self.diode_gain_value = np.full_like(self.diode_t_list, 0.0)
                 self.diode_loss_value = np.full_like(self.diode_t_list, 0.0)
+
                 self.diode_pulse_dtype = np.complex128 if self.diode_mode != "Intensity" else np.float64 
+                
                 self.diode_pulse = np.array([], dtype=self.diode_pulse_dtype)
                 self.diode_pulse_original = np.array([], dtype=self.diode_pulse_dtype)
                 self.diode_pulse_after = np.array([], dtype=self.diode_pulse_dtype)
@@ -353,7 +382,18 @@ class diode_calc(CalcCommonBeam):
                     self.diode_pulse_init = np.copy(self.diode_pulse)
                     self.diode_pulse = np.full_like(self.diode_t_list, 0.0 + 0.0j,dtype=np.complex128)
 
+                if (self.diode_mode == "MBGPU"):
+                    if self.gpu_memory_exists:
+                        mbg_diode_cavity_destroy(self.gpu_memory)
+                    self.gpu_memory = mbg_diode_cavity_build(self.gpu_memory)
+                    self.gpu_memory_exists = True
+
+                self.keep_current_run_parameters([self.beam_sampling, self.beam_sampling_x, self.diode_mode])
+
             case "recalc":
+                if not self.verify_current_run_parameters([self.beam_sampling, self.beam_sampling_x, self.diode_mode]):
+                    print("Parameters changed, recalculation not possible")
+                    return 1
                 if self.diode_cavity_type == "Ring" and self.diode_update_pulse == "Update Pulse":
                     self.diode_pulse = np.copy(self.diode_pulse_after)
                 if self.diode_mode == "MB" and self.diode_update_pulse != "Update Pulse":
@@ -361,12 +401,62 @@ class diode_calc(CalcCommonBeam):
 
         if self.diode_cavity_type == "Ring":
             self.diode_round_trip_old()
+        elif self.diode_mode == "MBGPU":
+            self.diode_round_trip_wide()
         else:
             self.diode_round_trip_new()
 
         self.calculation_rounds_done += self.calculation_rounds
 
     def diode_round_trip_new(self):
+        self.oc_val = np.exp(- self.cavity_loss)
+        self.diode_pulse_after = np.copy(self.diode_pulse)
+        self.diode_pulse_save = np.copy(self.diode_pulse)
+
+        c_pulse = self.diode_pulse.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+        c_pulse_init = self.diode_pulse_init.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+        # for ii in range(990, 1010):
+        #     print(f"diode_pulse_init: pulse[{ii}] = ({self.diode_pulse_init[ii].real}, {self.diode_pulse_init[ii].imag})")
+        c_gain = self.diode_gain.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+        c_gain_polarization = self.diode_gain_polarization.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+        c_gain_value = self.diode_gain_value.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+        c_loss = self.diode_loss.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+        c_loss_polarization = self.diode_loss_polarization.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+        c_loss_value = self.diode_loss_value.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+        c_pulse_after = self.diode_pulse_after.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+
+        print(f"diode_round_trip_new: diode_mode={self.diode_mode} diode_pulse_dtype={self.diode_pulse_dtype}")
+        if self.diode_mode == "MB":
+            round_trip_func = lib_diode.mb_diode_round_trip
+            round_trip_func(c_gain, c_gain_polarization, c_loss, c_loss_polarization, c_gain_value, c_loss_value,
+                            c_pulse_init, c_pulse, c_pulse_after,
+                            self.calculation_rounds, self.beam_N, self.loss_shift, self.oc_shift, self.gain_distance,
+                            self.beam_dt, self.gain_width, self.Pa, self.Ta, self.Ga, self.N0a, self.Pb, self.Tb, self.Gb, self.N0b, self.oc_val,
+                            self.rand_factor_seed, self.kappa, self.C_loss, self.C_gain, self.coupling_out_loss, self.coupling_out_gain)
+            print("MB round trip done")
+            k = 0
+            for i in range(self.diode_pulse_after.shape[0]):
+                if np.isnan(self.diode_pulse_after[i].real) or np.isnan(self.diode_pulse_after[i].imag):
+                    k = k + 1
+                    print(f"NAN index {i}: val=({self.diode_pulse_after[i].real}, {self.diode_pulse_after[i].imag})\n")
+                if k > 100:
+                    break
+            self.diode_accum_pulse_after = np.add.accumulate(intens(self.diode_pulse_after)) * self.beam_dt * self.volume
+
+            print("MB accumulation done")
+            return
+        
+        round_trip_func = lib_diode.cmp_diode_round_trip if self.diode_pulse_dtype == np.complex128 else lib_diode.diode_round_trip
+
+        round_trip_func(c_gain, c_loss, c_gain_value, c_loss_value,
+                        c_pulse, c_pulse_after,
+                        self.calculation_rounds, self.beam_N, self.loss_shift, self.oc_shift, self.gain_distance,
+                        self.beam_dt, self.gain_width, self.Pa, self.Ta, self.Ga, self.Pb, self.Tb, self.Gb, self.N0b, self.oc_val)
+
+        self.diode_accum_pulse_after = np.add.accumulate(intens(self.diode_pulse_after)) * self.beam_dt * self.volume
+
+    def diode_round_trip_wide(self):
+
         self.oc_val = np.exp(- self.cavity_loss)
         self.diode_pulse_after = np.copy(self.diode_pulse)
         self.diode_pulse_save = np.copy(self.diode_pulse)
@@ -459,36 +549,6 @@ class diode_calc(CalcCommonBeam):
 
             self.diode_accum_pulse_after = np.add.accumulate(intens(self.diode_pulse_after)) * self.beam_dt * self.volume
 
-    def serialize_diode_graphs_data(self):
-        graphs = []
-        graphs.append({
-            "id": "diode_pulse_chart",
-            "title": "Pulse in (photons/sec)",
-            "x_label": "Time (s)",
-            "y_label": "Intensity",
-            "lines": [
-                {"color": "orange", "values": cget(intens(self.diode_pulse)).tolist(), "text": f"rrrrrrrrrr"}
-            ],
-            # "x_values": cget(self.diode_t_list).tolist(),
-            # "y_values": cget(intens(self.diode_pulse)).tolist(),
-        })
-
-        return graphs
-    
-    def collectDiodeData(self, delay=20, more=False):
-        data = {
-            "type": "diode",
-            "delay": delay,
-            "more": more,
-            "title": "Pulse in (photons/sec)",
-            "graphs": self.serialize_diode_graphs_data(),
-        }
-        try:
-            s = json.dumps(data)
-        except TypeError as e:
-            print("error: json exeption", data)
-            s = ""
-        return s
 
     def generate_calc(self):
         tab = 5
@@ -630,47 +690,41 @@ class diode_calc(CalcCommonBeam):
             Div(
                 Div(
                     Frame_chart("fc1", [t_list], 
-                                    [cget(shrink_with_max(pulse_original, 1024, self.beam_view_from, self.beam_view_to)).tolist(), 
-                                    cget(shrink_with_max(np.log(pulse_after+ 0.000000001), 1024, self.beam_view_from, self.beam_view_to)).tolist()], [""], 
+                                    [self.shrink_list(pulse_original), 
+                                    self.shrink_list(np.log(pulse_after+ 0.000000001))], [""], 
                                     "Original Pulse and Pulse after (photons/sec)", h=2, color=colors, marker=None, twinx=True),
 
                     generate_chart([cget(self.diode_t_list).tolist(), self.diode_levels_x], 
                                     [cget(pulse).tolist(), self.diode_levels_y], [""], 
                                     "Pulse in (photons/sec)", h=2, color=["red", "black"], marker=None, twinx=True),
+
+                    generate_chart([t_list], [self.shrink_list(pulse_after)], [""], "Pulse out (photons/sec)", h=2, color=colors, marker=None, twinx=True),
+                    generate_chart_complex(t_list, self.shrink_def(self.diode_pulse_after), "E"),
+                    generate_chart([t_list], [self.shrink_list(self.diode_accum_pulse), self.shrink_list(self.diode_accum_pulse_after)], [""], 
+                                    f"Accumulate Pulse AND after (photons) [difference: {(self.diode_accum_pulse_after[-1] - self.diode_accum_pulse[-1]):.2e}]", 
+                                    h=2, color=colors, marker=None, twinx=True),
+                    generate_chart([t_list], [self.shrink_list(self.diode_gain), self.shrink_list(self.diode_gain_value)], [""], 
+                                    f"Gain carriers (1/cm^3) [{(max_gain - min_gain):.2e} = {max_gain:.4e} - {min_gain:.4e}] and Gain (cm^-1)", 
+                                    color=["black", "green"], h=2, marker=None, twinx=True),
+                    generate_chart_complex(t_list, self.shrink_def(self.diode_gain_polarization), "Gain Polarization"),
+                    generate_chart([t_list], [self.shrink_list(self.diode_loss), self.shrink_list(self.diode_loss_value)], [""], 
+                                    f"Abs carrs (cm^-3) [{(max_loss - min_loss):.2e} = {max_loss:.3e} - {min_loss:.3e}] and Loss (cm^-1)", 
+                                    color=["black", "red"], h=2, marker=None, twinx=True),
+                    generate_chart_complex(t_list, self.shrink_def(self.diode_loss_polarization), "Loss Polarization"),
+                    generate_chart([t_list], 
+                                    [cget(np.exp(- self.cavity_loss) * 
+                                            np.multiply(self.shrink_def(self.diode_gain_value), self.shrink_def(self.diode_loss_value))).tolist(),
+                                    cget(self.shrink_def(pulse)).tolist()], [""],
+                                    "Net gain", color=["blue", "red"], h=2, marker=None, twinx=True),
+                    #generate_chart(xVec, yVec, [""], "Gain By Pop", h=4, color=["black", "black", "green", "red"], marker=".", lw=[5, 5, 1, 1]),
+
                     # experimental new type of grpah manage by JS
                     # Div(
                     #    Div(cls="handle", draggable="true"),
                     #        FlexN([graphCanvas(id="diode_pulse_chart", width=1100, height=300, options=False, mode = 2), 
                     #        ]), cls="container"
                     # ),
-                    generate_chart([t_list], 
-                                    [cget(shrink_with_max(pulse_after, 1024, self.beam_view_from, self.beam_view_to)).tolist()], [""], 
-                                    "Pulse out (photons/sec)", h=2, color=colors, marker=None, twinx=True),
-                    generate_chart_complex(t_list, shrink_with_max(self.diode_pulse_after, 1024, self.beam_view_from, self.beam_view_to), "E"),
-                    generate_chart([t_list], 
-                                    [cget(shrink_with_max(self.diode_accum_pulse, 1024, self.beam_view_from, self.beam_view_to)).tolist(), cget(shrink_with_max(self.diode_accum_pulse_after, 1024, self.beam_view_from, self.beam_view_to)).tolist()], [""], 
-                                    f"Accumulate Pulse AND after (photons) [difference: {(self.diode_accum_pulse_after[-1] - self.diode_accum_pulse[-1]):.2e}]", 
-                                    h=2, color=colors, marker=None, twinx=True),
-                    generate_chart([t_list], 
-                                    [cget(shrink_with_max(self.diode_gain, 1024, self.beam_view_from, self.beam_view_to)).tolist(), cget(shrink_with_max(self.diode_gain_value, 1024, self.beam_view_from, self.beam_view_to )).tolist()], [""], 
-                                    f"Gain carriers (1/cm^3) [{(max_gain - min_gain):.2e} = {max_gain:.4e} - {min_gain:.4e}] and Gain (cm^-1)", 
-                                    color=["black", "green"], h=2, marker=None, twinx=True),
-                    generate_chart_complex(t_list, shrink_with_max(self.diode_gain_polarization, 1024, self.beam_view_from, self.beam_view_to), "Gain Polarization"),
-                    generate_chart([t_list], 
-                                    [cget(shrink_with_max(self.diode_loss, 1024, self.beam_view_from, self.beam_view_to)).tolist(), 
-                                    cget(shrink_with_max(self.diode_loss_value, 1024, self.beam_view_from, self.beam_view_to)).tolist()], [""], 
-                                    f"Abs carrs (cm^-3) [{(max_loss - min_loss):.2e} = {max_loss:.3e} - {min_loss:.3e}] and Loss (cm^-1)", 
-                                    color=["black", "red"], h=2, marker=None, twinx=True),
-                    generate_chart_complex(t_list, shrink_with_max(self.diode_loss_polarization, 1024, self.beam_view_from, self.beam_view_to), "Loss Polarization"),
-                    generate_chart([t_list], 
-                                    [cget(np.exp(- self.cavity_loss) * 
-                                            np.multiply(shrink_with_max(self.diode_gain_value, 1024, self.beam_view_from, self.beam_view_to),
-                                            shrink_with_max(self.diode_loss_value, 1024, self.beam_view_from, self.beam_view_to))).tolist(),
-                                    cget(shrink_with_max(pulse, 1024, self.beam_view_from, self.beam_view_to)).tolist()], [""],
-                                    "Net gain", color=["blue", "red"], h=2, marker=None, twinx=True),
-                    #generate_chart(xVec, yVec, [""], "Gain By Pop", h=4, color=["black", "black", "green", "red"], marker=".", lw=[5, 5, 1, 1]),
-
-                    #Div(self.collectDiodeData(), id="numData"),
+                    # Div(self.collectCommonData(), id="numData"),
 
                     cls="box", style="background-color: #008080;"
                 ),

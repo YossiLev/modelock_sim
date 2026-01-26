@@ -7,9 +7,9 @@
 
 // for linux compilation:
 // if using cuda:
-// nvcc -c -Xcompiler -fPIC ./cfuncs/fft_filter.cu -o ./cfuncs/fft_filter.o
+// nvcc -c -Xcompiler -fPIC ./cfuncs/diode_cavity.cu -o ./cfuncs/diode_cavity.o
 // gcc -c -fPIC -DUSE_FFT_FILTER_CUDA ./cfuncs/diode_actions.c -o ./cfuncs/diode_actions.o 
-// nvcc -shared -o ./cfuncs/libs/libdiode.so ./cfuncs/diode_actions.o ./cfuncs/fft_filter.o -lcufft -lcudart
+// nvcc -shared -o ./cfuncs/libs/libdiode.so ./cfuncs/diode_actions.o ./cfuncs/diode_cavity.o -lcufft -lcudart
 // or without cuda:
 // gcc -shared -o ./cfuncs/libs/libdiode.so -fPIC ./cfuncs/diode_actions.c
 //
@@ -558,7 +558,20 @@ void mb_diode_round_trip(
 }
 
 // maxwell bloch method with gpu function for electric field amplitude
-void mbg_diode_round_trip(
+void mbg_diode_cavity_destroy(DiodeCavityCtx *ctx) {
+    diode_cavity_destroy(ctx);
+}
+void mbg_diode_cavity_prepare(DiodeCavityCtx *ctx);
+void mbg_diode_cavity_run(DiodeCavityCtx *ctx) {
+    if (ctx->d_ctx == NULL) {
+        fprintf(stderr, "Device context not initialized\n");
+        return;
+    }
+    diode_cavity_run(ctx->d_ctx);
+}
+void mbg_diode_cavity_extract(DiodeCavityCtx *ctx);
+
+void mbg_diode_cavity_build(
     int N,                  /* cavity length (beam length) */
     int N_x,                /* spatial size in x (beam width) */
     
@@ -567,28 +580,8 @@ void mbg_diode_round_trip(
     int *diode_type,    /* type of diode component (1=gain, 2=absorber, 0=free space) */
     int *diode_index_1,   /* index mapping from diode component to cavity index (meeting first part of the beam) */
     int *diode_index_2,   /* index mapping from diode component to cavity index (meeting second part of the beam) */
-    /* diode state */
-    double *diode_inversion,          /* inversion current value of each part of the diode  (size diode_length * N_x) */
-    double _Complex *diode_polarization_1, /* polarization value respecting of first part of the beam */
-    double _Complex *diode_polarization_2, /* polarization value respecting of second part of the beam */
-
-    /* diode history */
-    int diode_history_length, /* length of history for diode state */
-    double *diode_history_inverion,        
-    double _Complex *diode_history_polarization_1,
-    double _Complex *diode_history_polarization_2,
-
-    /* diagnostics / outputs (length N) */
-    double *gain_value,     /* optional diagnostics: local gain change fraction */
-    double *loss_value,     /* optional diagnostics: local loss change fraction */
-
-    /* field arrays */
-    double _Complex *pulse_amplitude_init,  /* full-round complex samples array (length N) */
-    double _Complex *pulse_amplitude,       /* full-round complex samples array (length N) */
-    double _Complex *pulse_amplitude_out,   /* output coupler extracted amplitude */
 
     /* simulation control */
-    int n_rounds,          /* number of round trips */
     int loss_shift,       /* index separation so absorber sees pair (i, i+loss_shift) */
     int oc_shift,         /* output coupler shift (in spatial cells) */
     int gain_distance,    /* distance between absorber and gain indices */
@@ -636,16 +629,6 @@ void mbg_diode_round_trip(
     double tGain = Ta_ps * 1E-12, tLoss = Tb_ps * 1E-12;
     double old_intensity;
     int bugs = 0;
-
-        // for (int ii = m_shift; ii < N + m_shift; ii++) {
-        //     int i = ii % N;    
-        //     int oc_loc = (oc_shift + i) % N;
-        //     // if (oc_loc < 10) {
-        //     //     printf("Output coupler at index %d: amp=%f + i%f\n", 
-        //     //         oc_loc, 
-        //     //         creal(pulse_amplitude[oc_loc]), cimag(pulse_amplitude[oc_loc]));
-        //     // }
-        // }
     
     double sigma = noise_prefactor * /*sqrt(fmax(0.0, gainN[i])) **/ sqrt(dt);
 
@@ -664,16 +647,11 @@ void mbg_diode_round_trip(
     ctx.coupling_out_gain = coupling_out_gain;
     cuDoubleComplex I1;
 
-    int diode_length; // number of diode total components
-    int *diode_type; // type of diode component (1=gain, 2=absorber)
-    int *diode_pos_1; // position index of each diode component at the left to right beam direction
-    int *diode_pos_2; // position index of each diode component at the right to left beam direction
-
     double *diode_N0; // equilibrium inversion for each diode component (unified for both directions, size diode_length * N_x)
     cuDoubleComplex *diode_P_dir_1; // polarization for each diode component, left to right direction (size diode_length * N_x)
     cuDoubleComplex *diode_P_dir_2; // polarization for each diode component, right to left direction (size diode_length * N_x)
 
-    ctx.amplitude = pulse_amplitude;
+    //ctx.amplitude = pulse_amplitude;
 
     double left_linear_cavity[4]; // ABCD matrix elements for left linear cavity section
     double right_linear_cavity[4]; // ABCD matrix elements for right linear cavity section

@@ -9,10 +9,13 @@
 extern "C" {
 #endif
 
-typedef struct {
+typedef struct _DiodeCavityCtx {
     int n_cavity_bits; // log base 2 of size of cavity
     int n_x_bits; // log base 2 of size of transverse dimension
     int n_rounds; // number of round trips per call
+    int target_slice_lenghth;
+    int target_slice_start;
+    int target_slice_end;
 
     int N; // number of spatial cells in cavity (2^n_cavity_bits)
     int N_x; // number of transverse cells (2^n_x_bits)
@@ -44,14 +47,17 @@ typedef struct {
     double left_linear_cavity[4]; // ABCD matrix elements for left linear cavity section
     double right_linear_cavity[4]; // ABCD matrix elements for right linear cavity section
 
-    DiodeCavityCtx *d_ctx; // device context pointer
+    struct _DiodeCavityCtx *d_ctx; // device context pointer
 } DiodeCavityCtx;
 
 // Initialize context
-int diode_cavity_init(DiodeCavityCtx *ctx, int N, int cutoff);
+int diode_cavity_build(DiodeCavityCtx *ctx_host);
 
-// Run one FFT-filter-IFFT on given array
-int diode_cavity_run(DiodeCavityCtx *ctx, double _Complex *arr);
+int diode_cavity_prepare(DiodeCavityCtx *ctx_host);
+
+int diode_cavity_run(DiodeCavityCtx *ctx_host);
+
+int diode_cavity_extract(DiodeCavityCtx *ctx_host);
 
 // Cleanup
 void diode_cavity_destroy(DiodeCavityCtx *ctx);

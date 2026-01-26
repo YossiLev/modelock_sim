@@ -9,6 +9,35 @@
 extern "C" {
 #endif
 
+typedef struct _DiodeParams {
+    int n_cavity_bits; // log base 2 of size of cavity
+    int n_x_bits; // log base 2 of size of transverse dimension
+    int n_rounds; // number of round trips per call
+    int target_slice_lenghth;
+    int target_slice_start;
+    int target_slice_end;
+
+    int N; // number of spatial cells in cavity (2^n_cavity_bits)
+    int N_x; // number of transverse cells (2^n_x_bits)
+    int diode_length; // number of diode total components
+
+    double dt;
+    double tGain;
+    double tLoss;
+    double C_gain;
+    double C_loss;
+    double N0b;
+    double Pa;
+    double kappa;
+    double alpha;
+    double one_minus_alpha_div_a;
+    double coupling_out_gain;
+
+    double left_linear_cavity[4]; // ABCD matrix elements for left linear cavity section
+    double right_linear_cavity[4]; // ABCD matrix elements for right linear cavity section
+
+} DiodeParams;
+
 typedef struct _DiodeCavityCtx {
     int n_cavity_bits; // log base 2 of size of cavity
     int n_x_bits; // log base 2 of size of transverse dimension

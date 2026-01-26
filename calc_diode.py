@@ -14,178 +14,7 @@ import numpy as np
 from fasthtml.common import *
 from controls import *
 from calc_common import *
-from cffi import FFI
-ffi = FFI()
-
-lib_suffix = {
-    "Linux": "so",
-    "Darwin": "dylib",
-    "Windows": "dll"
-}.get(platform.system(), "so") 
-
-lib_diode = ctypes.CDLL(os.path.abspath(f"./cfuncs/libs/libdiode.{lib_suffix}"))
-
-lib_diode.diode_gain.argtypes = [
-    ctypes.POINTER(ctypes.c_double), 
-    ctypes.POINTER(ctypes.c_double), 
-    ctypes.POINTER(ctypes.c_double),
-    ctypes.POINTER(ctypes.c_double),
-    ctypes.c_int,
-    ctypes.c_double, 
-    ctypes.c_double, 
-    ctypes.c_double, 
-    ctypes.c_double,
-    ctypes.c_double
-]
-lib_diode.diode_gain.restype = None
-
-lib_diode.diode_loss.argtypes = [
-    ctypes.POINTER(ctypes.c_double), 
-    ctypes.POINTER(ctypes.c_double), 
-    ctypes.POINTER(ctypes.c_double),
-    ctypes.c_int,
-    ctypes.c_double, 
-    ctypes.c_double, 
-    ctypes.c_double, 
-    ctypes.c_double,
-    ctypes.c_double
-]
-lib_diode.diode_loss.restype = None
-
-lib_diode.cmp_diode_gain.argtypes = [
-    ctypes.POINTER(ctypes.c_double), 
-    ctypes.POINTER(ctypes.c_double), 
-    ctypes.POINTER(ctypes.c_double),
-    ctypes.POINTER(ctypes.c_double),
-    ctypes.c_int,
-    ctypes.c_double, 
-    ctypes.c_double, 
-    ctypes.c_double, 
-    ctypes.c_double,
-    ctypes.c_double
-]
-lib_diode.cmp_diode_gain.restype = None
-
-lib_diode.cmp_diode_loss.argtypes = [
-    ctypes.POINTER(ctypes.c_double), 
-    ctypes.POINTER(ctypes.c_double), 
-    ctypes.POINTER(ctypes.c_double),
-    ctypes.c_int,
-    ctypes.c_double, 
-    ctypes.c_double, 
-    ctypes.c_double, 
-    ctypes.c_double,
-    ctypes.c_double
-]
-lib_diode.cmp_diode_loss.restype = None
-
-lib_diode.diode_round_trip.argtypes = [
-    ctypes.POINTER(ctypes.c_double), 
-    ctypes.POINTER(ctypes.c_double), 
-    ctypes.POINTER(ctypes.c_double),
-    ctypes.POINTER(ctypes.c_double),
-    ctypes.POINTER(ctypes.c_double),
-    ctypes.POINTER(ctypes.c_double),
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double
-]
-lib_diode.diode_round_trip.restype = None
-
-lib_diode.cmp_diode_round_trip.argtypes = [
-    ctypes.POINTER(ctypes.c_double), 
-    ctypes.POINTER(ctypes.c_double), 
-    ctypes.POINTER(ctypes.c_double),
-    ctypes.POINTER(ctypes.c_double),
-    ctypes.POINTER(ctypes.c_double),
-    ctypes.POINTER(ctypes.c_double),
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double
-]
-lib_diode.cmp_diode_round_trip.restype = None
-
-lib_diode.mb_diode_round_trip.argtypes = [
-    ctypes.POINTER(ctypes.c_double), 
-    ctypes.POINTER(ctypes.c_double), 
-    ctypes.POINTER(ctypes.c_double), 
-    ctypes.POINTER(ctypes.c_double), 
-    ctypes.POINTER(ctypes.c_double), 
-    ctypes.POINTER(ctypes.c_double),
-    ctypes.POINTER(ctypes.c_double),
-    ctypes.POINTER(ctypes.c_double),
-    ctypes.POINTER(ctypes.c_double),
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double
-]
-lib_diode.mb_diode_round_trip.restype = None
-
-
-# ---------------------------
-
-mbg_diode_cavity_destroy = lib_diode.mbg_diode_cavity_destroy
-mbg_diode_cavity_destroy.argtypes = [ctypes.c_void_p]
-mbg_diode_cavity_destroy.restype = None
-
-# mbg_diode_cavity_build = lib_diode.mbg_diode_cavity_build
-# mbg_diode_cavity_build.argtypes = [ctypes.c_void_p]
-# mbg_diode_cavity_build.restype = ctypes.c_void_p
-
-# mbg_diode_cavity_prepare = lib_diode.mbg_diode_cavity_prepare
-# mbg_diode_cavity_prepare.argtypes = [ctypes.c_void_p]
-# mbg_diode_cavity_prepare.restype = ctypes.c_int
-
-# mbg_diode_cavity_run = lib_diode.mbg_diode_cavity_run
-# mbg_diode_cavity_run.argtypes = [ctypes.c_void_p]
-# mbg_diode_cavity_run.restype = ctypes.c_int
-
-# mbg_diode_cavity_extract = lib_diode.mbg_diode_cavity_extract
-# mbg_diode_cavity_extract.argtypes = [ctypes.c_void_p]
-# mbg_diode_cavity_extract.restype = ctypes.c_int
+from calc_diode_capi import *
 
 def gain_function(Ga, N):
     xh1 = Ga * 4468377122.5 * 0.46 * 16.5
@@ -289,6 +118,34 @@ class diode_calc(CalcCommonBeam):
     def mm_to_unit_shift(self, mm):
         shift = int(mm / 1E+03 / (self.beam_dt * 3E+08))
         return shift
+    
+    def pack_diode_params(self):
+        params = DiodeParams()
+        params.n_cavity_bits = int(np.log2(self.beam_N))
+        params.n_x_bits = int(np.log2(self.beam_N))
+        params.n_rounds = self.calculation_rounds
+        params.target_slice_length = self.beam_N
+        params.target_slice_start = 0
+        params.target_slice_end = self.beam_N
+        params.N = self.beam_N
+        params.N_x = self.beam_N
+        params.diode_length = 2
+        params.dt = self.beam_dt
+        params.tGain = self.Ta * 1E-12
+        params.tLoss = self.Tb * 1E-12
+        params.C_gain = self.C_gain
+        params.C_loss = self.C_loss
+        params.N0b = self.N0b
+        params.Pa = self.Pa
+        params.kappa = self.kappa
+        params.alpha = self.h
+        params.one_minus_alpha_div_a = (1.0 - self.h) / self.Ga
+        params.coupling_out_gain = self.coupling_out_gain
+        params.left_linear_cavity = (ctypes.c_double * 4)(*[self.left_arm_mat[0][0], self.left_arm_mat[0][1],
+                                                            self.left_arm_mat[1][0], self.left_arm_mat[1][1]])
+        params.right_linear_cavity = (ctypes.c_double * 4)(*[self.right_arm_mat[0][0], self.right_arm_mat[0][1],
+                                                             self.right_arm_mat[1][0], self.right_arm_mat[1][1]])
+        return params
 
     def doCalcCommand(self, params):
         if super().doCalcCommand(params) == 1:
@@ -385,7 +242,7 @@ class diode_calc(CalcCommonBeam):
                 if (self.diode_mode == "MBGPU"):
                     if self.gpu_memory_exists:
                         mbg_diode_cavity_destroy(self.gpu_memory)
-                    self.gpu_memory = mbg_diode_cavity_build(self.gpu_memory)
+                    self.gpu_memory = mbg_diode_cavity_build(self.pack_diode_params())
                     self.gpu_memory_exists = True
 
                 self.keep_current_run_parameters([self.beam_sampling, self.beam_sampling_x, self.diode_mode])
@@ -456,6 +313,9 @@ class diode_calc(CalcCommonBeam):
         self.diode_accum_pulse_after = np.add.accumulate(intens(self.diode_pulse_after)) * self.beam_dt * self.volume
 
     def diode_round_trip_wide(self):
+
+        mbg_diode_cavity_prepare(ctypes.byref(self.pack_diode_params()), self.gpu_memory)
+        mbg_diode_cavity_run(self.gpu_memory)
 
         self.oc_val = np.exp(- self.cavity_loss)
         self.diode_pulse_after = np.copy(self.diode_pulse)

@@ -571,94 +571,26 @@ void mbg_diode_cavity_run(DiodeCavityCtx *ctx) {
 }
 void mbg_diode_cavity_extract(DiodeCavityCtx *ctx);
 
-void mbg_diode_cavity_build(
-    int N,                  /* cavity length (beam length) */
-    int N_x,                /* spatial size in x (beam width) */
-    
-    /* diode configuration */
-    int diode_length,      /* number of diode total components */
-    int *diode_type,    /* type of diode component (1=gain, 2=absorber, 0=free space) */
-    int *diode_index_1,   /* index mapping from diode component to cavity index (meeting first part of the beam) */
-    int *diode_index_2,   /* index mapping from diode component to cavity index (meeting second part of the beam) */
+void mbg_diode_cavity_build(DiodeParams *params) {
 
-    /* simulation control */
-    int loss_shift,       /* index separation so absorber sees pair (i, i+loss_shift) */
-    int oc_shift,         /* output coupler shift (in spatial cells) */
-    int gain_distance,    /* distance between absorber and gain indices */
-
-    /* physical & numeric parameters */
-    double dt,            /* time step (s) */
-    double gainWidth_THz, /* gain linewidth in THz (converted to rad/s inside) */
-    double Pa,            /* pump amplitude A */
-    double Ta_ps,        /* pump duration A */
-    double Ga,            /* intrinsic polarization decay for gain (rad/s) or use gainWidth_THz */
-    double N0a,           /* initial inversion A */
-    double Pb,            /* pump amplitude B */
-    double Tb_ps,        /* pump duration B */
-    double Gb,            /* gain coefficient B */
-    double N0b,           /* initial inversion B */
-    double oc_val,         /* output coupler reflectivity */
-    double rand_factor_seed,
-    double kappa,
-    double C_loss,
-    double C_gain,
-    double coupling_out_loss,
-    double coupling_out_gain
-) {  
-    double gAbs;
-
-    double rand_factor = rand_factor_seed * dt / (Ta_ps * 1E-12)  / (double)RAND_MAX;
-    double oc_val_sqrt = sqrt(oc_val); // output coupler retention amplitude factor
-    double oc_out_val = sqrt(1.0 - oc_val); // output coupler output amplitude factor
-    double omega0 = 0.0; // transition frequency, set to zero for simplicity
-    double Gamma =  gainWidth_THz * 2.0 * 3.14159 * 1E12; // gain width is given in THz, convert to rad/s
-
-    double _Complex a = (Gamma + I * omega0);
-    double _Complex alpha = cexp(-a * dt);
-    double _Complex one_minus_alpha = 1.0 + 0.0*I - alpha; /* (1 - alpha) */
-    double _Complex one_minus_alpha_div_a = one_minus_alpha / a; /* (1 - alpha) / a */
-
-    /* noise prefactor: tune to your units */
-    const double noise_prefactor = rand_factor;
-
-    int idx_gain_a, idx_gain_b, idx_loss_a, idx_loss_b;
-    double _Complex amplitude_gain, amplitude_loss;
-    double _Complex averageP, drive;
-    double _Complex delta_gain, delta_loss;
-    double exchange, I_tot;
-    double tGain = Ta_ps * 1E-12, tLoss = Tb_ps * 1E-12;
-    double old_intensity;
-    int bugs = 0;
-    
-    double sigma = noise_prefactor * /*sqrt(fmax(0.0, gainN[i])) **/ sqrt(dt);
 
     DiodeCavityCtx ctx;
 
-    ctx.dt = dt;
-    ctx.tGain = tGain;
-    ctx.tLoss = tLoss;
-    ctx.C_gain = C_gain;
-    ctx.C_loss = C_loss;
-    ctx.N0b = N0b;
-    ctx.Pa = Pa;
-    ctx.kappa = kappa;
-    ctx.alpha = alpha;
-    ctx.one_minus_alpha_div_a = one_minus_alpha_div_a;
-    ctx.coupling_out_gain = coupling_out_gain;
-    cuDoubleComplex I1;
-
-    double *diode_N0; // equilibrium inversion for each diode component (unified for both directions, size diode_length * N_x)
-    cuDoubleComplex *diode_P_dir_1; // polarization for each diode component, left to right direction (size diode_length * N_x)
-    cuDoubleComplex *diode_P_dir_2; // polarization for each diode component, right to left direction (size diode_length * N_x)
-
-    //ctx.amplitude = pulse_amplitude;
-
-    double left_linear_cavity[4]; // ABCD matrix elements for left linear cavity section
-    double right_linear_cavity[4]; // ABCD matrix elements for right linear cavity section
+    ctx.dt = params->dt;
+    ctx.tGain = params->tGain;
+    ctx.tLoss = params->tLoss;
+    ctx.C_gain = params->C_gain;
+    ctx.C_loss = params->C_loss;
+    ctx.N0b = params->N0b;
+    ctx.Pa = params->Pa;
+    ctx.kappa = params->kappa;
+    ctx.alpha = params->alpha;
+    ctx.one_minus_alpha_div_a = params->one_minus_alpha_div_a;
+    ctx.coupling_out_gain = params->coupling_out_gain;
+    memcpy(ctx.left_linear_cavity, params->left_linear_cavity, sizeof(ctx.left_linear_cavity));
+    memcpy(ctx.right_linear_cavity, params->right_linear_cavity, sizeof(ctx.right_linear_cavity));
 
     DiodeCavityCtx *d_ctx; // device context pointer
-
-
 }
 
 /*

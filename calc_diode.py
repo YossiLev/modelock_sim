@@ -99,12 +99,15 @@ class diode_calc(CalcCommonBeam):
         self.diode_pulse_after = np.array([], dtype=self.diode_pulse_dtype)
         self.diode_accum_pulse = []
         self.diode_accum_pulse_after = []
+
         self.diode_gain = np.array([1], dtype=np.float64)
         self.diode_loss = np.array([1], dtype=np.float64)
         self.diode_gain_polarization = np.array([1], dtype=np.complex128)
         self.diode_loss_polarization = np.array([1], dtype=np.complex128)
         self.diode_gain_value = np.array([1], dtype=np.float64)
         self.diode_loss_value = np.array([1], dtype=np.float64)
+        self.ext_beam_in = np.array([1], dtype=np.complex128)
+        self.ext_beam_out = np.array([1], dtype=np.complex128)
 
         # diode summary parameters
         self.summary_photons_before = 0.0
@@ -124,12 +127,17 @@ class diode_calc(CalcCommonBeam):
         params.n_cavity_bits = int(np.log2(self.beam_N))
         params.n_x_bits = int(np.log2(self.beam_N))
         params.n_rounds = self.calculation_rounds
-        params.target_slice_length = self.beam_N
+        params.target_slice_length = 1024
         params.target_slice_start = 0
         params.target_slice_end = self.beam_N
         params.N = self.beam_N
         params.N_x = self.beam_N
+        params.beam_init_type = ["Pulse", "Noise", "CW", "Flat"].index(self.diode_intensity)
+        params.beam_init_parameter = self.diode_pulse_width
         params.diode_length = 2
+        params.gain_position = (ctypes.c_double * 4)(*[self.gain_position[0], self.gain_position[1], self.gain_position[2], self.gain_position[3]])
+        params.loss_position = (ctypes.c_double * 4)(*[self.loss_position[0], self.loss_position[1], self.loss_position[2], self.loss_position[3]])
+        params.output_coupler_position = self.output_coupler_position
         params.dt = self.beam_dt
         params.tGain = self.Ta * 1E-12
         params.tLoss = self.Tb * 1E-12
@@ -145,6 +153,10 @@ class diode_calc(CalcCommonBeam):
                                                             self.left_arm_mat[1][0], self.left_arm_mat[1][1]])
         params.right_linear_cavity = (ctypes.c_double * 4)(*[self.right_arm_mat[0][0], self.right_arm_mat[0][1],
                                                              self.right_arm_mat[1][0], self.right_arm_mat[1][1]])
+        params.ext_len = self.ext_beam_in.shape[0]  
+        params.ext_beam_in = self.ext_beam_in.ctypes.data_as(ctypes.POINTER(CComplex))
+        params.ext_beam_out = self.ext_beam_out.ctypes.data_as(ctypes.POINTER(CComplex))
+        
         return params
 
     def doCalcCommand(self, params):
@@ -240,6 +252,8 @@ class diode_calc(CalcCommonBeam):
                     self.diode_pulse = np.full_like(self.diode_t_list, 0.0 + 0.0j,dtype=np.complex128)
 
                 if (self.diode_mode == "MBGPU"):
+                    self.ext_beam_in = np.empty((self.target_slice_length,), dtype=np.complex128)
+                    self.ext_beam_out = np.empty((self.target_slice_length,), dtype=np.complex128)
                     if self.gpu_memory_exists:
                         mbg_diode_cavity_destroy(self.gpu_memory)
                     self.gpu_memory = mbg_diode_cavity_build(self.pack_diode_params())
@@ -316,53 +330,10 @@ class diode_calc(CalcCommonBeam):
 
         mbg_diode_cavity_prepare(ctypes.byref(self.pack_diode_params()), self.gpu_memory)
         mbg_diode_cavity_run(self.gpu_memory)
-    
+        mbg_diode_cavity_extract(ctypes.byref(self.pack_diode_params()), self.gpu_memory)
 
-        # self.oc_val = np.exp(- self.cavity_loss)
-        # self.diode_pulse_after = np.copy(self.diode_pulse)
-        # self.diode_pulse_save = np.copy(self.diode_pulse)
-
-        # c_pulse = self.diode_pulse.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-        # c_pulse_init = self.diode_pulse_init.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-        # # for ii in range(990, 1010):
-        # #     print(f"diode_pulse_init: pulse[{ii}] = ({self.diode_pulse_init[ii].real}, {self.diode_pulse_init[ii].imag})")
-        # c_gain = self.diode_gain.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-        # c_gain_polarization = self.diode_gain_polarization.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-        # c_gain_value = self.diode_gain_value.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-        # c_loss = self.diode_loss.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-        # c_loss_polarization = self.diode_loss_polarization.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-        # c_loss_value = self.diode_loss_value.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-        # c_pulse_after = self.diode_pulse_after.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-
-        # print(f"diode_round_trip_new: diode_mode={self.diode_mode} diode_pulse_dtype={self.diode_pulse_dtype}")
-        # if self.diode_mode == "MB":
-        #     round_trip_func = lib_diode.mb_diode_round_trip
-        #     round_trip_func(c_gain, c_gain_polarization, c_loss, c_loss_polarization, c_gain_value, c_loss_value,
-        #                     c_pulse_init, c_pulse, c_pulse_after,
-        #                     self.calculation_rounds, self.beam_N, self.loss_shift, self.oc_shift, self.gain_distance,
-        #                     self.beam_dt, self.gain_width, self.Pa, self.Ta, self.Ga, self.N0a, self.Pb, self.Tb, self.Gb, self.N0b, self.oc_val,
-        #                     self.rand_factor_seed, self.kappa, self.C_loss, self.C_gain, self.coupling_out_loss, self.coupling_out_gain)
-        #     print("MB round trip done")
-        #     k = 0
-        #     for i in range(self.diode_pulse_after.shape[0]):
-        #         if np.isnan(self.diode_pulse_after[i].real) or np.isnan(self.diode_pulse_after[i].imag):
-        #             k = k + 1
-        #             print(f"NAN index {i}: val=({self.diode_pulse_after[i].real}, {self.diode_pulse_after[i].imag})\n")
-        #         if k > 100:
-        #             break
-        #     self.diode_accum_pulse_after = np.add.accumulate(intens(self.diode_pulse_after)) * self.beam_dt * self.volume
-
-        #     print("MB accumulation done")
-        #     return
+        return
         
-        # round_trip_func = lib_diode.cmp_diode_round_trip if self.diode_pulse_dtype == np.complex128 else lib_diode.diode_round_trip
-
-        # round_trip_func(c_gain, c_loss, c_gain_value, c_loss_value,
-        #                 c_pulse, c_pulse_after,
-        #                 self.calculation_rounds, self.beam_N, self.loss_shift, self.oc_shift, self.gain_distance,
-        #                 self.beam_dt, self.gain_width, self.Pa, self.Ta, self.Ga, self.Pb, self.Tb, self.Gb, self.N0b, self.oc_val)
-
-        # self.diode_accum_pulse_after = np.add.accumulate(intens(self.diode_pulse_after)) * self.beam_dt * self.volume
 
     def diode_round_trip_old(self):
 

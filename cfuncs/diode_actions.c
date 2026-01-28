@@ -575,7 +575,18 @@ void mbg_diode_cavity_extract(DiodeCavityCtx *ctx) {
 void mbg_diode_copy_parameters_to_context(DiodeParams *params, DiodeCavityCtx *ctx) {
 
     // copy from parameters (common for python and C) into context structure (common for C and CUDA)
+    ctx->N = params->N;
+    ctx->N_x = params->N_x;
+    ctx->n_rounds = params->n_rounds;
+    ctx->diode_length = params->diode_length;
+    ctx->target_slice_length = params->target_slice_length;
+    ctx->target_slice_start = params->target_slice_start;
+    ctx->target_slice_end = params->target_slice_end;
+
     ctx->dt = params->dt;
+
+    ctx->beam_init_type = params->beam_init_type;
+    
     ctx->tGain = params->tGain;
     ctx->tLoss = params->tLoss;
     ctx->C_gain = params->C_gain;
@@ -586,6 +597,9 @@ void mbg_diode_copy_parameters_to_context(DiodeParams *params, DiodeCavityCtx *c
     ctx->alpha = params->alpha;
     ctx->one_minus_alpha_div_a = params->one_minus_alpha_div_a;
     ctx->coupling_out_gain = params->coupling_out_gain;
+    ctx->ext_len = params->ext_len;
+    ctx->ext_beam_in = params->ext_beam_in;
+    ctx->ext_beam_out = params->ext_beam_out;
     memcpy(ctx->left_linear_cavity, params->left_linear_cavity, sizeof(ctx->left_linear_cavity));
     memcpy(ctx->right_linear_cavity, params->right_linear_cavity, sizeof(ctx->right_linear_cavity));
 }
@@ -601,10 +615,11 @@ void mbg_diode_cavity_build(DiodeParams *params) {
     return ctx;
 }
 
-void mbg_diode_cavity_prepare(DiodeParams *paramsDiodeCavityCtx *ctx) {
+void mbg_diode_cavity_prepare(DiodeParams *params, DiodeCavityCtx *ctx) {
     mbg_diode_copy_parameters_to_context(params, ctx);
     diode_cavity_prepare(ctx);
 }
+
 
 /*
     cufftDoubleComplex *d_data;

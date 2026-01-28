@@ -11,6 +11,8 @@ import ctypes
 import os
 import platform
 from cffi import FFI
+from traitlets import CComplex
+
 ffi = FFI()
 
 lib_suffix = {
@@ -177,8 +179,15 @@ class DiodeParams(ctypes.Structure):
         ("target_slice_end", ctypes.c_int),
         ("N", ctypes.c_int),
         ("N_x", ctypes.c_int),
-        ("diode_length", ctypes.c_int),
+        ("diode_length", ctypes.c_int), # number of locations in the diode (including positions for gain, loss and output coupler
+        ("gain_position", ctypes.c_double * 4), # ranges on beam 1 (ltr) and beam 2 (rtl) of the positions of the gain part of the diode
+        ("loss_position", ctypes.c_double * 4), # ranges on beam 1 (ltr) and beam 2 (rtl) of the positions of the loss part of the diode
+        ("output_coupler_position", ctypes.c_double), #single position on beam for the output coupler
         ("dt", ctypes.c_double),
+
+        ("beam_init_type", ctypes.c_int),
+        ("beam_init_parameter", ctypes.c_double),
+
         ("tGain", ctypes.c_double),
         ("tLoss", ctypes.c_double),
         ("C_gain", ctypes.c_double),
@@ -189,9 +198,12 @@ class DiodeParams(ctypes.Structure):
         ("alpha", ctypes.c_double), 
         ("one_minus_alpha_div_a", ctypes.c_double),
         ("coupling_out_gain", ctypes.c_double),
-        ("I1", ctypes.c_double),
         ("left_linear_cavity", ctypes.c_double * 4),
         ("right_linear_cavity", ctypes.c_double * 4),
+
+        ("ext_len", ctypes.c_int),
+        ("ext_beam_in", ctypes.POINTER(CComplex)),
+        ("ext_beam_out", ctypes.POINTER(CComplex)),
     ]
 
 mbg_diode_cavity_build = lib_diode.mbg_diode_cavity_build

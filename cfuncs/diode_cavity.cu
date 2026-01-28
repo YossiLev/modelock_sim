@@ -17,20 +17,64 @@
 
 __host__ __device__
 inline cuDoubleComplex cmul_real(double a, cuDoubleComplex z) {
-    return make_cuDoubleComplex(a * z.x, a * z.y);
+    return make_cuDoubleComplex(a * z.x, a * z.y);w
 }
 __host__ __device__
 inline cuDoubleComplex cneg(cuDoubleComplex z) {
     return make_cuDoubleComplex(-z.x, -z.y);
 }
 
-__global__ void diode_cavity_round_trip_kernel(DiodeCavityCtx *data, int offset) {
+__global__ void diode_cavity_extract_kernel(DiodeCavityCtx *data, double factor) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int io = (lround(i * factor) + data->target_slice_start) * data->N_x + data->N_x / 2;
+    data->ext_beam_in[i] = data->amplitude[io];
+    data->ext_beam_out[i] = data->amplitude_out[io];
+}
+
+__global__ void diode_cavity_round_trip_kernel(DiodeCavityCtx *data, int offset, int mode) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
 
     /* position on the left and right beams*/
     int index_1 = ((data->diode_pos_1[i] + offset) % data->N) * data->N_x + threadIdx.x;
     int index_2 = ((data->diode_pos_2[i] + offset) % data->N) * data->N_x + threadIdx.x;
 
+    cuDoubleComplex *__restrict__ pE1 = data->amplitude;
+    cuDoubleComplex E1 = pE1[index_1];
+    cuDoubleComplex *__restrict__ pE2 = data->amplitude;
+    cuDoubleComplex E2 = pE2[index_2];
+    if (data->diode_type[blockIdx.x] == 3 /* output coupler and initializer */) {
+        if (mode == 1 /* first round trip */) {
+            /* initialize the beam according to the selected type */
+            if (data->beam_init_type == 0 /* pulse */) {
+                double pulseWidth = data->beam_init_parameter;
+                double x = offset;
+                double pulseVal = exp(-((x - data->N / 2) * (x - data->N / 2) / (2 * pulseWidth * pulseWidth)));
+                E1 = make_cuDoubleComplex(pulseVal, 0.0);
+                //E2 = make_cuDoubleComplex(pulseVal, 0.0);
+            } else if (data->beam_init_type == 1 /* noise */) {
+                double noise_amplitude = data->beam_init_parameter;
+                double real_part = noise_amplitude * (2.0 * ((double)rand() / RAND_MAX) - 1.0);
+                double imag_part = noise_amplitude * (2.0 * ((double)rand() / RAND_MAX) - 1.0);
+                E1 = make_cuDoubleComplex(real_part, imag_part);
+                //E2 = make_cuDoubleComplex(real_part, imag_part);
+            } else if (data->beam_init_type == 2 /* cw */) {
+                double cw_amplitude = data->beam_init_parameter;
+                E1 = make_cuDoubleComplex(cw_amplitude, 0.0);
+                //E2 = make_cuDoubleComplex(cw_amplitude, 0.0);
+            } else if (data->beam_init_type == 3 /* flat */) {
+                double flat_amplitude = data->beam_init_parameter;
+                E1 = make_cuDoubleComplex(flat_amplitude, 0.0);
+                //E2 = make_cuDoubleComplex(flat_amplitude, 0.0);
+            }
+            pE1[index_1] = E1;
+            //pE2[index_2] = E2;
+        }
+        if (mode == 3 /* last round trip */) {
+            /* copy to outside of the cavity */
+            data->amplitude_out[threadIdx.x] = E1;
+        }
+        return;
+    }
     /* access arrays with restrict pointers */
     double *__restrict__ pN0 = data->diode_N0;
     double N0 = pN0[i];
@@ -38,15 +82,12 @@ __global__ void diode_cavity_round_trip_kernel(DiodeCavityCtx *data, int offset)
     cuDoubleComplex *__restrict__ pP2 = data->diode_P_dir_2;
     cuDoubleComplex P1 = pP1[i];
     cuDoubleComplex P2 = pP2[i];
-    cuDoubleComplex *__restrict__ pE1 = data->amplitude;
-    cuDoubleComplex E1 = pE1[index_1];
-    cuDoubleComplex *__restrict__ pE2 = data->amplitude;
-    cuDoubleComplex E2 = pE2[index_2];
+    cuDoubleComplex I1 = make_cuDoubleComplex(0.0, 1.0);
 
     /* ------ the P update equation */
-    cuDoubleComplex drive = cuCmul(data->I1, cmul_real(data->one_minus_alpha_div_a * data->kappa * N0, E1));
+    cuDoubleComplex drive = cuCmul(I1, cmul_real(data->one_minus_alpha_div_a * data->kappa * N0, E1));
     P1 = cuCsub(cmul_real(data->alpha, P1), drive);
-    drive = cuCmul(data->I1, cmul_real(data->one_minus_alpha_div_a * data->kappa * N0, E2));
+    drive = cuCmul(I1, cmul_real(data->one_minus_alpha_div_a * data->kappa * N0, E2));
     P2 = cuCsub(cmul_real(data->alpha, P2), drive);
 
     /* ------ the N update equation */
@@ -59,8 +100,8 @@ __global__ void diode_cavity_round_trip_kernel(DiodeCavityCtx *data, int offset)
     }
 
     /* ------ the E update equation */
-    pE1[index_1] = cuCadd(pE1[index_1], cmul_real(data->dt * data->coupling_out_gain , cuCmul(data->I1, P1)));
-    pE2[index_2] = cuCadd(pE2[index_2], cmul_real(data->dt * data->coupling_out_gain , cuCmul(data->I1, P2)));
+    pE1[index_1] = cuCadd(pE1[index_1], cmul_real(data->dt * data->coupling_out_gain , cuCmul(I1, P1)));
+    pE2[index_2] = cuCadd(pE2[index_2], cmul_real(data->dt * data->coupling_out_gain , cuCmul(I1, P2)));
 
     /* store back updated values */
     pN0[i] = N0;
@@ -101,6 +142,14 @@ int diode_cavity_build(DiodeCavityCtx *ctx_host) {
     cuAllocZero((void **)&ctx_local.diode_P_dir_1, sizeof(cuDoubleComplex) * ctx_host->diode_length * ctx_host->N_x); /* polarization for left to right beam*/
     cuAllocZero((void **)&ctx_local.diode_P_dir_2, sizeof(cuDoubleComplex) * ctx_host->diode_length * ctx_host->N_x); /* polarization for right to left beam*/ 
     cuAllocZero((void **)&ctx_local.amplitude, sizeof(cuDoubleComplex) * ctx_host->N * ctx_host->N_x); /* beam amplitude values */
+    cuAllocZero((void **)&ctx_local.amplitude_out, sizeof(cuDoubleComplex) * ctx_host->N * ctx_host->N_x); /* beam amplitude as it comes out of the cavity */
+
+    /* allocate cuda arrays for returning data from cuda to C */
+    CHECK_CUDA(cudaMalloc(&ctx_local.ext_beam_in, sizeof(cuDoubleComplex) * ctx_host->ext_len));
+    CHECK_CUDA(cudaMalloc(&ctx_local.ext_beam_out, sizeof(cuDoubleComplex) * ctx_host->ext_len));
+    //CHECK_CUDA(cudaMalloc(&ctx_local.diode_pos_1, sizeof(cuDoubleComplex) * ctx_host->target_slice_length)); /* position index for left to right beam*/
+    //CHECK_CUDA(cudaMalloc(&ctx_local.diode_pos_2, sizeof(cuDoubleComplex) * ctx_host->target_slice_length)); /* position index for right to left beam*/
+
 
     /* copy ctx_local to device */
     DiodeCavityCtx *ctx_cuda = NULL;
@@ -136,23 +185,18 @@ int diode_cavity_prepare(DiodeCavityCtx *ctx_host) {
 
 int diode_cavity_extract(DiodeCavityCtx *ctx_host) {
     DiodeCavityCtx ctx_local; 
-    memcpy(&ctx_local, ctx_host, sizeof(DiodeCavityCtx));
-
     DiodeCavityCtx *ctx_cuda = ctx_host->d_ctx;
 
+    int threads = ctx_host->ext_len / 32;
+    double factor = (double)(ctx_host->target_slice_end - ctx_host->target_slice_start) / (double)(ctx_host->ext_len);
+
+    diode_cavity_extract_kernel<<<32, threads>>>(ctx_host->d_ctx, factor);
+
     /* collect the existing pointers from the device*/
-    CHECK_CUDA(cudaMemcpy(&ctx_host, ctx_cuda, sizeof(DiodeCavityCtx), cudaMemcpyDeviceToHost));
-    /* copy the pointers from the device */
-    ctx_local.diode_type = ctx_help.diode_type;
-    ctx_local.diode_pos_1 = ctx_help.diode_pos_1;
-    ctx_local.diode_pos_2 = ctx_help.diode_pos_2;
-    ctx_local.diode_N0 = ctx_help.diode_N0;
-    ctx_local.diode_P_dir_1 = ctx_help.diode_P_dir_1;
-    ctx_local.diode_P_dir_2 = ctx_help.diode_P_dir_2;
-    ctx_local.amplitude = ctx_help.amplitude;
-    ctx_local.d_ctx = NULL;
+    CHECK_CUDA(cudaMemcpy(&ctx_local, ctx_cuda, sizeof(DiodeCavityCtx), cudaMemcpyDeviceToHost));
     /* copy ctx_local to device so that new parameters are used but old buffers are preserved */
-    CHECK_CUDA(cudaMemcpy(ctx_cuda, &ctx_local, sizeof(DiodeCavityCtx), cudaMemcpyHostToDevice));
+    CHECK_CUDA(cudaMemcpy(ctx_host->ext_beam_in, ctx_local.ext_beam_in, sizeof(cuDoubleComplex) * ctx_host->ext_len, cudaMemcpyDeviceToDevice));
+    CHECK_CUDA(cudaMemcpy(ctx_host->ext_beam_out, ctx_local.ext_beam_out, sizeof(cuDoubleComplex) * ctx_host->ext_len, cudaMemcpyDeviceToDevice));
 
     return 0;
 }
@@ -163,13 +207,19 @@ int diode_cavity_run(DiodeCavityCtx *ctx_host) {
     DiodeCavityCtx *ctx = ctx_host->d_ctx;
 
     /* perform n_rounds of cavity round trips */
+    int mode = 1; // marking first round trip
     for (int i_round = 0; i_round < ctx->n_rounds; i_round++) {
         /* perform one round trip */
+        if (i_round == ctx->n_rounds - 1) {
+            mode = 3; // marking last round trips
+        } else {
+            mode = 2; // marking middle round trips 
+        }
         for (int offset = 0; offset < ctx->N_x; offset++) {
             // Call the CUDA kernel to process a single step in ther round trip
             int threads = ctx->N_x;
             int blocks = ctx->diode_length;
-            diode_cavity_round_trip_kernel<<<blocks, threads>>>(ctx->d_ctx, offset);
+            diode_cavity_round_trip_kernel<<<blocks, threads>>>(ctx->d_ctx, offset, mode);
             CHECK_CUDA(cudaDeviceSynchronize());
         }
 

@@ -559,35 +559,51 @@ void mb_diode_round_trip(
 
 // maxwell bloch method with gpu function for electric field amplitude
 void mbg_diode_cavity_destroy(DiodeCavityCtx *ctx) {
-    diode_cavity_destroy(ctx);
+    diode_cavity_destroy(ctx->d_ctx);
+    free(ctx);
 }
-void mbg_diode_cavity_prepare(DiodeCavityCtx *ctx);
 void mbg_diode_cavity_run(DiodeCavityCtx *ctx) {
 
-    diode_cavity_run(ctx);
+    diode_cavity_run(ctx->d_ctx);
 }
-void mbg_diode_cavity_extract(DiodeCavityCtx *ctx);
+void mbg_diode_cavity_extract(DiodeCavityCtx *ctx) {
 
+    diode_cavity_extract(ctx);
+
+}
+
+void mbg_diode_copy_parameters_to_context(DiodeParams *params, DiodeCavityCtx *ctx) {
+
+    // copy from parameters (common for python and C) into context structure (common for C and CUDA)
+    ctx->dt = params->dt;
+    ctx->tGain = params->tGain;
+    ctx->tLoss = params->tLoss;
+    ctx->C_gain = params->C_gain;
+    ctx->C_loss = params->C_loss;
+    ctx->N0b = params->N0b;
+    ctx->Pa = params->Pa;
+    ctx->kappa = params->kappa;
+    ctx->alpha = params->alpha;
+    ctx->one_minus_alpha_div_a = params->one_minus_alpha_div_a;
+    ctx->coupling_out_gain = params->coupling_out_gain;
+    memcpy(ctx->left_linear_cavity, params->left_linear_cavity, sizeof(ctx->left_linear_cavity));
+    memcpy(ctx->right_linear_cavity, params->right_linear_cavity, sizeof(ctx->right_linear_cavity));
+}
 void mbg_diode_cavity_build(DiodeParams *params) {
 
+    DiodeCavityCtx *ctx;
+    ctx = malloc(sizeof(DiodeCavityCtx));
 
-    DiodeCavityCtx ctx;
+    mbg_diode_copy_parameters_to_context(params, ctx);
 
-    ctx.dt = params->dt;
-    ctx.tGain = params->tGain;
-    ctx.tLoss = params->tLoss;
-    ctx.C_gain = params->C_gain;
-    ctx.C_loss = params->C_loss;
-    ctx.N0b = params->N0b;
-    ctx.Pa = params->Pa;
-    ctx.kappa = params->kappa;
-    ctx.alpha = params->alpha;
-    ctx.one_minus_alpha_div_a = params->one_minus_alpha_div_a;
-    ctx.coupling_out_gain = params->coupling_out_gain;
-    memcpy(ctx.left_linear_cavity, params->left_linear_cavity, sizeof(ctx.left_linear_cavity));
-    memcpy(ctx.right_linear_cavity, params->right_linear_cavity, sizeof(ctx.right_linear_cavity));
+    diode_cavity_build(ctx);
+    
+    return ctx;
+}
 
-    DiodeCavityCtx *d_ctx; // device context pointer
+void mbg_diode_cavity_prepare(DiodeParams *paramsDiodeCavityCtx *ctx) {
+    mbg_diode_copy_parameters_to_context(params, ctx);
+    diode_cavity_prepare(ctx);
 }
 
 /*

@@ -206,6 +206,6 @@ mbg_diode_cavity_run = lib_diode.mbg_diode_cavity_run
 mbg_diode_cavity_run.argtypes = [ctypes.c_void_p]
 mbg_diode_cavity_run.restype = ctypes.c_int
 
-# mbg_diode_cavity_extract = lib_diode.mbg_diode_cavity_extract
-# mbg_diode_cavity_extract.argtypes = [ctypes.c_void_p]
-# mbg_diode_cavity_extract.restype = ctypes.c_int
+mbg_diode_cavity_extract = lib_diode.mbg_diode_cavity_extract
+mbg_diode_cavity_extract.argtypes = [ctypes.c_void_p]
+mbg_diode_cavity_extract.restype = ctypes.c_int

@@ -84,25 +84,23 @@ int cuAllocValueDouble(double **devPtr, size_t n, double value) {
 
 int diode_cavity_build(DiodeCavityCtx *ctx_host) {
 
-    DiodeCavityCtx ctx_local; 
+    DiodeCavityCtx ctx_local;
     memcpy(&ctx_local, ctx_host, sizeof(DiodeCavityCtx));
     /* first time calling for initialization */
-    /* allocate cuda arrays */
+    /* allocate cuda arrays which are common to C and cuda */
     CHECK_CUDA(cudaMalloc(&ctx_local.diode_type, sizeof(int) * ctx_host->diode_length)); /* type: 1 gain, 2 absorber*/
     CHECK_CUDA(cudaMalloc(&ctx_local.diode_pos_1, sizeof(int) * ctx_host->diode_length)); /* position index for left to right beam*/
     CHECK_CUDA(cudaMalloc(&ctx_local.diode_pos_2, sizeof(int) * ctx_host->diode_length)); /* position index for right to left beam*/
-    cuAllocValueDouble(&ctx_local.diode_N0, ctx_host->diode_length * ctx_host->N_x, 1.0); /* inversion density */
-    cuAllocZero((void **)&ctx_local.diode_P_dir_1, sizeof(cuDoubleComplex) * ctx_host->diode_length * ctx_host->N_x); /* polarization for left to right beam*/
-    cuAllocZero((void **)&ctx_local.diode_P_dir_2, sizeof(cuDoubleComplex) * ctx_host->diode_length * ctx_host->N_x); /* polarization for right to left beam*/ 
-    cuAllocZero((void **)&ctx_local.amplitude, sizeof(cuDoubleComplex) * ctx_host->N * ctx_host->N_x); /* beam amplitude values */
     /* copy host to cuda arrays */
     CHECK_CUDA(cudaMemcpy(ctx_local.diode_type, ctx_host->diode_type, sizeof(int) * ctx_host->diode_length, cudaMemcpyHostToDevice));
     CHECK_CUDA(cudaMemcpy(ctx_local.diode_pos_1, ctx_host->diode_pos_1, sizeof(int) * ctx_host->diode_length, cudaMemcpyHostToDevice));
     CHECK_CUDA(cudaMemcpy(ctx_local.diode_pos_2, ctx_host->diode_pos_2, sizeof(int) * ctx_host->diode_length, cudaMemcpyHostToDevice));
-    // CHECK_CUDA(cudaMemcpy(ctx_local.diode_N0, ctx_host->diode_N0, sizeof(double) * ctx_host->diode_length * ctx_host->N_x, cudaMemcpyHostToDevice));
-    // CHECK_CUDA(cudaMemcpy(ctx_local.diode_P_dir_1, ctx_host->diode_P_dir_1, sizeof(cuDoubleComplex) * ctx_host->diode_length * ctx_host->N_x, cudaMemcpyHostToDevice));
-    // CHECK_CUDA(cudaMemcpy(ctx_local.diode_P_dir_2, ctx_host->diode_P_dir_2, sizeof(cuDoubleComplex) * ctx_host->diode_length * ctx_host->N_x, cudaMemcpyHostToDevice));
-    // CHECK_CUDA(cudaMemcpy(ctx_local.amplitude, ctx_host->amplitude, sizeof(cuDoubleComplex) * ctx_host->N * ctx_host->N_x, cudaMemcpyHostToDevice));
+
+    /* allocate and initialize cuda arrays thart are internal to cuda */
+    cuAllocValueDouble(&ctx_local.diode_N0, ctx_host->diode_length * ctx_host->N_x, 1.0); /* inversion density */
+    cuAllocZero((void **)&ctx_local.diode_P_dir_1, sizeof(cuDoubleComplex) * ctx_host->diode_length * ctx_host->N_x); /* polarization for left to right beam*/
+    cuAllocZero((void **)&ctx_local.diode_P_dir_2, sizeof(cuDoubleComplex) * ctx_host->diode_length * ctx_host->N_x); /* polarization for right to left beam*/ 
+    cuAllocZero((void **)&ctx_local.amplitude, sizeof(cuDoubleComplex) * ctx_host->N * ctx_host->N_x); /* beam amplitude values */
 
     /* copy ctx_local to device */
     DiodeCavityCtx *ctx_cuda = NULL;
@@ -130,6 +128,28 @@ int diode_cavity_prepare(DiodeCavityCtx *ctx_host) {
     ctx_local.diode_P_dir_1 = ctx_help.diode_P_dir_1;
     ctx_local.diode_P_dir_2 = ctx_help.diode_P_dir_2;
     ctx_local.amplitude = ctx_help.amplitude;
+    /* copy ctx_local to device so that new parameters are used but old buffers are preserved */
+    CHECK_CUDA(cudaMemcpy(ctx_cuda, &ctx_local, sizeof(DiodeCavityCtx), cudaMemcpyHostToDevice));
+
+    return 0;
+}
+
+int diode_cavity_extract(DiodeCavityCtx *ctx_host) {
+    DiodeCavityCtx ctx_local; 
+    memcpy(&ctx_local, ctx_host, sizeof(DiodeCavityCtx));
+
+    DiodeCavityCtx *ctx_cuda = ctx_host->d_ctx;
+
+    /* collect the existing pointers from the device*/
+    CHECK_CUDA(cudaMemcpy(&ctx_host, ctx_cuda, sizeof(DiodeCavityCtx), cudaMemcpyDeviceToHost));
+    /* copy the pointers from the device */
+    ctx_local.diode_type = ctx_help.diode_type;
+    ctx_local.diode_pos_1 = ctx_help.diode_pos_1;
+    ctx_local.diode_pos_2 = ctx_help.diode_pos_2;
+    ctx_local.diode_N0 = ctx_help.diode_N0;
+    ctx_local.diode_P_dir_1 = ctx_help.diode_P_dir_1;
+    ctx_local.diode_P_dir_2 = ctx_help.diode_P_dir_2;
+    ctx_local.amplitude = ctx_help.amplitude;
     ctx_local.d_ctx = NULL;
     /* copy ctx_local to device so that new parameters are used but old buffers are preserved */
     CHECK_CUDA(cudaMemcpy(ctx_cuda, &ctx_local, sizeof(DiodeCavityCtx), cudaMemcpyHostToDevice));
@@ -138,7 +158,9 @@ int diode_cavity_prepare(DiodeCavityCtx *ctx_host) {
 }
 
 // Run one Cavity tick
-int diode_cavity_run(DiodeCavityCtx *ctx) {
+int diode_cavity_run(DiodeCavityCtx *ctx_host) {
+
+    DiodeCavityCtx *ctx = ctx_host->d_ctx;
 
     /* perform n_rounds of cavity round trips */
     for (int i_round = 0; i_round < ctx->n_rounds; i_round++) {
@@ -157,15 +179,16 @@ int diode_cavity_run(DiodeCavityCtx *ctx) {
 }
 
 // Cleanup
-void diode_cavity_destroy(DiodeCavityCtx *ctx) {
-    cudaFree(ctx->diode_type);
-    cudaFree(ctx->diode_pos_1);
-    cudaFree(ctx->diode_pos_2);
-    cudaFree(ctx->diode_N0);
-    cudaFree(ctx->diode_P_dir_1);
-    cudaFree(ctx->diode_P_dir_2);
-    cudaFree(ctx->amplitude);
-    cudaFree(ctx->d_ctx);
+void diode_cavity_destroy(DiodeCavityCtx *ctx_host) {
+
+    cudaFree(ctx_host->diode_type);
+    cudaFree(ctx_host->diode_pos_1);
+    cudaFree(ctx_host->diode_pos_2);
+    cudaFree(ctx_host->diode_N0);
+    cudaFree(ctx_host->diode_P_dir_1);
+    cudaFree(ctx_host->diode_P_dir_2);
+    cudaFree(ctx_host->amplitude);
+    cudaFree(ctx_host->d_ctx);
 
 }
 #endif

@@ -1,3 +1,5 @@
+#ifdef USE_CUDA_CODE
+
 #include "diode_cavity.h"
 #ifdef DIODE_CAVITY_H
 #include <stdio.h>
@@ -241,4 +243,6 @@ void diode_cavity_destroy(DiodeCavityCtx *ctx_host) {
     cudaFree(ctx_host->d_ctx);
 
 }
+#endif
+
 #endif

@@ -42,7 +42,7 @@ def Frame_chart(title, *args, **kwargs):
     #return Div(Frame_chart_buttons(title), generate_chart(*args, **kwargs), style="display: flex; flex-direction: row;")
     return generate_chart(*args, **kwargs)
 
-def generate_chart(x, y, l, t, w=11, h=2, color="blue", marker=None, twinx=False, lw=1):
+def generate_chart(x, y, l, t, w=11, h=2, color= ["#0000ff", "#ff0000", "#ff8800", "#aaaa00","#008800", "#ff00ff", "#110011"], marker=None, twinx=False, lw=1):
     fig = plt.figure(figsize=(w, h))
     ax = plt.gca()
     ax.yaxis.set_major_formatter(plt.ScalarFormatter(useOffset=False))

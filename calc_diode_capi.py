@@ -11,7 +11,6 @@ import ctypes
 import os
 import platform
 from cffi import FFI
-from traitlets import CComplex
 
 ffi = FFI()
 
@@ -169,6 +168,12 @@ mbg_diode_cavity_destroy = lib_diode.mbg_diode_cavity_destroy
 mbg_diode_cavity_destroy.argtypes = [ctypes.c_void_p]
 mbg_diode_cavity_destroy.restype = None
 
+class cuDoubleComplex(ctypes.Structure):
+    _fields_ = [
+        ("x", ctypes.c_double),
+        ("y", ctypes.c_double),
+    ]
+
 class DiodeParams(ctypes.Structure):
     _fields_ = [
         ("n_cavity_bits", ctypes.c_int),
@@ -177,16 +182,18 @@ class DiodeParams(ctypes.Structure):
         ("target_slice_length", ctypes.c_int),
         ("target_slice_start", ctypes.c_int),
         ("target_slice_end", ctypes.c_int),
+
         ("N", ctypes.c_int),
         ("N_x", ctypes.c_int),
         ("diode_length", ctypes.c_int), # number of locations in the diode (including positions for gain, loss and output coupler
         ("gain_position", ctypes.c_double * 4), # ranges on beam 1 (ltr) and beam 2 (rtl) of the positions of the gain part of the diode
         ("loss_position", ctypes.c_double * 4), # ranges on beam 1 (ltr) and beam 2 (rtl) of the positions of the loss part of the diode
         ("output_coupler_position", ctypes.c_double), #single position on beam for the output coupler
+
         ("dt", ctypes.c_double),
 
-        ("beam_init_type", ctypes.c_int),
-        ("beam_init_parameter", ctypes.c_double),
+        ("beam_init_type", ctypes.c_int), # time of beam in the cavity at t=0
+        ("beam_init_parameter", ctypes.c_double), #tuning parameter for the initial beam (wifth of pulse, etc)
 
         ("tGain", ctypes.c_double),
         ("tLoss", ctypes.c_double),
@@ -198,13 +205,16 @@ class DiodeParams(ctypes.Structure):
         ("alpha", ctypes.c_double), 
         ("one_minus_alpha_div_a", ctypes.c_double),
         ("coupling_out_gain", ctypes.c_double),
-        ("left_linear_cavity", ctypes.c_double * 4),
-        ("right_linear_cavity", ctypes.c_double * 4),
+
+        ("left_linear_cavity", ctypes.c_double * 4), # left cavity ABCD parameters
+        ("right_linear_cavity", ctypes.c_double * 4), # right cavity ABCD parameters
 
         ("ext_len", ctypes.c_int),
-        ("ext_beam_in", ctypes.POINTER(CComplex)),
-        ("ext_beam_out", ctypes.POINTER(CComplex)),
+        ("ext_beam_in", ctypes.POINTER(cuDoubleComplex)), # the beam amlitude inside the cavity
+        ("ext_beam_out", ctypes.POINTER(cuDoubleComplex)), # the beam amplitude as it comes out of the cavity
     ]
+
+print("Python ctypes.sizeof(DiodeParams)", ctypes.sizeof(DiodeParams))
 
 mbg_diode_cavity_build = lib_diode.mbg_diode_cavity_build
 mbg_diode_cavity_build.argtypes = [ctypes.POINTER(DiodeParams)]

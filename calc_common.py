@@ -70,6 +70,9 @@ class CalcCommonBeam(CalcCommon):
     def shrink_list(self, arrp):
         return cget(self.shrink_def(arrp)).tolist()
 
+    def shrink_lists(self, arrp_vec):
+        return list(map(lambda x: self.shrink_list(x), arrp_vec))
+
     def doCalcCommand(self, params):
 
         match params:

@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <complex.h>
@@ -565,6 +566,7 @@ void mbg_diode_cavity_destroy(DiodeCavityCtx *ctx) {
 #endif
     free(ctx);
 }
+
 void mbg_diode_cavity_run(DiodeCavityCtx *ctx) {
 #ifdef USE_CUDA_CODE    
     diode_cavity_run(ctx->d_ctx);
@@ -572,7 +574,7 @@ void mbg_diode_cavity_run(DiodeCavityCtx *ctx) {
 }
 void mbg_diode_cavity_extract(DiodeCavityCtx *ctx) {
 #ifdef USE_CUDA_CODE    
-    diode_cavity_extract(ctx);
+    diode_cavity_extract(ctx->d_ctx);
 #endif
 }
 
@@ -582,11 +584,19 @@ void debug_print_diode_params(DiodeParams *params) {
     printf("N_x = %d\n", params->N_x);
     printf("n_rounds = %d\n", params->n_rounds);
     printf("diode_length = %d\n", params->diode_length);
+    printf("gain_position = [%d, %d, %d, %d]\n",
+        params->gain_position[0], params->gain_position[1], 
+        params->gain_position[2], params->gain_position[3]);
+    printf("loss_position = [%d, %d, %d, %d]\n",
+        params->loss_position[0], params->loss_position[1], 
+        params->loss_position[2], params->loss_position[3]);
+    printf("output_coupler_position = %d\n", params->output_coupler_position);    
     printf("target_slice_length = %d\n", params->target_slice_length);
     printf("target_slice_start = %d\n", params->target_slice_start);
     printf("target_slice_end = %d\n", params->target_slice_end);
     printf("dt = %e\n", params->dt);
     printf("beam_init_type = %d\n", params->beam_init_type);
+    printf("beam_init_parameter = %e\n", params->beam_init_parameter);
     printf("tGain = %e\n", params->tGain);
     printf("tLoss = %e\n", params->tLoss);
     printf("C_gain = %e\n", params->C_gain);
@@ -606,13 +616,12 @@ void debug_print_diode_params(DiodeParams *params) {
         params->right_linear_cavity[2], params->right_linear_cavity[3]);
 }
 
-void mbg_diode_copy_parameters_to_context(DiodeParams *params, DiodeCavityCtx *ctx) {
+void mbg_diode_copy_parameters_to_context(DiodeParams *params, DiodeCavityCtx *ctx, bool full) {
     printf("C Lang %zu\n", sizeof(DiodeParams));
     // copy from parameters (common for python and C) into context structure (common for C and CUDA)
     ctx->N = params->N;
     ctx->N_x = params->N_x;
     ctx->n_rounds = params->n_rounds;
-    ctx->diode_length = params->diode_length;
     ctx->target_slice_length = params->target_slice_length;
     ctx->target_slice_start = params->target_slice_start;
     ctx->target_slice_end = params->target_slice_end;
@@ -620,7 +629,32 @@ void mbg_diode_copy_parameters_to_context(DiodeParams *params, DiodeCavityCtx *c
     ctx->dt = params->dt;
 
     ctx->beam_init_type = params->beam_init_type;
+    ctx->beam_init_parameter = params->beam_init_parameter;
     
+    ctx->diode_length = 
+        params->gain_position[1] - params->gain_position[0] + // length of gain diode component in spatial cells
+        params->loss_position[1] - params->loss_position[0] + 1; // length of absorber diode component in spatial cells + one for output coupler
+
+    ctx->diode_type = (int *)malloc(ctx->diode_length * sizeof(int)); // type of diode component (1=gain, 2=absorber, 3=output coupler)
+    ctx->diode_pos_1 = (int *)malloc(ctx->diode_length * sizeof(int)); // position index of each diode component at the left to right beam direction
+    ctx->diode_pos_2 = (int *)malloc(ctx->diode_length * sizeof(int)); // position index of each diode component at the right to left beam direction
+    int idx = 0;
+    for (int i = 0; i <= params->gain_position[1] - params->gain_position[0]; i++) {
+        ctx->diode_type[idx] = 1; // gain
+        ctx->diode_pos_1[idx] = params->gain_position[0] + i;
+        ctx->diode_pos_2[idx] = params->gain_position[2] - i;
+        idx++;
+    }
+    for (int i = 0; i <= params->loss_position[1] - params->loss_position[0]; i++) {
+        ctx->diode_type[idx] = 2; // absorber
+        ctx->diode_pos_1[idx] = params->loss_position[0] + i;
+        ctx->diode_pos_2[idx] = params->loss_position[2] - i;
+        idx++;
+    }
+    ctx->diode_type[idx] = 3; // output coupler
+    ctx->diode_pos_1[idx] = params->output_coupler_position;
+    ctx->diode_pos_2[idx] = params->output_coupler_position;
+
     ctx->tGain = params->tGain;
     ctx->tLoss = params->tLoss;
     ctx->C_gain = params->C_gain;
@@ -632,10 +666,13 @@ void mbg_diode_copy_parameters_to_context(DiodeParams *params, DiodeCavityCtx *c
     ctx->one_minus_alpha_div_a = params->one_minus_alpha_div_a;
     ctx->coupling_out_gain = params->coupling_out_gain;
     ctx->ext_len = params->ext_len;
-#ifdef USE_CUDA_CODE
     ctx->ext_beam_in = params->ext_beam_in;
     ctx->ext_beam_out = params->ext_beam_out;
-#endif
+    ctx->ext_gain_N = params->ext_gain_N;
+    ctx->ext_gain_polarization = params->ext_gain_polarization;
+    ctx->ext_loss_N = params->ext_loss_N;
+    ctx->ext_loss_polarization = params->ext_loss_polarization;
+
     memcpy(ctx->left_linear_cavity, params->left_linear_cavity, sizeof(ctx->left_linear_cavity));
     memcpy(ctx->right_linear_cavity, params->right_linear_cavity, sizeof(ctx->right_linear_cavity));
 }
@@ -644,7 +681,7 @@ DiodeCavityCtx *mbg_diode_cavity_build(DiodeParams *params) {
     DiodeCavityCtx *ctx;
     ctx = malloc(sizeof(DiodeCavityCtx));
 
-    mbg_diode_copy_parameters_to_context(params, ctx);
+    mbg_diode_copy_parameters_to_context(params, ctx, true);
 
 #ifdef USE_CUDA_CODE
     diode_cavity_build(ctx);
@@ -653,12 +690,13 @@ DiodeCavityCtx *mbg_diode_cavity_build(DiodeParams *params) {
 }
 
 void mbg_diode_cavity_prepare(DiodeParams *params, DiodeCavityCtx *ctx) {
-    mbg_diode_copy_parameters_to_context(params, ctx);
+    printf("Preparing Diode Cavity Context\n");
+    debug_print_diode_params(params);
+    mbg_diode_copy_parameters_to_context(params, ctx, false);
 #ifdef USE_CUDA_CODE    
     diode_cavity_prepare(ctx);
 #endif
 }
-
 
 /*
     cufftDoubleComplex *d_data;

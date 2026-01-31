@@ -5,6 +5,10 @@
 #include <complex.h>
 #ifdef USE_CUDA_CODE
 #include <cuComplex.h>
+#else
+typedef struct { double x, y; } double2;
+typedef double2 cuDoubleComplex;
+#define make_cuDoubleComplex(x, y) ((cuDoubleComplex){x, y})
 #endif
 
 #ifdef __cplusplus
@@ -23,9 +27,9 @@ typedef struct _DiodeParams {
     int N; // number of spatial cells in cavity (2^n_cavity_bits)
     int N_x; // number of transverse cells (2^n_x_bits)
     int diode_length; // number of diode total components
-    double gain_position[4];
-    double absorber_position[4];
-    double output_coupler_position;
+    int gain_position[4];
+    int loss_position[4];
+    int output_coupler_position;
 
     double dt;
 
@@ -47,8 +51,12 @@ typedef struct _DiodeParams {
     double right_linear_cavity[4]; // ABCD matrix elements for right linear cavity section
 
     int ext_len;
-    double _Complex *ext_beam_in;
-    double _Complex *ext_beam_out;
+    cuDoubleComplex *ext_beam_in;
+    cuDoubleComplex *ext_beam_out;
+    double *ext_gain_N;
+    cuDoubleComplex *ext_gain_polarization;
+    double *ext_loss_N;
+    cuDoubleComplex *ext_loss_polarization;
 
 } DiodeParams;
 
@@ -83,21 +91,27 @@ typedef struct _DiodeCavityCtx {
     int *diode_pos_2; // position index of each diode component at the right to left beam direction
 
     double *diode_N0; // equilibrium inversion for each diode component (unified for both directions, size diode_length * N_x)
-#ifdef USE_CUDA_CODE
     cuDoubleComplex *diode_P_dir_1; // polarization for each diode component, left to right direction (size diode_length * N_x)
     cuDoubleComplex *diode_P_dir_2; // polarization for each diode component, right to left direction (size diode_length * N_x)
 
     cuDoubleComplex *amplitude; // buffer for field amplitude between diode components (size N * N_x)
     cuDoubleComplex *amplitude_out; // buffer for field amplitude coming out of the cavity (size N * N_x)
-#endif
+    double *gain_N; // gain carrier density internal (size size N)
+    cuDoubleComplex *gain_polarization; // gain polarization (size size N)
+    double *loss_N; // loss carrier density (size size N)
+    cuDoubleComplex *loss_polarization; // loss polarization (size size N)
+#
     double left_linear_cavity[4]; // ABCD matrix elements for left linear cavity section
     double right_linear_cavity[4]; // ABCD matrix elements for right linear cavity section
 
     int ext_len;
-#ifdef USE_CUDA_CODE
     cuDoubleComplex *ext_beam_in; // extracted beam inside the cavity slice for extraction (size target_slice_length)
     cuDoubleComplex *ext_beam_out; // extracted beam outside the slice for extraction (size target_slice_length)
-#endif
+    double *ext_gain_N; // extracted gain carrier density for extraction (size target_slice_length)
+    cuDoubleComplex *ext_gain_polarization; // extracted gain polarization for extraction (size target_slice_length)
+    double *ext_loss_N; // extracted loss carrier density for extraction (size target_slice_length)
+    cuDoubleComplex *ext_loss_polarization; // extracted loss polarization for extraction (size target_slice_length)
+
     struct _DiodeCavityCtx *d_ctx; // device context pointer
 } DiodeCavityCtx;
 

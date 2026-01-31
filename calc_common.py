@@ -140,7 +140,7 @@ def shrink_with_max(arrp, max_size, fromX=-1, toX=-1):
         arr = arrp[fromX:toX]
     else:
         arr = arrp
-    if arr.size <= 40000:
+    if arr.size <= max_size:
         return arr
     
     rc = arr.reshape(max_size, arr.size // max_size).max(axis=1)

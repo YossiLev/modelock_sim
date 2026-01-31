@@ -76,7 +76,9 @@ def generate_chart(x, y, l, t, w=11, h=2, color= ["#0000ff", "#ff0000", "#ff8800
 
 # y is complex and its intensity and phase will be resented together
 def generate_chart_complex(x, y, t, w=11, h=2, marker=None, lw=1):
-    generate_chart([x], [cget(np.angle(y)).tolist(), cget(np.absolute(y)).tolist()], [""], t, w=w, h=h, color=["green", "red"], marker=marker, twinx=True, lw=[1, 3]),
+    angle =cget(np.angle(y)).tolist()
+    absolute = cget(np.absolute(y)).tolist()
+    return generate_chart([x], [angle, absolute], [""], t, w=w, h=h, color=["green", "red"], marker=marker, twinx=True, lw=[1, 3])
 
 
 def InputCalcM(id, title, value, step=0.01, width = 150):

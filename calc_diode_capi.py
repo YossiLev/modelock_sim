@@ -186,9 +186,9 @@ class DiodeParams(ctypes.Structure):
         ("N", ctypes.c_int),
         ("N_x", ctypes.c_int),
         ("diode_length", ctypes.c_int), # number of locations in the diode (including positions for gain, loss and output coupler
-        ("gain_position", ctypes.c_double * 4), # ranges on beam 1 (ltr) and beam 2 (rtl) of the positions of the gain part of the diode
-        ("loss_position", ctypes.c_double * 4), # ranges on beam 1 (ltr) and beam 2 (rtl) of the positions of the loss part of the diode
-        ("output_coupler_position", ctypes.c_double), #single position on beam for the output coupler
+        ("gain_position", ctypes.c_int * 4), # ranges on beam 1 (ltr) and beam 2 (rtl) of the positions of the gain part of the diode
+        ("loss_position", ctypes.c_int * 4), # ranges on beam 1 (ltr) and beam 2 (rtl) of the positions of the loss part of the diode
+        ("output_coupler_position", ctypes.c_int), #single position on beam for the output coupler
 
         ("dt", ctypes.c_double),
 
@@ -212,6 +212,10 @@ class DiodeParams(ctypes.Structure):
         ("ext_len", ctypes.c_int),
         ("ext_beam_in", ctypes.POINTER(cuDoubleComplex)), # the beam amlitude inside the cavity
         ("ext_beam_out", ctypes.POINTER(cuDoubleComplex)), # the beam amplitude as it comes out of the cavity
+        ("ext_gain_N", ctypes.POINTER(ctypes.c_double)),
+        ("ext_gain_polarization", ctypes.POINTER(cuDoubleComplex)),
+        ("ext_loss_N", ctypes.POINTER(ctypes.c_double)),
+        ("ext_loss_polarization", ctypes.POINTER(cuDoubleComplex)),
     ]
 
 print("Python ctypes.sizeof(DiodeParams)", ctypes.sizeof(DiodeParams))

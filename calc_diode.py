@@ -446,7 +446,7 @@ class diode_calc(CalcCommonBeam):
         t_list = self.shrink_list(self.diode_t_list)
 
         return Div(
-            Frame_chart("fc1", [t_list], self.shrink_lists([pulse_original, np.log(pulse_after+ 0.000000001)]), [""], 
+            Frame_chart("fc1", [t_list], self.shrink_lists([pulse_original, np.log(pulse_after + 0.000000001)]), 
                             "Original Pulse and Pulse after (photons/sec)", twinx=True),
 
             generate_chart([cget(self.diode_t_list).tolist(), self.diode_levels_x], [cget(pulse).tolist(), self.diode_levels_y],  
@@ -455,18 +455,16 @@ class diode_calc(CalcCommonBeam):
             generate_chart([t_list], [self.shrink_list(pulse_after)], "Pulse out (photons/sec)", twinx=True),
             generate_chart_complex(t_list, self.shrink_def(self.diode_pulse_after), "E"),
             generate_chart([t_list], self.shrink_lists([self.diode_accum_pulse, self.diode_accum_pulse_after]), 
-                            f"Accumulate Pulse AND after (photons) [difference: {(self.diode_accum_pulse_after[-1] - self.diode_accum_pulse[-1]):.2e}]", 
-                            twinx=True),
+                            f"Accumulate Pulse AND after (photons) [difference: {(self.diode_accum_pulse_after[-1] - self.diode_accum_pulse[-1]):.2e}]", twinx=True),
             generate_chart([t_list], self.shrink_lists([self.diode_gain, self.diode_gain_value]), 
                             f"Gain carriers (1/cm^3) [{(max_gain - min_gain):.2e} = {max_gain:.4e} - {min_gain:.4e}] and Gain (cm^-1)", 
                             color=["black", "green"], twinx=True),
             generate_chart_complex(t_list, self.shrink_def(self.diode_gain_polarization), "Gain Polarization"),
             generate_chart([t_list], self.shrink_lists([self.diode_loss, self.diode_loss_value]), 
-                            f"Abs carrs (cm^-3) [{(max_loss - min_loss):.2e} = {max_loss:.3e} - {min_loss:.3e}] and Loss (cm^-1)", 
-                            color=["black", "red"], twinx=True),
+                            f"Abs carrs (cm^-3) [{(max_loss - min_loss):.2e} = {max_loss:.3e} - {min_loss:.3e}] and Loss (cm^-1)", color=["black", "red"], twinx=True),
             generate_chart_complex(t_list, self.shrink_def(self.diode_loss_polarization), "Loss Polarization"),
             generate_chart([t_list], [cget(np.exp(- self.cavity_loss) * 
-                                    np.multiply(self.shrink_def(self.diode_gain_value), self.shrink_def(self.diode_loss_value))).tolist(),
+                            np.multiply(self.shrink_def(self.diode_gain_value), self.shrink_def(self.diode_loss_value))).tolist(),
                             self.shrink_list(pulse)], "Net gain", color=["blue", "red"], twinx=True),
             #generate_chart(xVec, yVec, "Gain By Pop", h=4, color=["black", "black", "green", "red"], marker=".", lw=[5, 5, 1, 1]),
 

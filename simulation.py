@@ -23,7 +23,7 @@ def generate_all_charts(dataObj):
             Div(json.dumps(analysisP)),
             Div(
                 Div(*[p.render() for p in dataObj.cavityData.getPinnedParameters(1)], cls="rowx"), 
-                Div(*[Div(generate_chart([chart.x], [chart.y], [""], chart.name), cls="box", style="background-color: #008080;") for chart in charts],
+                Div(*[Div(generate_chart([chart.x], [chart.y], chart.name), cls="box", style="background-color: #008080;") for chart in charts],
                     cls="rowx"
                 ))
 

@@ -130,7 +130,7 @@ def generate_iter_chart(dataObj, parameterName):
             vecY.append(power)
             vecL.append(iteration.name)
 
-    chart = Div(generate_chart(vecX, vecY, vecL, parameterName, w=5, h=3))
+    chart = Div(generate_chart(vecX, vecY, parameterName, l=vecL,  w=5, h=3))
 
     return chart
 

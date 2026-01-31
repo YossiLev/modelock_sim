@@ -8,7 +8,6 @@
 #         from scipy.signal import fftconvolve
 # except ImportError:
 import ctypes
-import json
 import numpy as np
 from fasthtml.common import *
 from controls import *
@@ -413,9 +412,9 @@ class diode_calc(CalcCommonBeam):
         return Div(
             generate_chart_complex(t_list, self.ext_beam_in, "Amplitude in"),
             generate_chart_complex(t_list, self.ext_beam_out, "Amplitude out"),
-            generate_chart([t_list], [cget(self.ext_gain_N).tolist()], [""], "Gain carriers (1/cm^3)"),
+            generate_chart([t_list], [cget(self.ext_gain_N).tolist()], "Gain carriers (1/cm^3)"),
             generate_chart_complex(t_list, cget(self.ext_gain_polarization).tolist(), "Gain Polarization"),
-            generate_chart([t_list], [cget(self.ext_loss_N).tolist()], [""], "Abs carriers (1/cm^3)"),
+            generate_chart([t_list], [cget(self.ext_loss_N).tolist()], "Abs carriers (1/cm^3)"),
             generate_chart_complex(t_list, cget(self.ext_loss_polarization).tolist(), "Loss Polarization"),
             cls="box", style="background-color: #008080;"
         )
@@ -423,31 +422,23 @@ class diode_calc(CalcCommonBeam):
     def generate_charts_default(self):
         if self.diode_mode == "MBGPU":
             return self.generate_charts_mbgpu()
-        minN = 2E+10
-        maxN = 7E+10
-        # xGain = [minN, maxN]
-        # xLoss = [minN, maxN / 2]
-        xGain = np.linspace(4E+10, 9.0E+10, 50).tolist()
-        xLoss = np.linspace(0.1E+10, 5.0E+10, 50).tolist()
-        yGain = list(map(lambda x : gain_function(self.Ga, x), xGain))
-        yLoss = list(map(lambda x : loss_function(self.Gb, self.N0b, x), xLoss))
 
-        xGainRange = np.linspace(cget(np.min(self.diode_gain)) * self.volume, cget(np.max(self.diode_gain)) * self.volume, 10).tolist()
-        yGainRange = list(map(lambda x : gain_function(self.Ga, x), xGainRange))
-        xLossRange = np.linspace(cget(np.min(self.diode_loss)) * self.volume, cget(np.max(self.diode_loss)) * self.volume, 10).tolist()
-        yLossRange = list(map(lambda x : loss_function(self.Gb, self.N0b, x), xLossRange))
-        xVec = [xGainRange, xLossRange, xGain, xLoss ]
-        yVec = [yGainRange, yLossRange, yGain, yLoss ]
+        # xGain = np.linspace(4E+10, 9.0E+10, 50).tolist()
+        # xLoss = np.linspace(0.1E+10, 5.0E+10, 50).tolist()
+        # yGain = list(map(lambda x : gain_function(self.Ga, x), xGain))
+        # yLoss = list(map(lambda x : loss_function(self.Gb, self.N0b, x), xLoss))
+
+        # xGainRange = np.linspace(cget(np.min(self.diode_gain)) * self.volume, cget(np.max(self.diode_gain)) * self.volume, 10).tolist()
+        # yGainRange = list(map(lambda x : gain_function(self.Ga, x), xGainRange))
+        # xLossRange = np.linspace(cget(np.min(self.diode_loss)) * self.volume, cget(np.max(self.diode_loss)) * self.volume, 10).tolist()
+        # yLossRange = list(map(lambda x : loss_function(self.Gb, self.N0b, x), xLossRange))
+        # xVec = [xGainRange, xLossRange, xGain, xLoss ]
+        # yVec = [yGainRange, yLossRange, yGain, yLoss ]
         min_gain = np.min(self.diode_gain) * self.volume
         max_gain = np.max(self.diode_gain) * self.volume
         min_loss = np.min(self.diode_loss) * self.volume# * 0.04 / 0.46
         max_loss = np.max(self.diode_loss) * self.volume# * 0.04 / 0.46
-        output_photons = self.summary_photons_after_absorber - self.summary_photons_after_cavity_loss
-        energy_of_1064_photon = 1.885E-19 # Joule
-        # if len(self.diode_pulse) > 0:
-        #     print(np.shape(self.diode_pulse_after))
-        #     diode_pulse_fftr = np.fft.rfft(np.sqrt(np.asarray(self.diode_pulse_after)))
-        #     diode_pulse_fft = np.concatenate((diode_pulse_fftr[::-1][1:- 1], diode_pulse_fftr))
+
         pulse = intens(self.diode_pulse)
         pulse_after = intens(self.diode_pulse_after)
         pulse_original = intens(self.diode_pulse_original)
@@ -458,26 +449,26 @@ class diode_calc(CalcCommonBeam):
             Frame_chart("fc1", [t_list], self.shrink_lists([pulse_original, np.log(pulse_after+ 0.000000001)]), [""], 
                             "Original Pulse and Pulse after (photons/sec)", twinx=True),
 
-            generate_chart([cget(self.diode_t_list).tolist(), self.diode_levels_x], [cget(pulse).tolist(), self.diode_levels_y], [""], 
+            generate_chart([cget(self.diode_t_list).tolist(), self.diode_levels_x], [cget(pulse).tolist(), self.diode_levels_y],  
                             "Pulse in (photons/sec)", color=["red", "black"], twinx=True),
 
-            generate_chart([t_list], [self.shrink_list(pulse_after)], [""], "Pulse out (photons/sec)", twinx=True),
+            generate_chart([t_list], [self.shrink_list(pulse_after)], "Pulse out (photons/sec)", twinx=True),
             generate_chart_complex(t_list, self.shrink_def(self.diode_pulse_after), "E"),
-            generate_chart([t_list], self.shrink_lists([self.diode_accum_pulse, self.diode_accum_pulse_after]), [""], 
+            generate_chart([t_list], self.shrink_lists([self.diode_accum_pulse, self.diode_accum_pulse_after]), 
                             f"Accumulate Pulse AND after (photons) [difference: {(self.diode_accum_pulse_after[-1] - self.diode_accum_pulse[-1]):.2e}]", 
                             twinx=True),
-            generate_chart([t_list], self.shrink_lists([self.diode_gain, self.diode_gain_value]), [""], 
+            generate_chart([t_list], self.shrink_lists([self.diode_gain, self.diode_gain_value]), 
                             f"Gain carriers (1/cm^3) [{(max_gain - min_gain):.2e} = {max_gain:.4e} - {min_gain:.4e}] and Gain (cm^-1)", 
                             color=["black", "green"], twinx=True),
             generate_chart_complex(t_list, self.shrink_def(self.diode_gain_polarization), "Gain Polarization"),
-            generate_chart([t_list], self.shrink_lists([self.diode_loss, self.diode_loss_value]), [""], 
+            generate_chart([t_list], self.shrink_lists([self.diode_loss, self.diode_loss_value]), 
                             f"Abs carrs (cm^-3) [{(max_loss - min_loss):.2e} = {max_loss:.3e} - {min_loss:.3e}] and Loss (cm^-1)", 
                             color=["black", "red"], twinx=True),
             generate_chart_complex(t_list, self.shrink_def(self.diode_loss_polarization), "Loss Polarization"),
             generate_chart([t_list], [cget(np.exp(- self.cavity_loss) * 
                                     np.multiply(self.shrink_def(self.diode_gain_value), self.shrink_def(self.diode_loss_value))).tolist(),
-                            self.shrink_list(pulse)], [""], "Net gain", color=["blue", "red"], twinx=True),
-            #generate_chart(xVec, yVec, [""], "Gain By Pop", h=4, color=["black", "black", "green", "red"], marker=".", lw=[5, 5, 1, 1]),
+                            self.shrink_list(pulse)], "Net gain", color=["blue", "red"], twinx=True),
+            #generate_chart(xVec, yVec, "Gain By Pop", h=4, color=["black", "black", "green", "red"], marker=".", lw=[5, 5, 1, 1]),
 
             # experimental new type of grpah manage by JS
             # Div(

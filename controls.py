@@ -42,7 +42,7 @@ def Frame_chart(title, *args, **kwargs):
     #return Div(Frame_chart_buttons(title), generate_chart(*args, **kwargs), style="display: flex; flex-direction: row;")
     return generate_chart(*args, **kwargs)
 
-def generate_chart(x, y, l, t, w=11, h=2, color= ["#0000ff", "#ff0000", "#ff8800", "#aaaa00","#008800", "#ff00ff", "#110011"], marker=None, twinx=False, lw=1):
+def generate_chart(x, y, t, l=[""], w=11, h=2, color= ["#0000ff", "#ff0000", "#ff8800", "#aaaa00","#008800", "#ff00ff", "#110011"], marker=None, twinx=False, lw=1):
     fig = plt.figure(figsize=(w, h))
     ax = plt.gca()
     ax.yaxis.set_major_formatter(plt.ScalarFormatter(useOffset=False))
@@ -78,7 +78,7 @@ def generate_chart(x, y, l, t, w=11, h=2, color= ["#0000ff", "#ff0000", "#ff8800
 def generate_chart_complex(x, y, t, w=11, h=2, marker=None, lw=1):
     angle =cget(np.angle(y)).tolist()
     absolute = cget(np.absolute(y)).tolist()
-    return generate_chart([x], [angle, absolute], [""], t, w=w, h=h, color=["green", "red"], marker=marker, twinx=True, lw=[1, 3])
+    return generate_chart([x], [angle, absolute], t, w=w, h=h, color=["green", "red"], marker=marker, twinx=True, lw=[1, 3])
 
 
 def InputCalcM(id, title, value, step=0.01, width = 150):

@@ -23,144 +23,64 @@ lib_suffix = {
 lib_diode = ctypes.CDLL(os.path.abspath(f"./cfuncs/libs/libdiode.{lib_suffix}"))
 
 lib_diode.diode_gain.argtypes = [
-    ctypes.POINTER(ctypes.c_double), 
-    ctypes.POINTER(ctypes.c_double), 
-    ctypes.POINTER(ctypes.c_double),
+    ctypes.POINTER(ctypes.c_double), ctypes.POINTER(ctypes.c_double), ctypes.POINTER(ctypes.c_double),
     ctypes.POINTER(ctypes.c_double),
     ctypes.c_int,
-    ctypes.c_double, 
-    ctypes.c_double, 
-    ctypes.c_double, 
-    ctypes.c_double,
-    ctypes.c_double
+    ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double
 ]
 lib_diode.diode_gain.restype = None
 
 lib_diode.diode_loss.argtypes = [
-    ctypes.POINTER(ctypes.c_double), 
-    ctypes.POINTER(ctypes.c_double), 
-    ctypes.POINTER(ctypes.c_double),
+    ctypes.POINTER(ctypes.c_double), ctypes.POINTER(ctypes.c_double), ctypes.POINTER(ctypes.c_double),
     ctypes.c_int,
-    ctypes.c_double, 
-    ctypes.c_double, 
-    ctypes.c_double, 
-    ctypes.c_double,
-    ctypes.c_double
+    ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double
 ]
 lib_diode.diode_loss.restype = None
 
 lib_diode.cmp_diode_gain.argtypes = [
-    ctypes.POINTER(ctypes.c_double), 
-    ctypes.POINTER(ctypes.c_double), 
-    ctypes.POINTER(ctypes.c_double),
+    ctypes.POINTER(ctypes.c_double), ctypes.POINTER(ctypes.c_double), ctypes.POINTER(ctypes.c_double),
     ctypes.POINTER(ctypes.c_double),
     ctypes.c_int,
-    ctypes.c_double, 
-    ctypes.c_double, 
-    ctypes.c_double, 
-    ctypes.c_double,
-    ctypes.c_double
+    ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double
 ]
 lib_diode.cmp_diode_gain.restype = None
 
 lib_diode.cmp_diode_loss.argtypes = [
-    ctypes.POINTER(ctypes.c_double), 
-    ctypes.POINTER(ctypes.c_double), 
-    ctypes.POINTER(ctypes.c_double),
+    ctypes.POINTER(ctypes.c_double), ctypes.POINTER(ctypes.c_double), ctypes.POINTER(ctypes.c_double),
     ctypes.c_int,
-    ctypes.c_double, 
-    ctypes.c_double, 
-    ctypes.c_double, 
-    ctypes.c_double,
-    ctypes.c_double
+    ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double
 ]
 lib_diode.cmp_diode_loss.restype = None
 
 lib_diode.diode_round_trip.argtypes = [
-    ctypes.POINTER(ctypes.c_double), 
-    ctypes.POINTER(ctypes.c_double), 
-    ctypes.POINTER(ctypes.c_double),
-    ctypes.POINTER(ctypes.c_double),
-    ctypes.POINTER(ctypes.c_double),
-    ctypes.POINTER(ctypes.c_double),
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double
+    ctypes.POINTER(ctypes.c_double), ctypes.POINTER(ctypes.c_double), ctypes.POINTER(ctypes.c_double),
+    ctypes.POINTER(ctypes.c_double), ctypes.POINTER(ctypes.c_double), ctypes.POINTER(ctypes.c_double),
+    ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_double,
+    ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double,
+    ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double
 ]
 lib_diode.diode_round_trip.restype = None
 
 lib_diode.cmp_diode_round_trip.argtypes = [
-    ctypes.POINTER(ctypes.c_double), 
-    ctypes.POINTER(ctypes.c_double), 
-    ctypes.POINTER(ctypes.c_double),
-    ctypes.POINTER(ctypes.c_double),
-    ctypes.POINTER(ctypes.c_double),
-    ctypes.POINTER(ctypes.c_double),
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double
+    ctypes.POINTER(ctypes.c_double), ctypes.POINTER(ctypes.c_double), ctypes.POINTER(ctypes.c_double),
+    ctypes.POINTER(ctypes.c_double), ctypes.POINTER(ctypes.c_double), ctypes.POINTER(ctypes.c_double),
+    ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+    ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double, 
+    ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double
 ]
 lib_diode.cmp_diode_round_trip.restype = None
 
 lib_diode.mb_diode_round_trip.argtypes = [
-    ctypes.POINTER(ctypes.c_double), 
-    ctypes.POINTER(ctypes.c_double), 
-    ctypes.POINTER(ctypes.c_double), 
-    ctypes.POINTER(ctypes.c_double), 
-    ctypes.POINTER(ctypes.c_double), 
-    ctypes.POINTER(ctypes.c_double),
-    ctypes.POINTER(ctypes.c_double),
-    ctypes.POINTER(ctypes.c_double),
-    ctypes.POINTER(ctypes.c_double),
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double
+    ctypes.POINTER(ctypes.c_double), ctypes.POINTER(ctypes.c_double), ctypes.POINTER(ctypes.c_double), 
+    ctypes.POINTER(ctypes.c_double), ctypes.POINTER(ctypes.c_double), ctypes.POINTER(ctypes.c_double),
+    ctypes.POINTER(ctypes.c_double), ctypes.POINTER(ctypes.c_double), ctypes.POINTER(ctypes.c_double),
+    ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+    ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double,
+    ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double,
+    ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double,
+    ctypes.c_double, ctypes.c_double
 ]
 lib_diode.mb_diode_round_trip.restype = None
-
 
 # ---------------------------
 
@@ -209,6 +129,7 @@ class DiodeParams(ctypes.Structure):
         ("left_linear_cavity", ctypes.c_double * 4), # left cavity ABCD parameters
         ("right_linear_cavity", ctypes.c_double * 4), # right cavity ABCD parameters
 
+        # output parameters extracted from the GPU after the run
         ("ext_len", ctypes.c_int),
         ("ext_beam_in", ctypes.POINTER(cuDoubleComplex)), # the beam amlitude inside the cavity
         ("ext_beam_out", ctypes.POINTER(cuDoubleComplex)), # the beam amplitude as it comes out of the cavity

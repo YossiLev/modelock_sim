@@ -296,15 +296,15 @@ def generate_calc(data_obj, tab, offset = 0):
                 ),
                 Div(
                     Div(
-                        generate_chart([cget(calcData.x_in).tolist()], [cget(np.square(np.abs(calcData.vf_in))).tolist()], [""], "In", color="#227700", marker="."),
-                        *[generate_chart([cget(calcData.x_out).tolist()], [cget(np.square(np.abs(calcData.vf_out[x[0]]))).tolist()], [""], 
+                        generate_chart([cget(calcData.x_in).tolist()], [cget(np.square(np.abs(calcData.vf_in))).tolist()], "In", color="#227700", marker="."),
+                        *[generate_chart([cget(calcData.x_out).tolist()], [cget(np.square(np.abs(calcData.vf_out[x[0]]))).tolist()], 
                                          f"Out {x[1]}", color="#774400", marker=".") for x in enumerate(calcData.distance_shifts)],
                         cls="box", style="background-color: #008080;"
                     ),
                     Div(
-                        *[generate_chart([cget(calcData.x_in).tolist()], [cget(np.abs(calcData.kernel[min(i, s - 1)])).tolist()], [""], f"kernel {min(i, s - 1)}", color="#227722", marker=".") 
+                        *[generate_chart([cget(calcData.x_in).tolist()], [cget(np.abs(calcData.kernel[min(i, s - 1)])).tolist()], f"kernel {min(i, s - 1)}", color="#227722", marker=".") 
                             for i in range(0, s + 1, skip)],
-                        *[generate_chart([cget(calcData.x_in).tolist()], [cget(calcData.j0[min(i, s - 1)]).tolist()], [""], f"j0 {min(i, s - 1)}", color="#770022", marker=".") 
+                        *[generate_chart([cget(calcData.x_in).tolist()], [cget(calcData.j0[min(i, s - 1)]).tolist()], f"j0 {min(i, s - 1)}", color="#770022", marker=".") 
                             for i in range(0, s + 1, skip)],
                         cls="box", style="background-color: #008080;"
                     ) if internal_data else Div(),

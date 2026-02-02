@@ -103,6 +103,7 @@ class DiodeParams(ctypes.Structure):
         ("target_slice_start", ctypes.c_int),
         ("target_slice_end", ctypes.c_int),
 
+        ("start_round", ctypes.c_int),
         ("N", ctypes.c_int),
         ("N_x", ctypes.c_int),
         ("diode_length", ctypes.c_int), # number of locations in the diode (including positions for gain, loss and output coupler
@@ -125,6 +126,7 @@ class DiodeParams(ctypes.Structure):
         ("alpha", ctypes.c_double), 
         ("one_minus_alpha_div_a", ctypes.c_double),
         ("coupling_out_gain", ctypes.c_double),
+        ("oc_val", ctypes.c_double),
 
         ("left_linear_cavity", ctypes.c_double * 4), # left cavity ABCD parameters
         ("right_linear_cavity", ctypes.c_double * 4), # right cavity ABCD parameters
@@ -134,12 +136,12 @@ class DiodeParams(ctypes.Structure):
         ("ext_beam_in", ctypes.POINTER(cuDoubleComplex)), # the beam amlitude inside the cavity
         ("ext_beam_out", ctypes.POINTER(cuDoubleComplex)), # the beam amplitude as it comes out of the cavity
         ("ext_gain_N", ctypes.POINTER(ctypes.c_double)),
-        ("ext_gain_polarization", ctypes.POINTER(cuDoubleComplex)),
+        ("ext_gain_polarization_dir1", ctypes.POINTER(cuDoubleComplex)),
+        ("ext_gain_polarization_dir2", ctypes.POINTER(cuDoubleComplex)),
         ("ext_loss_N", ctypes.POINTER(ctypes.c_double)),
-        ("ext_loss_polarization", ctypes.POINTER(cuDoubleComplex)),
+        ("ext_loss_polarization_dir1", ctypes.POINTER(cuDoubleComplex)),
+        ("ext_loss_polarization_dir2", ctypes.POINTER(cuDoubleComplex)),
     ]
-
-print("Python ctypes.sizeof(DiodeParams)", ctypes.sizeof(DiodeParams))
 
 mbg_diode_cavity_build = lib_diode.mbg_diode_cavity_build
 mbg_diode_cavity_build.argtypes = [ctypes.POINTER(DiodeParams)]

@@ -31,8 +31,8 @@ class diode_calc(CalcCommonBeam):
         self.beam_view_from = -1
         self.beam_view_to = -1
 
-        self.diode_cavity_type = "Ring"
-        self.diode_mode = "Amplitude    "
+        self.diode_cavity_type = "Linear"
+        self.diode_mode = "MBGPU"
         self.beam_sampling = "4096"
         self.beam_sampling_x = "32"
         self.diode_pulse_dtype = np.complex128
@@ -91,8 +91,8 @@ class diode_calc(CalcCommonBeam):
         self.coupling_out_loss =-5000E+06
         self.coupling_out_gain = 2800E+05
 
-        self.gain_position = [30, 130, 870, 770]
-        self.loss_position = [0, 30, 900, 870]
+        self.gain_position = [30, 40, 870, 860]
+        self.loss_position = [0, 5, 900, 895]
         self.output_coupler_position = 2000
         # diode dynamics parameters
         self.diode_t_list = np.array([1], dtype=np.float64)
@@ -106,17 +106,21 @@ class diode_calc(CalcCommonBeam):
 
         self.diode_gain = np.array([1], dtype=np.float64)
         self.diode_loss = np.array([1], dtype=np.float64)
-        self.diode_gain_polarization = np.array([1], dtype=np.complex128)
-        self.diode_loss_polarization = np.array([1], dtype=np.complex128)
+        self.diode_gain_polarization_dir1 = np.array([1], dtype=np.complex128)
+        self.diode_gain_polarization_dir2 = np.array([1], dtype=np.complex128)
+        self.diode_loss_polarization_dir1 = np.array([1], dtype=np.complex128)
+        self.diode_loss_polarization_dir2 = np.array([1], dtype=np.complex128)
         self.diode_gain_value = np.array([1], dtype=np.float64)
         self.diode_loss_value = np.array([1], dtype=np.float64)
 
         self.ext_beam_in = np.array([1], dtype=np.complex128)
         self.ext_beam_out = np.array([1], dtype=np.complex128)
         self.ext_gain_N = np.array([1], dtype=np.float64)
-        self.ext_gain_polarization = np.array([1], dtype=np.complex128)
+        self.ext_gain_polarization_dir1 = np.array([1], dtype=np.complex128)
+        self.ext_gain_polarization_dir2 = np.array([1], dtype=np.complex128)
         self.ext_loss_N = np.array([1], dtype=np.float64)
-        self.ext_loss_polarization = np.array([1], dtype=np.complex128)
+        self.ext_loss_polarization_dir1 = np.array([1], dtype=np.complex128)
+        self.ext_loss_polarization_dir2 = np.array([1], dtype=np.complex128)
         # diode summary parameters
         self.summary_photons_before = 0.0
         self.summary_photons_after_gain = 0.0
@@ -130,6 +134,30 @@ class diode_calc(CalcCommonBeam):
         shift = int(mm / 1E+03 / (self.beam_dt * 3E+08))
         return shift
     
+    def calcDiodeLocations(self):
+        gainLengthMm = 4.0
+        lossLengthMm = 1.0
+        # self.beam_time = 3.95138389E-09 #4E-09
+        # self.loss_shift = self.beam_N // 2 + self.mm_to_unit_shift(self.diode_absorber_shift) # zero shift means that the absorber is in the middle of the cavity
+        # self.gain_distance = self.mm_to_unit_shift(self.diode_gain_shift)
+        # self.oc_shift = self.mm_to_unit_shift(self.diode_output_coupler_shift)
+
+        abs_length = self.mm_to_unit_shift(lossLengthMm)
+        abs_shift = self.beam_N // 2 + self.mm_to_unit_shift(self.diode_absorber_shift)
+        self.loss_position = [0, abs_length, abs_shift - abs_length, abs_shift]
+        
+        gain_length = self.mm_to_unit_shift(gainLengthMm)
+        gain_shift = self.mm_to_unit_shift(self.diode_gain_shift)
+
+        self.gain_position = [abs_length + gain_shift, abs_length + gain_shift + gain_length, 
+                              abs_shift - gain_shift, abs_shift - gain_shift - gain_length] 
+        self.output_coupler_position = self.mm_to_unit_shift(self.diode_output_coupler_shift)
+
+        print(f"absorber" , self.loss_position[0], self.loss_position[1], self.loss_position[2], self.loss_position[3])
+        print(f"Gain    ", self.gain_position[0], self.gain_position[1], self.gain_position[2], self.gain_position[3])
+        print(f"OC ", self.output_coupler_position)
+        print("Length of diode ", self.loss_position[1] - self.loss_position[0] + self.gain_position[1] - self.gain_position[0] + 1)
+
     def pack_diode_params(self):
         params = DiodeParams()
         params.n_cavity_bits = int(np.log2(self.beam_N))
@@ -138,6 +166,7 @@ class diode_calc(CalcCommonBeam):
         params.target_slice_length = self.target_slice_length
         params.target_slice_start = 0
         params.target_slice_end = self.beam_N
+        params.start_round = self.calculation_rounds_done
         params.N = self.beam_N
         params.N_x = self.beam_N_x
         params.beam_init_type = ["Pulse", "Noise", "CW", "Flat"].index(self.diode_intensity)
@@ -157,6 +186,7 @@ class diode_calc(CalcCommonBeam):
         params.alpha = self.h
         params.one_minus_alpha_div_a = (1.0 - self.h) / self.Ga
         params.coupling_out_gain = self.coupling_out_gain
+        params.oc_val = np.exp(- self.cavity_loss)
         params.left_linear_cavity = (ctypes.c_double * 4)(*[self.left_arm_mat[0][0], self.left_arm_mat[0][1],
                                                             self.left_arm_mat[1][0], self.left_arm_mat[1][1]])
         params.right_linear_cavity = (ctypes.c_double * 4)(*[self.right_arm_mat[0][0], self.right_arm_mat[0][1],
@@ -165,9 +195,11 @@ class diode_calc(CalcCommonBeam):
         params.ext_beam_in = self.ext_beam_in.ctypes.data_as(ctypes.POINTER(cuDoubleComplex))
         params.ext_beam_out = self.ext_beam_out.ctypes.data_as(ctypes.POINTER(cuDoubleComplex))
         params.ext_gain_N = self.ext_gain_N.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-        params.ext_gain_polarization = self.ext_gain_polarization.ctypes.data_as(ctypes.POINTER(cuDoubleComplex))
+        params.ext_gain_polarization_dir1 = self.ext_gain_polarization_dir1.ctypes.data_as(ctypes.POINTER(cuDoubleComplex))
+        params.ext_gain_polarization_dir2 = self.ext_gain_polarization_dir2.ctypes.data_as(ctypes.POINTER(cuDoubleComplex))
         params.ext_loss_N = self.ext_loss_N.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-        params.ext_loss_polarization = self.ext_loss_polarization.ctypes.data_as(ctypes.POINTER(cuDoubleComplex))
+        params.ext_loss_polarization_dir1 = self.ext_loss_polarization_dir1.ctypes.data_as(ctypes.POINTER(cuDoubleComplex))
+        params.ext_loss_polarization_dir2 = self.ext_loss_polarization_dir2.ctypes.data_as(ctypes.POINTER(cuDoubleComplex))
         
         return params
 
@@ -263,20 +295,16 @@ class diode_calc(CalcCommonBeam):
                     self.diode_pulse = np.full_like(self.diode_t_list, 0.0 + 0.0j,dtype=np.complex128)
 
                 if (self.diode_mode == "MBGPU"):
+                    self.calcDiodeLocations()
+
                     self.ext_beam_in = np.empty((self.target_slice_length,), dtype=np.complex128)
                     self.ext_beam_out = np.empty((self.target_slice_length,), dtype=np.complex128)
                     self.ext_gain_N = np.empty((self.target_slice_length,), dtype=np.float64)
-                    self.ext_gain_polarization = np.empty((self.target_slice_length,), dtype=np.complex128)
+                    self.ext_gain_polarization_dir1 = np.empty((self.target_slice_length,), dtype=np.complex128)
+                    self.ext_gain_polarization_dir2 = np.empty((self.target_slice_length,), dtype=np.complex128)
                     self.ext_loss_N = np.empty((self.target_slice_length,), dtype=np.float64)
-                    self.ext_loss_polarization = np.empty((self.target_slice_length,), dtype=np.complex128)
-                    for i in range(self.target_slice_length):
-                        fi = float(i)
-                        self.ext_beam_in[i] = fi + fi * 1j
-                        self.ext_beam_out[i] = 2.0 * fi + 0.0j
-                        self.ext_gain_N[i] = 1.0
-                        self.ext_gain_polarization[i] = 1.0 + 0.0j
-                        self.ext_loss_N[i] = 1.0
-                        self.ext_loss_polarization[i] = 1.0 + 0.0j
+                    self.ext_loss_polarization_dir1 = np.empty((self.target_slice_length,), dtype=np.complex128)
+                    self.ext_loss_polarization_dir2 = np.empty((self.target_slice_length,), dtype=np.complex128)
                     if self.gpu_memory_exists:
                         mbg_diode_cavity_destroy(self.gpu_memory)
                     self.gpu_memory = mbg_diode_cavity_build(self.pack_diode_params())
@@ -353,12 +381,13 @@ class diode_calc(CalcCommonBeam):
 
         print("diode_round_trip_wide GPU calculation started")
         mbg_diode_cavity_prepare(ctypes.byref(self.pack_diode_params()), self.gpu_memory)
+        print("diode_round_trip_wide: prepared GPU memory")
         mbg_diode_cavity_run(self.gpu_memory)
-        mbg_diode_cavity_extract(ctypes.byref(self.pack_diode_params()), self.gpu_memory)
+        print("diode_round_trip_wide: GPU run done")
+        mbg_diode_cavity_extract(self.gpu_memory)
         print("diode_round_trip_wide GPU calculation done")
 
         return
-        
 
     def diode_round_trip_old(self):
 
@@ -413,9 +442,9 @@ class diode_calc(CalcCommonBeam):
             generate_chart_complex(t_list, self.ext_beam_in, "Amplitude in"),
             generate_chart_complex(t_list, self.ext_beam_out, "Amplitude out"),
             generate_chart([t_list], [cget(self.ext_gain_N).tolist()], "Gain carriers (1/cm^3)"),
-            generate_chart_complex(t_list, cget(self.ext_gain_polarization).tolist(), "Gain Polarization"),
+            generate_chart_complex(t_list, cget(self.ext_gain_polarization_dir1).tolist(), "Gain Polarization"),
             generate_chart([t_list], [cget(self.ext_loss_N).tolist()], "Abs carriers (1/cm^3)"),
-            generate_chart_complex(t_list, cget(self.ext_loss_polarization).tolist(), "Loss Polarization"),
+            generate_chart_complex(t_list, cget(self.ext_loss_polarization_dir1).tolist(), "Loss Polarization"),
             cls="box", style="background-color: #008080;"
         )
     

@@ -1,4 +1,4 @@
-#ifdef USE_CUDA_CODE
+#define USE_CUDA_CODE 1
 
 #include "diode_cavity.h"
 #ifdef DIODE_CAVITY_H
@@ -19,7 +19,7 @@
 
 __host__ __device__
 inline cuDoubleComplex cmul_real(double a, cuDoubleComplex z) {
-    return make_cuDoubleComplex(a * z.x, a * z.y);w
+    return make_cuDoubleComplex(a * z.x, a * z.y);
 }
 __host__ __device__
 inline cuDoubleComplex cneg(cuDoubleComplex z) {
@@ -30,38 +30,56 @@ __global__ void diode_cavity_extract_kernel(DiodeCavityCtx *data, double factor)
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int io = (lround(i * factor) + data->target_slice_start) * data->N_x + data->N_x / 2;
     int io1 = lround(i * factor) + data->target_slice_start;
+    // if (i < 10) {
+    //     printf("i = %d io = %d io1 = %d\n", i, io, io1);
+    // }
     data->ext_beam_in[i] = data->amplitude[io];
     data->ext_beam_out[i] = data->amplitude_out[io];
     data->ext_gain_N[i] = data->gain_N[io1];
-    data->ext_gain_polarization[i] = data->gain_polarization[io1];
+    data->ext_gain_polarization_dir1[i] = data->gain_polarization_dir1[io1];
+    data->ext_gain_polarization_dir2[i] = data->gain_polarization_dir2[io1];
     data->ext_loss_N[i] = data->loss_N[io1];
-    data->ext_loss_polarization[i] = data->loss_polarization[io1];
+    data->ext_loss_polarization_dir1[i] = data->loss_polarization_dir1[io1];
+    data->ext_loss_polarization_dir2[i] = data->loss_polarization_dir2[io1];
 }
 
 __global__ void diode_cavity_round_trip_kernel(DiodeCavityCtx *data, int offset, int mode) {
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int i = blockIdx.x; // 0:130
+    int j = threadIdx.x; // 0:31
 
     /* position on the left and right beams*/
-    int index_1 = ((data->diode_pos_1[i] + offset) % data->N) * data->N_x + threadIdx.x;
-    int index_2 = ((data->diode_pos_2[i] + offset) % data->N) * data->N_x + threadIdx.x;
+    int index_1 = ((data->diode_pos_1[i] + offset) % data->N) * data->N_x + j;
+    int index_2 = ((data->diode_pos_2[i] + offset) % data->N) * data->N_x + j;
 
+    // if (offset < 1 && i < 2 && j < 3) {
+    //     printf("bx = %d tx=%d bd = %d --- i1 = %d i2 = %d\n", blockIdx.x, threadIdx.x, blockDim.x, index_1, index_2);
+    // }
+
+    // if (blockIdx.x == 0 && threadIdx.x == 0 && offset == 0) {
+    //     for (int ii = 0; ii < data->diode_length * blockDim.x; ii++) {
+    //         printf("ii = %d, diode = %f\n", ii, data->diode_N0[ii]);
+    //     }
+
+    // }
     cuDoubleComplex *__restrict__ pE1 = data->amplitude;
     cuDoubleComplex E1 = pE1[index_1];
     cuDoubleComplex *__restrict__ pE2 = data->amplitude;
     cuDoubleComplex E2 = pE2[index_2];
     if (data->diode_type[blockIdx.x] == 3 /* output coupler and initializer */) {
-        if (mode & 1 /* first round trip */) {
+        if ((mode & 1) != 0 /* first round trip */) {
+
             /* initialize the beam according to the selected type */
             if (data->beam_init_type == 0 /* pulse */) {
                 double pulseWidth = data->beam_init_parameter;
-                double x = offset;
-                double pulseVal = exp(-((x - data->N / 2) * (x - data->N / 2) / (2 * pulseWidth * pulseWidth)));
+                double x = (offset + data->N / 2) % data->N;
+                double pulseVal = 4.0E08 * exp(-((x - data->N / 2) * (x - data->N / 2) / (2 * pulseWidth * pulseWidth)));
+
                 E1 = make_cuDoubleComplex(pulseVal, 0.0);
                 //E2 = make_cuDoubleComplex(pulseVal, 0.0);
             } else if (data->beam_init_type == 1 /* noise */) {
-                double noise_amplitude = data->beam_init_parameter;
-                double real_part = noise_amplitude * (2.0 * ((double)rand() / RAND_MAX) - 1.0);
-                double imag_part = noise_amplitude * (2.0 * ((double)rand() / RAND_MAX) - 1.0);
+                //double noise_amplitude = data->beam_init_parameter;
+                double real_part = 1.0;//noise_amplitude * (2.0 * ((double)rand() / RAND_MAX) - 1.0);
+                double imag_part = 1.0;//noise_amplitude * (2.0 * ((double)rand() / RAND_MAX) - 1.0);
                 E1 = make_cuDoubleComplex(real_part, imag_part);
                 //E2 = make_cuDoubleComplex(real_part, imag_part);
             } else if (data->beam_init_type == 2 /* cw */) {
@@ -73,22 +91,25 @@ __global__ void diode_cavity_round_trip_kernel(DiodeCavityCtx *data, int offset,
                 E1 = make_cuDoubleComplex(flat_amplitude, 0.0);
                 //E2 = make_cuDoubleComplex(flat_amplitude, 0.0);
             }
-            pE1[index_1] = E1;
+            // pE1[index_1] = E1;
             //pE2[index_2] = E2;
         }
-        if (mode & 2 /* last round trip */) {
-            /* copy to outside of the cavity */
-            data->amplitude_out[threadIdx.x] = E1;
+        if ((mode & 2) != 0 /* last round trip */) {
+            /* copy to outside of the cavity */        
+            data->amplitude_out[index_1] = cmul_real(data->oc_out_val, E1);
         }
+        pE1[index_1] = cmul_real(data->oc_val_sqrt, E1);
+
         return;
     }
     /* access arrays with restrict pointers */
+    int idi = blockIdx.x * blockDim.x + threadIdx.x;
     double *__restrict__ pN0 = data->diode_N0;
-    double N0 = pN0[i];
+    double N0 = pN0[idi];
     cuDoubleComplex *__restrict__ pP1 = data->diode_P_dir_1;
     cuDoubleComplex *__restrict__ pP2 = data->diode_P_dir_2;
-    cuDoubleComplex P1 = pP1[i];
-    cuDoubleComplex P2 = pP2[i];
+    cuDoubleComplex P1 = pP1[idi];
+    cuDoubleComplex P2 = pP2[idi];
     cuDoubleComplex I1 = make_cuDoubleComplex(0.0, 1.0);
 
     /* ------ the P update equation */
@@ -99,7 +120,7 @@ __global__ void diode_cavity_round_trip_kernel(DiodeCavityCtx *data, int offset,
 
     /* ------ the N update equation */
     //averageP = 0.5 * (gainP[iN] + gainP[i]);
-    double exchange = (cuCadd(cuCmul(cuConj(E1), P1), cuCmul(cuConj(E2), P2))).y;
+    double exchange = 1.0E-27 * (cuCadd(cuCmul(cuConj(E1), P1), cuCmul(cuConj(E2), P2))).y;
     if (data->diode_type[blockIdx.x] == 1 /* gain */) {
         N0 = N0 + data->dt * ((- N0) / data->tGain + data->C_gain * exchange + data->Pa);
     } else if (data->diode_type[blockIdx.x] == 2 /* absorber */) {
@@ -107,13 +128,30 @@ __global__ void diode_cavity_round_trip_kernel(DiodeCavityCtx *data, int offset,
     }
 
     /* ------ the E update equation */
-    pE1[index_1] = cuCadd(pE1[index_1], cmul_real(data->dt * data->coupling_out_gain , cuCmul(I1, P1)));
-    pE2[index_2] = cuCadd(pE2[index_2], cmul_real(data->dt * data->coupling_out_gain , cuCmul(I1, P2)));
+    pE1[index_1] = cuCadd(pE1[index_1], cmul_real(data->dt * 1.0E-25 * data->coupling_out_gain , cuCmul(I1, P1)));
+    pE2[index_2] = cuCadd(pE2[index_2], cmul_real(data->dt * 1.0E-25 * data->coupling_out_gain , cuCmul(I1, P2)));
 
     /* store back updated values */
-    pN0[i] = N0;
-    pP1[i] = P1;
-    pP2[i] = P2;
+    pN0[idi] = N0;
+    pP1[idi] = P1;
+    pP2[idi] = P2;
+    if (j == threadIdx.x / 2) {
+        if (blockIdx.x == 5) {
+            int idb = (data->diode_pos_1[i] + offset) % data->N;
+            // if (offset < 20) {
+            //     printf("idi = %d, idb = %d, lgain = %d\n", idi, idb, data->gain_length);
+            // }
+            data->gain_N[idb] = N0;
+            data->gain_polarization_dir1[idb] = P1;
+            data->gain_polarization_dir2[idb] = P2;
+        }
+        if (blockIdx.x == data->gain_length + data->loss_length/ 2) {
+            int idb = (data->diode_pos_1[i] + offset) % data->N;
+            data->loss_N[idb] = N0;
+            data->loss_polarization_dir1[idb] = P1;
+            data->loss_polarization_dir2[idb] = P2;
+        }
+    }
 }
 
 // Initialize
@@ -127,6 +165,12 @@ int cuAllocValueDouble(double **devPtr, size_t n, double value) {
     // Wrap raw pointer and fill
     thrust::device_ptr<double> dev_ptr(*devPtr);
     thrust::fill(dev_ptr, dev_ptr + n, value);
+    return 0;
+}
+int cuMemsetValueDouble(double **devPtr, size_t s, size_t n, double value) {
+    // Wrap raw pointer and fill
+    thrust::device_ptr<double> dev_ptr(*devPtr);
+    thrust::fill(dev_ptr + s, dev_ptr + s + n, value);
     return 0;
 }
 
@@ -145,23 +189,31 @@ int diode_cavity_build(DiodeCavityCtx *ctx_host) {
     CHECK_CUDA(cudaMemcpy(ctx_local.diode_pos_2, ctx_host->diode_pos_2, sizeof(int) * ctx_host->diode_length, cudaMemcpyHostToDevice));
 
     /* allocate and initialize cuda arrays thart are internal to cuda */
-    cuAllocValueDouble(&ctx_local.diode_N0, ctx_host->diode_length * ctx_host->N_x, 1.0); /* inversion density */
+    cuAllocZero((void **)&ctx_local.diode_N0, sizeof(cuDoubleComplex) * ctx_host->diode_length * ctx_host->N_x); /* inversion density zero init*/
+    printf("fill %f into %d values\n", ctx_host->Pa * ctx_host->tGain,ctx_host->gain_length * ctx_host->N_x);
+    cuMemsetValueDouble(&ctx_local.diode_N0, 0, ctx_host->gain_length * ctx_host->N_x, ctx_host->Pa * ctx_host->tGain); /* inversion start density for gain */
+    cuMemsetValueDouble(&ctx_local.diode_N0, ctx_host->gain_length * ctx_host->N_x, ctx_host->loss_length * ctx_host->N_x, ctx_host->N0b); /* inversion start density for loss */
     cuAllocZero((void **)&ctx_local.diode_P_dir_1, sizeof(cuDoubleComplex) * ctx_host->diode_length * ctx_host->N_x); /* polarization for left to right beam*/
     cuAllocZero((void **)&ctx_local.diode_P_dir_2, sizeof(cuDoubleComplex) * ctx_host->diode_length * ctx_host->N_x); /* polarization for right to left beam*/ 
+
     cuAllocZero((void **)&ctx_local.amplitude, sizeof(cuDoubleComplex) * ctx_host->N * ctx_host->N_x); /* beam amplitude values */
     cuAllocZero((void **)&ctx_local.amplitude_out, sizeof(cuDoubleComplex) * ctx_host->N * ctx_host->N_x); /* beam amplitude as it comes out of the cavity */
     cuAllocZero((void **)&ctx_local.gain_N, sizeof(double) * ctx_host->N); /* gain carrier density internal */
-    cuAllocZero((void **)&ctx_local.gain_polarization, sizeof(cuDoubleComplex) * ctx_host->N); /* gain polarization */
+    cuAllocZero((void **)&ctx_local.gain_polarization_dir1, sizeof(cuDoubleComplex) * ctx_host->N); /* gain polarization */
+    cuAllocZero((void **)&ctx_local.gain_polarization_dir2, sizeof(cuDoubleComplex) * ctx_host->N); /* gain polarization */
     cuAllocZero((void **)&ctx_local.loss_N, sizeof(double) * ctx_host->N); /* loss carrier density */
-    cuAllocZero((void **)&ctx_local.loss_polarization, sizeof(cuDoubleComplex) * ctx_host->N); /* loss polarization */
+    cuAllocZero((void **)&ctx_local.loss_polarization_dir1, sizeof(cuDoubleComplex) * ctx_host->N); /* loss polarization */
+    cuAllocZero((void **)&ctx_local.loss_polarization_dir2, sizeof(cuDoubleComplex) * ctx_host->N); /* loss polarization */
 
     /* allocate cuda arrays for returning data from cuda to C */
     CHECK_CUDA(cudaMalloc(&ctx_local.ext_beam_in, sizeof(cuDoubleComplex) * ctx_host->ext_len));
     CHECK_CUDA(cudaMalloc(&ctx_local.ext_beam_out, sizeof(cuDoubleComplex) * ctx_host->ext_len));
     CHECK_CUDA(cudaMalloc(&ctx_local.ext_gain_N, sizeof(double) * ctx_host->ext_len));
-    CHECK_CUDA(cudaMalloc(&ctx_local.ext_gain_polarization, sizeof(cuDoubleComplex) * ctx_host->ext_len));
+    CHECK_CUDA(cudaMalloc(&ctx_local.ext_gain_polarization_dir1, sizeof(cuDoubleComplex) * ctx_host->ext_len));
+    CHECK_CUDA(cudaMalloc(&ctx_local.ext_gain_polarization_dir2, sizeof(cuDoubleComplex) * ctx_host->ext_len));
     CHECK_CUDA(cudaMalloc(&ctx_local.ext_loss_N, sizeof(double) * ctx_host->ext_len));
-    CHECK_CUDA(cudaMalloc(&ctx_local.ext_loss_polarization, sizeof(cuDoubleComplex) * ctx_host->ext_len));
+    CHECK_CUDA(cudaMalloc(&ctx_local.ext_loss_polarization_dir1, sizeof(cuDoubleComplex) * ctx_host->ext_len));
+    CHECK_CUDA(cudaMalloc(&ctx_local.ext_loss_polarization_dir2, sizeof(cuDoubleComplex) * ctx_host->ext_len));
 
     /* copy ctx_local to device */
     DiodeCavityCtx *ctx_cuda = NULL;
@@ -174,7 +226,9 @@ int diode_cavity_build(DiodeCavityCtx *ctx_host) {
 }
 
 int diode_cavity_prepare(DiodeCavityCtx *ctx_host) {
+
     DiodeCavityCtx ctx_help;
+
     DiodeCavityCtx *ctx_cuda = ctx_host->d_ctx;
 
     /* collect the existing pointers from the device*/
@@ -191,6 +245,7 @@ int diode_cavity_prepare(DiodeCavityCtx *ctx_host) {
     ctx_help.target_slice_length = ctx_host->target_slice_length;
     ctx_help.target_slice_start = ctx_host->target_slice_start;
     ctx_help.target_slice_end = ctx_host->target_slice_end;
+    ctx_help.start_round = ctx_host->start_round;
 
     ctx_help.dt = ctx_host->dt;
 
@@ -208,30 +263,61 @@ int diode_cavity_prepare(DiodeCavityCtx *ctx_host) {
     ctx_help.one_minus_alpha_div_a = ctx_host->one_minus_alpha_div_a;
     ctx_help.coupling_out_gain = ctx_host->coupling_out_gain;
     ctx_help.ext_len = ctx_host->ext_len;
-#ifdef USE_CUDA_CODE
-    ctx_help.ext_beam_in = ctx_host->ext_beam_in;
-    ctx_help.ext_beam_out = ctx_host->ext_beam_out;
-    ctx_help.ext_gain_N = ctx_host->ext_gain_N;
-    ctx_help.ext_gain_polarization = ctx_host->ext_gain_polarization;
-    ctx_help.ext_loss_N = ctx_host->ext_loss_N;
-    ctx_help.ext_loss_polarization = ctx_host->ext_loss_polarization;
-#endif
-    CHECK_CUDA(cudaMemcpy(ctx_help.left_linear_cavity, ctx_host->left_linear_cavity, sizeof(ctx_host->left_linear_cavity), cudaMemcpyHostToDevice));
-    CHECK_CUDA(cudaMemcpy(ctx_help.right_linear_cavity, ctx_host->right_linear_cavity, sizeof(ctx_host->right_linear_cavity), cudaMemcpyHostToDevice));
+
+    memcpy(ctx_help.left_linear_cavity, ctx_host->left_linear_cavity, sizeof(ctx_host->left_linear_cavity));
+    memcpy(ctx_help.right_linear_cavity, ctx_host->right_linear_cavity, sizeof(ctx_host->right_linear_cavity));
 
     CHECK_CUDA(cudaMemcpy(ctx_cuda, &ctx_help, sizeof(DiodeCavityCtx), cudaMemcpyHostToDevice));
 
     return 0;
 }
 
+// Run one Cavity tick
+int diode_cavity_run(DiodeCavityCtx *ctx_host) {
+
+    DiodeCavityCtx *ctx_dev = ctx_host->d_ctx;
+    int threads = ctx_host->N_x;
+    int blocks = ctx_host->diode_length;
+    printf("threads %d blocks %d\n", threads, blocks);
+
+    /* perform n_rounds of cavity round trips */
+    int mode = 0;
+    if (ctx_host->start_round == 0) {
+        mode = 1; // flagging type of round trip (flags: bit 0 - first round trip, bit 1 - last round trip)
+    }
+    for (int i_round = 0; i_round < ctx_host->n_rounds; i_round++) {
+        /* perform one round trip */
+        if (i_round == ctx_host->n_rounds - 1) {
+            mode |= 2; // flagging last round trips
+        }
+        printf("Cavity round %d\n", i_round + 1);        
+        for (int offset = 0; offset < ctx_host->N; offset++) {
+            // Call the CUDA kernel to process a single step in ther round trip
+            diode_cavity_round_trip_kernel<<<blocks, threads>>>(ctx_dev, offset, mode);
+            CHECK_CUDA(cudaDeviceSynchronize());
+        }
+        mode = 0; 
+    }
+
+    return 0;
+}
+
+
 int diode_cavity_extract(DiodeCavityCtx *ctx_host) {
+    printf("CUDA extract Context %p %p\n", ctx_host, ctx_host->d_ctx);
+
     DiodeCavityCtx ctx_local; 
     DiodeCavityCtx *ctx_cuda = ctx_host->d_ctx;
 
     int threads = ctx_host->ext_len / 32;
     double factor = (double)(ctx_host->target_slice_end - ctx_host->target_slice_start) / (double)(ctx_host->ext_len);
 
-    diode_cavity_extract_kernel<<<32, threads>>>(ctx_host->d_ctx, factor);
+    printf("CUDA extract start\n");
+
+    diode_cavity_extract_kernel<<<32, threads>>>(ctx_cuda, factor);
+    CHECK_CUDA(cudaDeviceSynchronize());
+
+    printf("CUDA extract done\n");
 
     /* collect the existing pointers from the device*/
     CHECK_CUDA(cudaMemcpy(&ctx_local, ctx_cuda, sizeof(DiodeCavityCtx), cudaMemcpyDeviceToHost));
@@ -240,34 +326,11 @@ int diode_cavity_extract(DiodeCavityCtx *ctx_host) {
     CHECK_CUDA(cudaMemcpy(ctx_host->ext_beam_in, ctx_local.ext_beam_in, sizeof(cuDoubleComplex) * ctx_host->ext_len, cudaMemcpyDeviceToHost));
     CHECK_CUDA(cudaMemcpy(ctx_host->ext_beam_out, ctx_local.ext_beam_out, sizeof(cuDoubleComplex) * ctx_host->ext_len, cudaMemcpyDeviceToHost));
     CHECK_CUDA(cudaMemcpy(ctx_host->ext_gain_N, ctx_local.ext_gain_N, sizeof(double) * ctx_host->ext_len, cudaMemcpyDeviceToHost));
-    CHECK_CUDA(cudaMemcpy(ctx_host->ext_gain_polarization, ctx_local.ext_gain_polarization, sizeof(cuDoubleComplex) * ctx_host->ext_len, cudaMemcpyDeviceToHost));
+    CHECK_CUDA(cudaMemcpy(ctx_host->ext_gain_polarization_dir1, ctx_local.ext_gain_polarization_dir1, sizeof(cuDoubleComplex) * ctx_host->ext_len, cudaMemcpyDeviceToHost));
+    CHECK_CUDA(cudaMemcpy(ctx_host->ext_gain_polarization_dir2, ctx_local.ext_gain_polarization_dir2, sizeof(cuDoubleComplex) * ctx_host->ext_len, cudaMemcpyDeviceToHost));
     CHECK_CUDA(cudaMemcpy(ctx_host->ext_loss_N, ctx_local.ext_loss_N, sizeof(double) * ctx_host->ext_len, cudaMemcpyDeviceToHost));
-    CHECK_CUDA(cudaMemcpy(ctx_host->ext_loss_polarization, ctx_local.ext_loss_polarization, sizeof(cuDoubleComplex) * ctx_host->ext_len, cudaMemcpyDeviceToHost));
-
-    return 0;
-}
-
-// Run one Cavity tick
-int diode_cavity_run(DiodeCavityCtx *ctx_host) {
-
-    DiodeCavityCtx *ctx = ctx_host->d_ctx;
-
-    /* perform n_rounds of cavity round trips */
-    int mode = 1; // flagging type of round trip (flags: bit 0 - first round trip, bit 1 - last round trip)
-    for (int i_round = 0; i_round < ctx->n_rounds; i_round++) {
-        /* perform one round trip */
-        if (i_round == ctx->n_rounds - 1) {
-            mode |= 2; // flagging last round trips
-        }
-        for (int offset = 0; offset < ctx->N_x; offset++) {
-            // Call the CUDA kernel to process a single step in ther round trip
-            int threads = ctx->N_x;
-            int blocks = ctx->diode_length;
-            diode_cavity_round_trip_kernel<<<blocks, threads>>>(ctx->d_ctx, offset, mode);
-            CHECK_CUDA(cudaDeviceSynchronize());
-        }
-        mode = 0; 
-    }
+    CHECK_CUDA(cudaMemcpy(ctx_host->ext_loss_polarization_dir1, ctx_local.ext_loss_polarization_dir1, sizeof(cuDoubleComplex) * ctx_host->ext_len, cudaMemcpyDeviceToHost));
+    CHECK_CUDA(cudaMemcpy(ctx_host->ext_loss_polarization_dir2, ctx_local.ext_loss_polarization_dir2, sizeof(cuDoubleComplex) * ctx_host->ext_len, cudaMemcpyDeviceToHost));
 
     return 0;
 }
@@ -285,6 +348,4 @@ void diode_cavity_destroy(DiodeCavityCtx *ctx_host) {
     cudaFree(ctx_host->d_ctx);
 
 }
-#endif
-
 #endif

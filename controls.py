@@ -80,6 +80,11 @@ def generate_chart_complex(x, y, t, w=11, h=2, marker=None, lw=1):
     absolute = cget(np.absolute(y)).tolist()
     return generate_chart([x], [angle, absolute], t, w=w, h=h, color=["green", "red"], marker=marker, twinx=True, lw=[1, 3])
 
+def generate_chart_complex_log(x, y, t, w=11, h=2, marker=None, lw=1):
+    absolute = cget(np.absolute(y)).tolist()
+    logAbsolute = cget(np.log(np.absolute(y) + 0.000000001)).tolist()
+    return generate_chart([x], [logAbsolute, absolute], t, w=w, h=h, color=["orange", "red"], marker=marker, twinx=True, lw=[1, 3])
+
 
 def InputCalcM(id, title, value, step=0.01, width = 150):
     return Div(

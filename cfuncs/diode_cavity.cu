@@ -274,6 +274,11 @@ int diode_cavity_prepare(DiodeCavityCtx *ctx_host) {
 
 // Run one Cavity tick
 int diode_cavity_run(DiodeCavityCtx *ctx_host) {
+    cudaDeviceProp prop;
+    cudaGetDeviceProperties(&prop, 0);   // device 0
+    printf("multiProcessorCount %d\nmaxThreadsPerMultiProcessor %d\nmaxThreadsPerBlock %d\nwarpSize %d\nsharedMemPerBlock %ld\nregsPerBlock %d\n",
+         prop.multiProcessorCount, prop.maxThreadsPerMultiProcessor, prop.maxThreadsPerBlock ,prop.warpSize ,prop.sharedMemPerBlock ,prop.regsPerBlock);
+
 
     DiodeCavityCtx *ctx_dev = ctx_host->d_ctx;
     int threads = ctx_host->N_x;

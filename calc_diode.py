@@ -439,7 +439,7 @@ class diode_calc(CalcCommonBeam):
         t_list = self.shrink_list(self.diode_t_list)
 
         return Div(
-            generate_chart_complex(t_list, self.ext_beam_in, "Amplitude in"),
+            generate_chart_complex_log(t_list, self.ext_beam_in, "Amplitude in"),
             generate_chart_complex(t_list, self.ext_beam_out, "Amplitude out"),
             generate_chart([t_list], [cget(self.ext_gain_N).tolist()], "Gain carriers (1/cm^3)"),
             generate_chart_complex(t_list, cget(self.ext_gain_polarization_dir1).tolist(), "Gain Polarization"),
@@ -475,7 +475,7 @@ class diode_calc(CalcCommonBeam):
         t_list = self.shrink_list(self.diode_t_list)
 
         return Div(
-            Frame_chart("fc1", [t_list], self.shrink_lists([pulse_original, np.log(pulse_after + 0.000000001)]), 
+            Frame_chart("fc1", [t_list], self.shrink_lists([pulse_original, ]), 
                             "Original Pulse and Pulse after (photons/sec)", twinx=True),
 
             generate_chart([cget(self.diode_t_list).tolist(), self.diode_levels_x], [cget(pulse).tolist(), self.diode_levels_y],  

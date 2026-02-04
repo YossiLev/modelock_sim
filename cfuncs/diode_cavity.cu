@@ -262,6 +262,8 @@ int diode_cavity_prepare(DiodeCavityCtx *ctx_host) {
     ctx_help.alpha = ctx_host->alpha;
     ctx_help.one_minus_alpha_div_a = ctx_host->one_minus_alpha_div_a;
     ctx_help.coupling_out_gain = ctx_host->coupling_out_gain;
+    ctx_help.oc_val_sqrt = ctx_host->oc_val_sqrt;
+    ctx_help.oc_out_val = ctx_host->oc_out_val;
     ctx_help.ext_len = ctx_host->ext_len;
 
     memcpy(ctx_help.left_linear_cavity, ctx_host->left_linear_cavity, sizeof(ctx_host->left_linear_cavity));

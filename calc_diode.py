@@ -7,6 +7,7 @@
 #         import numpy as np
 #         from scipy.signal import fftconvolve
 # except ImportError:
+import time
 import ctypes
 import numpy as np
 from fasthtml.common import *
@@ -382,7 +383,16 @@ class diode_calc(CalcCommonBeam):
         print("diode_round_trip_wide GPU calculation started")
         mbg_diode_cavity_prepare(ctypes.byref(self.pack_diode_params()), self.gpu_memory)
         print("diode_round_trip_wide: prepared GPU memory")
+
+        start_time = time.perf_counter()
+
         mbg_diode_cavity_run(self.gpu_memory)
+
+        end_time = time.perf_counter()
+
+        elapsed_time = end_time - start_time
+        print(f"Elapsed time: {elapsed_time:.4f} seconds. ({(1000.0 * elapsed_time / self.calculation_rounds):.1f}ms per round)")
+
         print("diode_round_trip_wide: GPU run done")
         mbg_diode_cavity_extract(self.gpu_memory)
         print("diode_round_trip_wide GPU calculation done")
@@ -442,9 +452,11 @@ class diode_calc(CalcCommonBeam):
             generate_chart_complex_log(t_list, self.ext_beam_in, "Amplitude in"),
             generate_chart_complex(t_list, self.ext_beam_out, "Amplitude out"),
             generate_chart([t_list], [cget(self.ext_gain_N).tolist()], "Gain carriers (1/cm^3)"),
-            generate_chart_complex(t_list, cget(self.ext_gain_polarization_dir1).tolist(), "Gain Polarization"),
+            generate_chart_complex(t_list, cget(self.ext_gain_polarization_dir1).tolist(), "Gain Polarization 1"),
+            generate_chart_complex(t_list, cget(self.ext_gain_polarization_dir2).tolist(), "Gain Polarization 2"),
             generate_chart([t_list], [cget(self.ext_loss_N).tolist()], "Abs carriers (1/cm^3)"),
-            generate_chart_complex(t_list, cget(self.ext_loss_polarization_dir1).tolist(), "Loss Polarization"),
+            generate_chart_complex(t_list, cget(self.ext_loss_polarization_dir1).tolist(), "Loss Polarization 1"),
+            generate_chart_complex(t_list, cget(self.ext_loss_polarization_dir2).tolist(), "Loss Polarization 2"),
             cls="box", style="background-color: #008080;"
         )
     

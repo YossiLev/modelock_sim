@@ -633,6 +633,7 @@ void mbg_diode_copy_parameters_to_context(DiodeParams *params, DiodeCavityCtx *c
         ctx->diode_pos_2[idx] = params->loss_position[2] - i;
         idx++;
     }
+    printf("Diode gain %d, loss %d, Total %d\n", ctx->gain_length, ctx->loss_length, ctx->diode_length);
     ctx->diode_type[idx] = 3; // output coupler
     ctx->diode_pos_1[idx] = params->output_coupler_position;
     ctx->diode_pos_2[idx] = params->output_coupler_position;

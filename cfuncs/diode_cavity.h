@@ -5,6 +5,7 @@
 #include <complex.h>
 #ifdef USE_CUDA_CODE
 #include <cuComplex.h>
+
 #else
 typedef struct { double x, y; } double2;
 typedef double2 cuDoubleComplex;
@@ -112,7 +113,8 @@ typedef struct _DiodeCavityCtx {
     double *loss_N; // loss carrier density (size size N)
     cuDoubleComplex *loss_polarization_dir1; // loss polarization (size size N)
     cuDoubleComplex *loss_polarization_dir2; // loss polarization (size size N)
-#
+    cuDoubleComplex *rng;
+
     double left_linear_cavity[4]; // ABCD matrix elements for left linear cavity section
     double right_linear_cavity[4]; // ABCD matrix elements for right linear cavity section
 

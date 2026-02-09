@@ -119,18 +119,7 @@ __global__ void diode_cavity_round_trip_kernel(DiodeCavityCtx *data, int offset,
     cuDoubleComplex P1 = pP1[idi];
     cuDoubleComplex P2 = pP2[idi];
     cuDoubleComplex I1 = make_cuDoubleComplex(0.0, 1.0);
-    // if (offset < 1 && i + j < 10) {
-    //     printf("idi %d b%d t%d \n", idi, blockIdx.x, threadIdx.x);
-    // }
-    auto local_rng = ((curandStatePhilox4_32_10_t *)(data->rng))[idi];
-    // printf("ok\n");
-    double2 z_rng = curand_normal2_double(&local_rng);
-    if (offset < 1 && i + j < 2) {
-        printf("idi %d rnd = %f + i%f\n", idi, z_rng.x, z_rng.y);
-    }
-    cuDoubleComplex noise;
-    noise.x = z_rng.x * 1.0E-06;   // real
-    noise.y = z_rng.y * 1.0E-06;   // imag
+
 
     /* ------ the P update equation */
     cuDoubleComplex drive = cuCmul(I1, cmul_real(data->one_minus_alpha_div_a * data->kappa * N0, E1));
@@ -148,14 +137,19 @@ __global__ void diode_cavity_round_trip_kernel(DiodeCavityCtx *data, int offset,
     }
 
     /* ------ the E update equation */
-    if (offset < 1 && i + j < 2) {
-        printf("idi %d rnd = %f + i%f\n", idi, noise.x, noise.y);
-    }
-    pE1[index_1] = cuCadd(cuCadd(pE1[index_1], noise), cmul_real(data->dt * 1.0E-25 * data->coupling_out_gain , cuCmul(I1, P1)));
-    pE2[index_2] = cuCadd(cuCadd(pE2[index_2], noise), cmul_real(data->dt * 1.0E-25 * data->coupling_out_gain , cuCmul(I1, P2)));
-
-    //pE1[index_1] = cuCadd(pE1[index_1], cmul_real(data->dt * 1.0E-25 * data->coupling_out_gain , cuCmul(I1, P1)));
-    //pE2[index_2] = cuCadd(pE2[index_2], cmul_real(data->dt * 1.0E-25 * data->coupling_out_gain , cuCmul(I1, P2)));
+    curandStatePhilox4_32_10_t local_rng = ((curandStatePhilox4_32_10_t *)(data->rng))[idi];
+    double4 z_rng = curand_normal4_double(&local_rng);
+    ((curandStatePhilox4_32_10_t *)(data->rng))[idi] = local_rng;
+    cuDoubleComplex noise1, noise2;
+    noise1.x = z_rng.x * 1.0E-07;   // real
+    noise1.y = z_rng.y * 1.0E-07;   // imag
+    noise2.x = z_rng.z * 1.0E-07;   // real
+    noise2.y = z_rng.w * 1.0E-07;   // imag
+    pE1[index_1] = cuCadd(cuCadd(pE1[index_1], noise1), cmul_real(data->dt * 1.0E-25 * data->coupling_out_gain , cuCmul(I1, P1)));
+    pE2[index_2] = cuCadd(cuCadd(pE2[index_2], noise2), cmul_real(data->dt * 1.0E-25 * data->coupling_out_gain , cuCmul(I1, P2)));
+    
+    // pE1[index_1] = cuCadd(pE1[index_1], cmul_real(data->dt * 1.0E-25 * data->coupling_out_gain , cuCmul(I1, P1)));
+    // pE2[index_2] = cuCadd(pE2[index_2], cmul_real(data->dt * 1.0E-25 * data->coupling_out_gain , cuCmul(I1, P2)));
 
     /* store back updated values */
     pN0[idi] = N0;

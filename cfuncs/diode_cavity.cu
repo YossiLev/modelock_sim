@@ -59,16 +59,6 @@ __global__ void diode_cavity_round_trip_kernel(DiodeCavityCtx *data, int offset,
     int index_1 = ((data->diode_pos_1[i] + offset) % data->N) * data->N_x + j;
     int index_2 = ((data->diode_pos_2[i] + offset) % data->N) * data->N_x + j;
 
-    // if (offset < 1 && i < 2 && j < 3) {
-    //     printf("bx = %d tx=%d bd = %d --- i1 = %d i2 = %d\n", blockIdx.x, threadIdx.x, blockDim.x, index_1, index_2);
-    // }
-
-    // if (blockIdx.x == 0 && threadIdx.x == 0 && offset == 0) {
-    //     for (int ii = 0; ii < data->diode_length * blockDim.x; ii++) {
-    //         printf("ii = %d, diode = %f\n", ii, data->diode_N0[ii]);
-    //     }
-
-    // }
     cuDoubleComplex *__restrict__ pE1 = data->amplitude;
     cuDoubleComplex E1 = pE1[index_1];
     cuDoubleComplex *__restrict__ pE2 = data->amplitude;
@@ -137,24 +127,36 @@ __global__ void diode_cavity_round_trip_kernel(DiodeCavityCtx *data, int offset,
     }
 
     /* ------ the E update equation */
+    E1 = cuCadd(E1, cmul_real(data->dt * 1.0E-25 * data->coupling_out_gain , cuCmul(I1, P1)));
+    E2 = cuCadd(E2, cmul_real(data->dt * 1.0E-25 * data->coupling_out_gain , cuCmul(I1, P2)));
     curandStatePhilox4_32_10_t local_rng = ((curandStatePhilox4_32_10_t *)(data->rng))[idi];
     float4 z_rng = curand_normal4(&local_rng);
     ((curandStatePhilox4_32_10_t *)(data->rng))[idi] = local_rng;
-    cuDoubleComplex noise1, noise2;
-    noise1.x = z_rng.x * data->noise_val;   // real
-    noise1.y = z_rng.y * data->noise_val;   // imag
-    noise2.x = z_rng.z * data->noise_val;   // real
-    noise2.y = z_rng.w * data->noise_val;   // imag
-    pE1[index_1] = cuCadd(cuCadd(pE1[index_1], noise1), cmul_real(data->dt * 1.0E-25 * data->coupling_out_gain , cuCmul(I1, P1)));
-    pE2[index_2] = cuCadd(cuCadd(pE2[index_2], noise2), cmul_real(data->dt * 1.0E-25 * data->coupling_out_gain , cuCmul(I1, P2)));
-    
-    // pE1[index_1] = cuCadd(pE1[index_1], cmul_real(data->dt * 1.0E-25 * data->coupling_out_gain , cuCmul(I1, P1)));
-    // pE2[index_2] = cuCadd(pE2[index_2], cmul_real(data->dt * 1.0E-25 * data->coupling_out_gain , cuCmul(I1, P2)));
+    //cuFloatComplex noise1, noise2;
+    E1.x += (double)z_rng.x * data->noise_val;
+    E1.y += (double)z_rng.y * data->noise_val;
+    E2.x += (double)z_rng.z * data->noise_val;
+    E2.y += (double)z_rng.w * data->noise_val;
 
+    //pE1[index_1] = cuCadd(cuCadd(pE1[index_1], (cuDoubleComplex)noise1), cmul_real(data->dt * 1.0E-25 * data->coupling_out_gain , cuCmul(I1, P1)));
+    //pE2[index_2] = cuCadd(cuCadd(pE2[index_2], (cuDoubleComplex)noise2), cmul_real(data->dt * 1.0E-25 * data->coupling_out_gain , cuCmul(I1, P2)));
+    /* deterministic coupling */
+    cuDoubleComplex dE1 = cuCmul(I1, P1);
+    cuDoubleComplex dE2 = cuCmul(I1, P2);
+
+    double k = data->dt * 1.0E-25 * data->coupling_out_gain;
+
+    E1.x += k * dE1.x;
+    E1.y += k * dE1.y;
+    E2.x += k * dE2.x;
+    E2.y += k * dE2.y;
     /* store back updated values */
     pN0[idi] = N0;
     pP1[idi] = P1;
     pP2[idi] = P2;
+    pE1[index_1] = E1;
+    pE2[index_2] = E2;
+
     if (j == threadIdx.x / 2) {
         if (blockIdx.x == 5) {
             int idb = (data->diode_pos_1[i] + offset) % data->N;

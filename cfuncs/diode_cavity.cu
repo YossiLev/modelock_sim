@@ -138,7 +138,7 @@ __global__ void diode_cavity_round_trip_kernel(DiodeCavityCtx *data, int offset,
 
     /* ------ the E update equation */
     curandStatePhilox4_32_10_t local_rng = ((curandStatePhilox4_32_10_t *)(data->rng))[idi];
-    double4 z_rng = curand_normal4_double(&local_rng);
+    float4 z_rng = curand_normal4(&local_rng);
     ((curandStatePhilox4_32_10_t *)(data->rng))[idi] = local_rng;
     cuDoubleComplex noise1, noise2;
     noise1.x = z_rng.x * data->noise_val;   // real

@@ -186,6 +186,7 @@ class diode_calc(CalcCommonBeam):
         params.kappa = self.kappa
         params.alpha = self.h
         params.one_minus_alpha_div_a = (1.0 - self.h) / self.Ga
+        params.noise_val = 1.0E-26 * self.rand_factor_seed
         params.coupling_out_gain = self.coupling_out_gain
         params.oc_val = np.exp(- self.cavity_loss)
         params.left_linear_cavity = (ctypes.c_double * 4)(*[self.left_arm_mat[0][0], self.left_arm_mat[0][1],

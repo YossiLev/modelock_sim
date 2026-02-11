@@ -141,10 +141,10 @@ __global__ void diode_cavity_round_trip_kernel(DiodeCavityCtx *data, int offset,
     double4 z_rng = curand_normal4_double(&local_rng);
     ((curandStatePhilox4_32_10_t *)(data->rng))[idi] = local_rng;
     cuDoubleComplex noise1, noise2;
-    noise1.x = z_rng.x * 1.0E-07;   // real
-    noise1.y = z_rng.y * 1.0E-07;   // imag
-    noise2.x = z_rng.z * 1.0E-07;   // real
-    noise2.y = z_rng.w * 1.0E-07;   // imag
+    noise1.x = z_rng.x * data->noise_val;   // real
+    noise1.y = z_rng.y * data->noise_val;   // imag
+    noise2.x = z_rng.z * data->noise_val;   // real
+    noise2.y = z_rng.w * data->noise_val;   // imag
     pE1[index_1] = cuCadd(cuCadd(pE1[index_1], noise1), cmul_real(data->dt * 1.0E-25 * data->coupling_out_gain , cuCmul(I1, P1)));
     pE2[index_2] = cuCadd(cuCadd(pE2[index_2], noise2), cmul_real(data->dt * 1.0E-25 * data->coupling_out_gain , cuCmul(I1, P2)));
     

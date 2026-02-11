@@ -125,6 +125,8 @@ class DiodeParams(ctypes.Structure):
         ("kappa", ctypes.c_double),
         ("alpha", ctypes.c_double), 
         ("one_minus_alpha_div_a", ctypes.c_double),
+        ("noise_val", ctypes.c_double),
+        
         ("coupling_out_gain", ctypes.c_double),
         ("oc_val", ctypes.c_double),
 

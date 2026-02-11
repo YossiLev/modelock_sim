@@ -587,6 +587,7 @@ void debug_print_diode_params(DiodeParams *params) {
     printf("kappa = %e\n", params->kappa);
     printf("alpha = %e\n", params->alpha);
     printf("one_minus_alpha_div_a = %e\n", params->one_minus_alpha_div_a);
+    printf("noise_val = %e\n", params->noise_val);
     printf("coupling_out_gain = %e\n", params->coupling_out_gain);
     printf("ext_len = %d\n", params->ext_len);
     printf("left_linear_cavity = [%f, %f, %f, %f]\n", 
@@ -648,6 +649,7 @@ void mbg_diode_copy_parameters_to_context(DiodeParams *params, DiodeCavityCtx *c
     ctx->kappa = params->kappa;
     ctx->alpha = params->alpha;
     ctx->one_minus_alpha_div_a = params->one_minus_alpha_div_a;
+    ctx->noise_val = params->noise_val;
     ctx->coupling_out_gain = params->coupling_out_gain;
     ctx->oc_val_sqrt = sqrt(params->oc_val); // output coupler retention amplitude factor
     ctx->oc_out_val = sqrt(1.0 - params->oc_val); // output coupler output amplitude factor

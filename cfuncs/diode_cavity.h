@@ -47,6 +47,7 @@ typedef struct _DiodeParams {
     double kappa;
     double alpha;
     double one_minus_alpha_div_a;
+    double noise_val;
     double coupling_out_gain;
     double oc_val;
 
@@ -90,6 +91,7 @@ typedef struct _DiodeCavityCtx {
     double kappa;
     double alpha;
     double one_minus_alpha_div_a;
+    double noise_val;
     double coupling_out_gain;
     double oc_val_sqrt; // output coupler retention amplitude factor
     double oc_out_val; // output coupler output amplitude factor

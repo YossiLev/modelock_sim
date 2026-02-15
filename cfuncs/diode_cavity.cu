@@ -51,19 +51,21 @@ __global__ void init_rng(curandStatePhilox4_32_10_t *rng, unsigned long seed)
     curand_init(seed, i, 0, &rng[i]);
 }
 
-__global__ void diode_cavity_round_trip_kernel(DiodeCavityCtx *data, int offset, int mode) {
+__global__ void diode_cavity_round_trip_kernel(DiodeCavityCtx *data, 
+            int offset, int mode, double *rev_gain, double *coupling, double *pump) {
     int i = blockIdx.x; // 0:130
     int j = threadIdx.x; // 0:31
 
     /* position on the left and right beams*/
     int index_1 = ((data->diode_pos_1[i] + offset) % data->N) * data->N_x + j;
     int index_2 = ((data->diode_pos_2[i] + offset) % data->N) * data->N_x + j;
+    int bType = data->diode_type[blockIdx.x];
 
     cuDoubleComplex *__restrict__ pE1 = data->amplitude;
     cuDoubleComplex E1 = pE1[index_1];
     cuDoubleComplex *__restrict__ pE2 = data->amplitude;
     cuDoubleComplex E2 = pE2[index_2];
-    if (data->diode_type[blockIdx.x] == 3 /* output coupler and initializer */) {
+    if (bType == 2 /* output coupler and initializer */) {
         if ((mode & 1) != 0 /* first round trip */) {
 
             /* initialize the beam according to the selected type */
@@ -118,17 +120,15 @@ __global__ void diode_cavity_round_trip_kernel(DiodeCavityCtx *data, int offset,
     P2 = cuCsub(cmul_real(data->alpha, P2), drive);
 
     /* ------ the N update equation */
-    //averageP = 0.5 * (gainP[iN] + gainP[i]);
     double exchange = 1.0E-27 * (cuCadd(cuCmul(cuConj(E1), P1), cuCmul(cuConj(E2), P2))).y;
-    if (data->diode_type[blockIdx.x] == 1 /* gain */) {
-        N0 = N0 + data->dt * ((- N0) / data->tGain + data->C_gain * exchange + data->Pa);
-    } else if (data->diode_type[blockIdx.x] == 2 /* absorber */) {
-        N0 = N0 + data->dt * ((data->N0b - N0) / data->tLoss + data->C_loss * exchange);
-    }
+    // if (data->diode_type[blockIdx.x] == 0 /* gain */) {
+    //     N0 = N0 + data->dt * ((- N0) / data->tGain + data->C_gain * exchange + data->Pa);
+    // } else if (data->diode_type[blockIdx.x] == 1 /* absorber */) {
+    //     N0 = N0 + data->dt * ((data->N0b - N0) / data->tLoss + data->C_loss * exchange);
+    // }
+    N0 = N0 + data->dt * (- N0 * rev_gain[bType] + coupling[bType] * exchange + pump[bType]);
 
     /* ------ the E update equation */
-    E1 = cuCadd(E1, cmul_real(data->dt * 1.0E-25 * data->coupling_out_gain , cuCmul(I1, P1)));
-    E2 = cuCadd(E2, cmul_real(data->dt * 1.0E-25 * data->coupling_out_gain , cuCmul(I1, P2)));
     curandStatePhilox4_32_10_t local_rng = ((curandStatePhilox4_32_10_t *)(data->rng))[idi];
     float4 z_rng = curand_normal4(&local_rng);
     ((curandStatePhilox4_32_10_t *)(data->rng))[idi] = local_rng;
@@ -138,18 +138,16 @@ __global__ void diode_cavity_round_trip_kernel(DiodeCavityCtx *data, int offset,
     E2.x += (double)z_rng.z * data->noise_val;
     E2.y += (double)z_rng.w * data->noise_val;
 
-    //pE1[index_1] = cuCadd(cuCadd(pE1[index_1], (cuDoubleComplex)noise1), cmul_real(data->dt * 1.0E-25 * data->coupling_out_gain , cuCmul(I1, P1)));
-    //pE2[index_2] = cuCadd(cuCadd(pE2[index_2], (cuDoubleComplex)noise2), cmul_real(data->dt * 1.0E-25 * data->coupling_out_gain , cuCmul(I1, P2)));
     /* deterministic coupling */
     cuDoubleComplex dE1 = cuCmul(I1, P1);
     cuDoubleComplex dE2 = cuCmul(I1, P2);
 
-    double k = data->dt * 1.0E-25 * data->coupling_out_gain;
-
+    double k = data->coupling_out_gain;
     E1.x += k * dE1.x;
     E1.y += k * dE1.y;
     E2.x += k * dE2.x;
     E2.y += k * dE2.y;
+
     /* store back updated values */
     pN0[idi] = N0;
     pP1[idi] = P1;
@@ -202,7 +200,7 @@ int diode_cavity_build(DiodeCavityCtx *ctx_host) {
     memcpy(&ctx_local, ctx_host, sizeof(DiodeCavityCtx));
     /* first time calling for initialization */
     /* allocate cuda arrays which are common to C and cuda */
-    CHECK_CUDA(cudaMalloc(&ctx_local.diode_type, sizeof(int) * ctx_host->diode_length)); /* type: 1 gain, 2 absorber*/
+    CHECK_CUDA(cudaMalloc(&ctx_local.diode_type, sizeof(int) * ctx_host->diode_length)); /* type: 0 gain, 1 absorber*/
     CHECK_CUDA(cudaMalloc(&ctx_local.diode_pos_1, sizeof(int) * ctx_host->diode_length)); /* position index for left to right beam*/
     CHECK_CUDA(cudaMalloc(&ctx_local.diode_pos_2, sizeof(int) * ctx_host->diode_length)); /* position index for right to left beam*/
     /* copy host to cuda arrays */
@@ -310,6 +308,19 @@ int diode_cavity_run(DiodeCavityCtx *ctx_host) {
     if (ctx_host->start_round == 0) {
         mode = 1; // flagging type of round trip (flags: bit 0 - first round trip, bit 1 - last round trip)
     }
+
+    /* help areas */
+    double *smallHelp, smallHelpHost[6];
+    // double rev_gain[2] = {1.0 / ctx_host->tGain, 1.0 / ctx_host->tLoss};
+    // double coupling[2] = {ctx_host->C_gain, ctx_host->C_loss};
+    // double pump[2] = {ctx_host->Pa, ctx_host->N0b / ctx_host->tLoss};
+    smallHelpHost[0] = 1.0 / ctx_host->tGain; smallHelpHost[1] = 1.0 / ctx_host->tLoss;
+    smallHelpHost[2] = ctx_host->C_gain; smallHelpHost[3] = ctx_host->C_loss;
+    smallHelpHost[4] = ctx_host->Pa; smallHelpHost[5] = ctx_host->N0b / ctx_host->tLoss;
+    cudaMalloc(&smallHelp, sizeof(double) * 6);
+    cudaMemcpy(smallHelp, smallHelpHost, sizeof(double) * 6, cudaMemcpyHostToDevice);
+    
+
     for (int i_round = 0; i_round < ctx_host->n_rounds; i_round++) {
         /* perform one round trip */
         if (i_round == ctx_host->n_rounds - 1) {
@@ -318,15 +329,16 @@ int diode_cavity_run(DiodeCavityCtx *ctx_host) {
         printf("Cavity round %d\n", i_round + 1);        
         for (int offset = 0; offset < ctx_host->N; offset++) {
             // Call the CUDA kernel to process a single step in ther round trip
-            diode_cavity_round_trip_kernel<<<blocks, threads>>>(ctx_dev, offset, mode);
+            diode_cavity_round_trip_kernel<<<blocks, threads>>>(ctx_dev, offset, mode, smallHelp, &smallHelp[2], &smallHelp[4]);
             CHECK_CUDA(cudaDeviceSynchronize());
         }
         mode = 0; 
     }
 
+    cudaFree(smallHelp);
+
     return 0;
 }
-
 
 int diode_cavity_extract(DiodeCavityCtx *ctx_host) {
     printf("CUDA extract Context %p %p\n", ctx_host, ctx_host->d_ctx);

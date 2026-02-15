@@ -99,7 +99,7 @@ typedef struct _DiodeCavityCtx {
     int diode_length; // number of diode total components
     int gain_length; // number of gain components
     int loss_length; // number of loss components
-    int *diode_type; // type of diode component (1=gain, 2=absorber)
+    int *diode_type; // type of diode component (0=gain, 1=absorber)
     int *diode_pos_1; // position index of each diode component at the left to right beam direction
     int *diode_pos_2; // position index of each diode component at the right to left beam direction
 

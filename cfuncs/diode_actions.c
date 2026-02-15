@@ -623,19 +623,19 @@ void mbg_diode_copy_parameters_to_context(DiodeParams *params, DiodeCavityCtx *c
     ctx->diode_pos_2 = (int *)malloc(ctx->diode_length * sizeof(int)); // position index of each diode component at the right to left beam direction
     int idx = 0;
     for (int i = 0; i < ctx->gain_length; i++) {
-        ctx->diode_type[idx] = 1; // gain
+        ctx->diode_type[idx] = 0; // gain
         ctx->diode_pos_1[idx] = params->gain_position[0] + i;
         ctx->diode_pos_2[idx] = params->gain_position[2] - i;
         idx++;
     }
     for (int i = 0; i < ctx->loss_length; i++) {
-        ctx->diode_type[idx] = 2; // absorber
+        ctx->diode_type[idx] = 1; // absorber
         ctx->diode_pos_1[idx] = params->loss_position[0] + i;
         ctx->diode_pos_2[idx] = params->loss_position[2] - i;
         idx++;
     }
     printf("Diode gain %d, loss %d, Total %d\n", ctx->gain_length, ctx->loss_length, ctx->diode_length);
-    ctx->diode_type[idx] = 3; // output coupler
+    ctx->diode_type[idx] = 2; // output coupler
     ctx->diode_pos_1[idx] = params->output_coupler_position;
     ctx->diode_pos_2[idx] = params->output_coupler_position;
 
@@ -650,7 +650,7 @@ void mbg_diode_copy_parameters_to_context(DiodeParams *params, DiodeCavityCtx *c
     ctx->alpha = params->alpha;
     ctx->one_minus_alpha_div_a = params->one_minus_alpha_div_a;
     ctx->noise_val = params->noise_val;
-    ctx->coupling_out_gain = params->coupling_out_gain;
+    ctx->coupling_out_gain = params->dt * 1.0E-25 * params->coupling_out_gain;
     ctx->oc_val_sqrt = sqrt(params->oc_val); // output coupler retention amplitude factor
     ctx->oc_out_val = sqrt(1.0 - params->oc_val); // output coupler output amplitude factor
     printf("OC %f %f %f\n", params->oc_val, ctx->oc_val_sqrt, ctx->oc_out_val);

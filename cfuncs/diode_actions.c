@@ -9,7 +9,7 @@
 
 // for linux compilation:
 // if using cuda:
-// nvcc -c -Xcompiler -fPIC ./cfuncs/diode_cavity.cu -o ./cfuncs/diode_ca
+// nvcc -c -Xcompiler -fPIC ./cfuncs/diode_cavity.cu -o ./cfuncs/diode_cavity.o
 // nvcc -shared -o ./cfuncs/libs/libdiode.so ./cfuncs/diode_actions.o ./cfuncs/diode_cavity.o -lcufft -lcudart
 // or without cuda:
 // gcc -shared -o ./cfuncs/libs/libdiode.so -fPIC ./cfuncs/diode_actions.c

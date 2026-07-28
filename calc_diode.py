@@ -15,15 +15,7 @@ from controls import *
 from calc_common import *
 from calc_diode_capi import *
 
-def gain_function(Ga, N):
-    xh1 = Ga * 4468377122.5 * 0.46 * 16.5
-    xh2 = Ga * 4468377122.5 * 0.46 * 0.32 * np.exp(0.000000000041*14E+10)
-    gGain = xh1 - xh2 * np.exp(-0.000000000041 * N)
-    return gGain
 
-def loss_function(Gb, N0b, N):
-    gAbs = Gb * 0.02 * (N - N0b)
-    return gAbs
 
 class diode_calc(CalcCommonBeam):
     def __init__(self):
@@ -465,6 +457,15 @@ class diode_calc(CalcCommonBeam):
         if self.diode_mode == "MBGPU":
             return self.generate_charts_mbgpu()
 
+        # def gain_function(Ga, N):
+        #     xh1 = Ga * 4468377122.5 * 0.46 * 16.5
+        #     xh2 = Ga * 4468377122.5 * 0.46 * 0.32 * np.exp(0.000000000041*14E+10)
+        #     gGain = xh1 - xh2 * np.exp(-0.000000000041 * N)
+        #     return gGain
+
+        # def loss_function(Gb, N0b, N):
+        #     gAbs = Gb * 0.02 * (N - N0b)
+        #     return gAbs
         # xGain = np.linspace(4E+10, 9.0E+10, 50).tolist()
         # xLoss = np.linspace(0.1E+10, 5.0E+10, 50).tolist()
         # yGain = list(map(lambda x : gain_function(self.Ga, x), xGain))

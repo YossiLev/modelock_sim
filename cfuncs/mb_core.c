@@ -226,8 +226,8 @@ void mb_diode_round_trip(
     double *loss_value,
 
     /* field arrays */
-    complex double *pulse_amplitude,       /* full-round complex samples array (length N) */
-    complex double *pulse_amplitude_after, /* output coupler extracted amplitude */
+    complex double *state_amplitude,       /* full-round complex samples array (length N) */
+    complex double *state_amplitude_after, /* output coupler extracted amplitude */
 
     /* simulation control */
     int n_rounds,
@@ -284,8 +284,8 @@ void mb_diode_round_trip(
             int idx_loss_a = i;
             int idx_loss_b = (i + loss_shift) % N;
 
-            complex double E_a = pulse_amplitude[idx_loss_a];
-            complex double E_b = pulse_amplitude[idx_loss_b];
+            complex double E_a = state_amplitude[idx_loss_a];
+            complex double E_b = state_amplitude[idx_loss_b];
             complex double E_loss_drive = E_a + E_b; /* total local field driving absorber */
 
             /* pump dependent dephasing (additive) */
@@ -323,15 +323,15 @@ void mb_diode_round_trip(
                 double dW_a = S_a * dt;
                 double dW_b = S_b * dt;
                 /* ΔE_j = (dW_j / I_j) * E_j  -> if I_j small, fallback below */
-                if (I_a > eps) pulse_amplitude[idx_loss_a] += (dW_a / (I_a + eps)) * E_a;
-                else pulse_amplitude[idx_loss_a] += 0.5 * delta_loss_total_f; /* fallback seeding */
+                if (I_a > eps) state_amplitude[idx_loss_a] += (dW_a / (I_a + eps)) * E_a;
+                else state_amplitude[idx_loss_a] += 0.5 * delta_loss_total_f; /* fallback seeding */
 
-                if (I_b > eps) pulse_amplitude[idx_loss_b] += (dW_b / (I_b + eps)) * E_b;
-                else pulse_amplitude[idx_loss_b] += 0.5 * delta_loss_total_b;
+                if (I_b > eps) state_amplitude[idx_loss_b] += (dW_b / (I_b + eps)) * E_b;
+                else state_amplitude[idx_loss_b] += 0.5 * delta_loss_total_b;
             } else {
                 /* both beams effectively zero: seed equally using P_avg */
-                pulse_amplitude[idx_loss_a] += 0.5 * (delta_loss_total_f + delta_loss_total_b);
-                pulse_amplitude[idx_loss_b] += 0.5 * (delta_loss_total_f + delta_loss_total_b);
+                state_amplitude[idx_loss_a] += 0.5 * (delta_loss_total_f + delta_loss_total_b);
+                state_amplitude[idx_loss_b] += 0.5 * (delta_loss_total_f + delta_loss_total_b);
             }
 
             /* spontaneous-like noise injection for absorber (independent) */
@@ -339,8 +339,8 @@ void mb_diode_round_trip(
                 double sigma_sp = noise_prefactor * sqrt(fmax(0.0, lossN[i])) * sqrt(dt);
                 complex double n1 = sigma_sp * (gaussian_rand01() + I * gaussian_rand01());
                 complex double n2 = sigma_sp * (gaussian_rand01() + I * gaussian_rand01());
-                pulse_amplitude[idx_loss_a] += n1;
-                pulse_amplitude[idx_loss_b] += n2;
+                state_amplitude[idx_loss_a] += n1;
+                state_amplitude[idx_loss_b] += n2;
             }
 
             /* update inversion using SAME midpoint polarizations and the local total driving field */
@@ -354,7 +354,7 @@ void mb_diode_round_trip(
             /* diagnostics */
             {
                 double oldI = I_a + I_b;
-                double newI = cabs_square(pulse_amplitude[idx_loss_a]) + cabs_square(pulse_amplitude[idx_loss_b]);
+                double newI = cabs_square(state_amplitude[idx_loss_a]) + cabs_square(state_amplitude[idx_loss_b]);
                 loss_value[i] = newI / (1e-6 + oldI);
             }
 
@@ -362,8 +362,8 @@ void mb_diode_round_trip(
             int idx_gain_a = (i + gain_distance) % N;
             int idx_gain_b = (i + loss_shift - gain_distance) % N;
 
-            complex double Eg_a = pulse_amplitude[idx_gain_a];
-            complex double Eg_b = pulse_amplitude[idx_gain_b];
+            complex double Eg_a = state_amplitude[idx_gain_a];
+            complex double Eg_b = state_amplitude[idx_gain_b];
             complex double E_gain_drive = Eg_a + Eg_b;
 
             /* pump dependent dephasing for gain */
@@ -399,14 +399,14 @@ void mb_diode_round_trip(
             if (Ig_a + Ig_b > eps) {
                 double dW_ga = S_g_a * dt;
                 double dW_gb = S_g_b * dt;
-                if (Ig_a > eps) pulse_amplitude[idx_gain_a] += (dW_ga / (Ig_a + eps)) * Eg_a;
-                else pulse_amplitude[idx_gain_a] += 0.5 * delta_gain_f;
-                if (Ig_b > eps) pulse_amplitude[idx_gain_b] += (dW_gb / (Ig_b + eps)) * Eg_b;
-                else pulse_amplitude[idx_gain_b] += 0.5 * delta_gain_b;
+                if (Ig_a > eps) state_amplitude[idx_gain_a] += (dW_ga / (Ig_a + eps)) * Eg_a;
+                else state_amplitude[idx_gain_a] += 0.5 * delta_gain_f;
+                if (Ig_b > eps) state_amplitude[idx_gain_b] += (dW_gb / (Ig_b + eps)) * Eg_b;
+                else state_amplitude[idx_gain_b] += 0.5 * delta_gain_b;
             } else {
                 /* seed equally */
-                pulse_amplitude[idx_gain_a] += 0.5 * (delta_gain_f + delta_gain_b);
-                pulse_amplitude[idx_gain_b] += 0.5 * (delta_gain_f + delta_gain_b);
+                state_amplitude[idx_gain_a] += 0.5 * (delta_gain_f + delta_gain_b);
+                state_amplitude[idx_gain_b] += 0.5 * (delta_gain_f + delta_gain_b);
             }
 
             /* spontaneous-like noise at gain */
@@ -414,8 +414,8 @@ void mb_diode_round_trip(
                 double sigma_sp = noise_prefactor * sqrt(fmax(0.0, gainN[i])) * sqrt(dt);
                 complex double n1 = sigma_sp * (gaussian_rand01() + I * gaussian_rand01());
                 complex double n2 = sigma_sp * (gaussian_rand01() + I * gaussian_rand01());
-                pulse_amplitude[idx_gain_a] += n1;
-                pulse_amplitude[idx_gain_b] += n2;
+                state_amplitude[idx_gain_a] += n1;
+                state_amplitude[idx_gain_b] += n2;
             }
 
             /* inversion update for gain (using SAME midpoint polars) */
@@ -435,7 +435,7 @@ void mb_diode_round_trip(
             /* diagnostics */
             {
                 double oldI = Ig_a + Ig_b;
-                double newI = cabs_square(pulse_amplitude[idx_gain_a]) + cabs_square(pulse_amplitude[idx_gain_b]);
+                double newI = cabs_square(state_amplitude[idx_gain_a]) + cabs_square(state_amplitude[idx_gain_b]);
                 gain_value[i] = newI / (1e-6 + oldI);
             }
 
@@ -444,8 +444,8 @@ void mb_diode_round_trip(
                order: compute transmitted out field, then scale local amplitude by reflection amplitude
             */
             int oc_loc = (oc_shift + i) % N;
-            pulse_amplitude_after[oc_loc] = pulse_amplitude[oc_loc] * oc_out_val;
-            pulse_amplitude[oc_loc] *= oc_val_sqrt;
+            state_amplitude_after[oc_loc] = state_amplitude[oc_loc] * oc_out_val;
+            state_amplitude[oc_loc] *= oc_val_sqrt;
 
             /* ---------- Mirror reflections (treat mirrors as moving components too) ----------
                apply local mirror reflections at indices (example: left=0, right=N/2) -- user may adjust
@@ -457,8 +457,8 @@ void mb_diode_round_trip(
             int mirror_right_idx = (N/2 + i) % N;
 
             /* apply reflection */
-            pulse_amplitude[mirror_left_idx] *= r_left;
-            pulse_amplitude[mirror_right_idx] *= r_right;
+            state_amplitude[mirror_left_idx] *= r_left;
+            state_amplitude[mirror_right_idx] *= r_right;
 
         } /* end spatial loop */
     } /* end rounds loop */

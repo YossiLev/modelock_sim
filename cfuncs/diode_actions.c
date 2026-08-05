@@ -26,7 +26,7 @@ double abs_square(double _Complex z) {
     return creal(z) * creal(z) + cimag(z) * cimag(z);
 }
 
-void diode_gain(double *pulse, double *gain, double *gain_value, double *pulse_after, 
+void diode_gain(double *state, double *gain, double *gain_value, double *state_after, 
     int N, double dt, double Pa, double Ta, double Ga, double gain_factor) {
    
     int i;
@@ -40,18 +40,18 @@ void diode_gain(double *pulse, double *gain, double *gain_value, double *pulse_a
         int iN = (i + 1) % N; // wrap around for circular array behavior
         double gGain = xh1 - xh2 * exp(-0.000000000041 * gain[i]);
         gain_value[i] = 1 + gGain;
-        //gGain *= pulse[i];
-        pulse_after[i] = pulse[i] * gain_value[i] + rand_factor * gain[i] * (double)rand();
-        gain[iN] = gain[i] + dt * (-gGain * pulse[i] + Pa - gain[i] / (Ta * 1E-12));
+        //gGain *= state[i];
+        state_after[i] = state[i] * gain_value[i] + rand_factor * gain[i] * (double)rand();
+        gain[iN] = gain[i] + dt * (-gGain * state[i] + Pa - gain[i] / (Ta * 1E-12));
         // if (i == 1000) {
         //     printf("int gGain = %f gain_value[i] = %f\n", gGain, gain_value[i]);
-        //     printf("int gain[i] = %f gain[iN] = %f pulse[i] = %f after = %f rf = %e\n", gain[i], gain[iN], pulse[i], pulse_after[i], rand_factor * gain[i]);
+        //     printf("int gain[i] = %f gain[iN] = %f state[i] = %f after = %f rf = %e\n", gain[i], gain[iN], state[i], state_after[i], rand_factor * gain[i]);
         // }
 
     }
 }
 
-void cmp_diode_gain(double _Complex *pulse, double *gain, double *gain_value, double _Complex *pulse_after, 
+void cmp_diode_gain(double _Complex *state, double *gain, double *gain_value, double _Complex *state_after, 
     int N, double dt, double Pa, double Ta, double Ga, double gain_factor) {
    
     int i;
@@ -65,18 +65,18 @@ void cmp_diode_gain(double _Complex *pulse, double *gain, double *gain_value, do
         int iN = (i + 1) % N; // wrap around for circular array behavior
         double gGain = xh1 - xh2 * exp(-0.000000000041 * gain[i]);
         gain_value[i] = 1 + gGain;
-        gain[iN] = gain[i] + dt * (- gGain * abs_square(pulse[i]) + Pa - gain[i] / (Ta * 1E-12));
+        gain[iN] = gain[i] + dt * (- gGain * abs_square(state[i]) + Pa - gain[i] / (Ta * 1E-12));
     
-        pulse_after[i] = pulse[i] * sqrt(gain_value[i]) + rand_factor * gain[i] * (double)rand();
+        state_after[i] = state[i] * sqrt(gain_value[i]) + rand_factor * gain[i] * (double)rand();
         // if (i == 1000) {
         //     printf("cmp gGain = %f gain_value[i] = %f\n", gGain, gain_value[i]);
-        //     printf("cmp gain[i] = %f gain[iN] = %f pulse[i] = %f after = %f rf = %e\n", gain[i], gain[iN], abs_square(pulse[i]), abs_square(pulse_after[i]), rand_factor * gain[i]);
+        //     printf("cmp gain[i] = %f gain[iN] = %f state[i] = %f after = %f rf = %e\n", gain[i], gain[iN], abs_square(state[i]), abs_square(state_after[i]), rand_factor * gain[i]);
         // }
 
     }
 }
 
-void diode_loss(double *loss, double *loss_value, double *pulse_after,
+void diode_loss(double *loss, double *loss_value, double *state_after,
                 int N, double dt, double Pb, double Tb, double Gb, double N0b) {
 
     // absorber calculations
@@ -87,16 +87,16 @@ void diode_loss(double *loss, double *loss_value, double *pulse_after,
         int iN = (i + 1) % N; // wrap around for circular array behavior
         gAbs = Gb * 0.02 * (loss[i] - N0b);
         loss_value[i] = 1 + gAbs;
-        gAbs *= pulse_after[i];
+        gAbs *= state_after[i];
         loss[iN] = loss[i] + dt * (- gAbs + Pb - loss[i] / (Tb * 1E-12));
         // if (i == 1000) {
-        //     printf("int loss[i] = %f loss[iN] = %f pulse[i] = %f \n", loss[i], loss[iN], pulse_after[i]);
+        //     printf("int loss[i] = %f loss[iN] = %f state[i] = %f \n", loss[i], loss[iN], state_after[i]);
         // }
-        pulse_after[i] += gAbs;// + 0.25 * dt * loss[i] / (Tb * 1E-12);
+        state_after[i] += gAbs;// + 0.25 * dt * loss[i] / (Tb * 1E-12);
     }
 }
 
-void cmp_diode_loss(double *loss, double *loss_value, double _Complex *pulse_after,
+void cmp_diode_loss(double *loss, double *loss_value, double _Complex *state_after,
                 int N, double dt, double Pb, double Tb, double Gb, double N0b) {
 
     // absorber calculations
@@ -107,16 +107,16 @@ void cmp_diode_loss(double *loss, double *loss_value, double _Complex *pulse_aft
         int iN = (i + 1) % N; // wrap around for circular array behavior
         gAbs = Gb * 0.02 * (loss[i] - N0b);
         loss_value[i] = 1 + gAbs;
-        loss[iN] = loss[i] + dt * (- gAbs * abs_square(pulse_after[i]) + Pb - loss[i] / (Tb * 1E-12));
+        loss[iN] = loss[i] + dt * (- gAbs * abs_square(state_after[i]) + Pb - loss[i] / (Tb * 1E-12));
         // if (i == 1000) {
-        //     printf("cmp loss[i] = %f loss[iN] = %f pulse[i] = %f\n", loss[i], loss[iN], abs_square(pulse_after[i]));
+        //     printf("cmp loss[i] = %f loss[iN] = %f state[i] = %f\n", loss[i], loss[iN], abs_square(state_after[i]));
         // }
-        pulse_after[i] *= sqrt(loss_value[i]);
+        state_after[i] *= sqrt(loss_value[i]);
     }
 }
 
 void diode_round_trip(double *gain, double *loss, double *gain_value, double *loss_value,
-                   double *pulse_intensity, double *pulse_intensity_after,
+                   double *state_intensity, double *state_intensity_after,
                    int n_rounds, int N, int loss_shift, int oc_shift, int gain_distance,
                    double dt, double gainWidth, double Pa, double Ta, double Ga, double Pb, double Tb, double Gb, double N0b, double oc_val) {
     int i, m_shift = 0;
@@ -138,7 +138,7 @@ void diode_round_trip(double *gain, double *loss, double *gain_value, double *lo
             // twin segment that meets us on the absorber
             int i_match_loss = (i + loss_shift) % N;
             // total intensity in the absorber
-            double intensity_loss = pulse_intensity[i] + pulse_intensity[i_match_loss];
+            double intensity_loss = state_intensity[i] + state_intensity[i_match_loss];
 
             // ---------- loss calculation
             // loss[i] is the number of charge carrier in the absorber at step i. the allows us to calculate the gain(loss) at the absorber (gAbs)
@@ -147,15 +147,15 @@ void diode_round_trip(double *gain, double *loss, double *gain_value, double *lo
             loss_value[i] = 1 + gAbs;
             // make the change to the charge carriers in the absorber
             loss[iN] = loss[i] + dt * (- gAbs * intensity_loss + Pb - loss[i] / (Tb * 1E-12));
-            // update the pulse intensity of the two beams after the absorber
-            pulse_intensity[i] *= loss_value[i];
-            pulse_intensity[i_match_loss] *= loss_value[i];
+            // update the state intensity of the two beams after the absorber
+            state_intensity[i] *= loss_value[i];
+            state_intensity[i_match_loss] *= loss_value[i];
 
             // get the indices of the two beam segments at the gain medium for the gain calculation
             int i_gain = (i + gain_distance) % N;
             int i_match_gain = (i + loss_shift - gain_distance) % N;
             // total intensity in the gain medium
-            double intensity_gain = pulse_intensity[i_gain] + pulse_intensity[i_match_gain];
+            double intensity_gain = state_intensity[i_gain] + state_intensity[i_match_gain];
 
             // ---------- gain calculation
             // gain[i] is the number of charge carrier in the gain medium at step i. the allows us to calculate the gain at the gain medium (gGain)
@@ -170,20 +170,20 @@ void diode_round_trip(double *gain, double *loss, double *gain_value, double *lo
             if (gain[iN] < 0) {
                 printf("Negative gain carrier detected at index %d: %f %f %f\n", i, gain[iN], gain[i], intensity_gain);
             }
-            // update the pulse intensity of the two beams after the gain medium
-            pulse_intensity[i_gain] *= gain_value[i];
-            pulse_intensity[i_match_gain] *= gain_value[i];
+            // update the state intensity of the two beams after the gain medium
+            state_intensity[i_gain] *= gain_value[i];
+            state_intensity[i_match_gain] *= gain_value[i];
             // add random noise (at the point of the gain medium. this can be moved to other places)
-            pulse_intensity[i_gain] += rand_factor * gain[i] * (double)rand();
-            pulse_intensity[i_match_gain] += rand_factor * gain[i] * (double)rand();
+            state_intensity[i_gain] += rand_factor * gain[i] * (double)rand();
+            state_intensity[i_match_gain] += rand_factor * gain[i] * (double)rand();
 
             // ---------- output coupler calculation
             int oc_loc = (oc_shift + i) % N;
             // store the intensity of the output beam at it goes outside the cavity
-            pulse_intensity_after[oc_loc] = pulse_intensity[oc_loc] * oc_out_val;
+            state_intensity_after[oc_loc] = state_intensity[oc_loc] * oc_out_val;
 
-            pulse_intensity[oc_loc] *= oc_val;
-            //pulse_intensity[i] += rand_factor * gain[i] * (double)rand();
+            state_intensity[oc_loc] *= oc_val;
+            //state_intensity[i] += rand_factor * gain[i] * (double)rand();
 
         }
 
@@ -192,7 +192,7 @@ void diode_round_trip(double *gain, double *loss, double *gain_value, double *lo
 
 // complex version of the above function for electric field amplitude
 void cmp_diode_round_trip(double *gain, double *loss, double *gain_value, double *loss_value,
-                   double _Complex *pulse_amplitude, double _Complex *pulse_amplitude_after,
+                   double _Complex *state_amplitude, double _Complex *state_amplitude_after,
                    int n_rounds, int N, int loss_shift, int oc_shift, int gain_distance,
                    double dt, double gainWidth, double Pa, double Ta, double Ga, double Pb, double Tb, double Gb, double N0b, double oc_val) {
     int i, m_shift = 0;
@@ -220,7 +220,7 @@ void cmp_diode_round_trip(double *gain, double *loss, double *gain_value, double
             // twin segment that meets us on the absorber
             int i_match_loss = (i + loss_shift) % N;
             // total intensity in the absorber
-            double intensity_loss = abs_square(pulse_amplitude[i]) + abs_square(pulse_amplitude[i_match_loss]);
+            double intensity_loss = abs_square(state_amplitude[i]) + abs_square(state_amplitude[i_match_loss]);
 
             // ---------- loss calculation
             // loss[i] is the number of charge carrier in the absorber at step i. the allows us to calculate the gain(loss) at the absorber (gAbs)
@@ -229,15 +229,15 @@ void cmp_diode_round_trip(double *gain, double *loss, double *gain_value, double
             loss_value[i] = 1 + gAbs;
             // make the change to the charge carriers in the absorber
             loss[iN] = loss[i] + dt * (- gAbs * intensity_loss + Pb - loss[i] / (Tb * 1E-12));
-            // update the pulse intensity of the two beams after the absorber
-            pulse_amplitude[i] *= sqrt(loss_value[i]);
-            pulse_amplitude[i_match_loss] *= sqrt(loss_value[i]);
+            // update the state intensity of the two beams after the absorber
+            state_amplitude[i] *= sqrt(loss_value[i]);
+            state_amplitude[i_match_loss] *= sqrt(loss_value[i]);
 
             // get the indices of the two beam segments at the gain medium for the gain calculation
             int i_gain = (i + gain_distance) % N;
             int i_match_gain = (i + loss_shift - gain_distance) % N;
             // total intensity in the gain medium
-            double intensity_gain = abs_square(pulse_amplitude[i_gain]) + abs_square(pulse_amplitude[i_match_gain]);
+            double intensity_gain = abs_square(state_amplitude[i_gain]) + abs_square(state_amplitude[i_match_gain]);
 
             // ---------- gain calculation
             // gain[i] is the number of charge carrier in the gain medium at step i. the allows us to calculate the gain at the gain medium (gGain)
@@ -252,22 +252,22 @@ void cmp_diode_round_trip(double *gain, double *loss, double *gain_value, double
             if (gain[iN] < 0) {
                 printf("Negative gain carrier detected at index %d: %f %f %f\n", i, gain[iN], gain[i], intensity_gain);
             }
-            // update the pulse amplitude of the two beams after the gain medium
-            pulse_amplitude[i_gain] *= sqrt(gain_value[i]);
-            pulse_amplitude[i_match_gain] *= sqrt(gain_value[i]);
+            // update the state amplitude of the two beams after the gain medium
+            state_amplitude[i_gain] *= sqrt(gain_value[i]);
+            state_amplitude[i_match_gain] *= sqrt(gain_value[i]);
             // add random noise (at the point of the gain medium. this can be moved to other places)
-            pulse_amplitude[i_gain] += sqrt(rand_factor * gain[i]) * (double)rand();
-            pulse_amplitude[i_match_gain] += sqrt(rand_factor * gain[i]) * (double)rand();
+            state_amplitude[i_gain] += sqrt(rand_factor * gain[i]) * (double)rand();
+            state_amplitude[i_match_gain] += sqrt(rand_factor * gain[i]) * (double)rand();
 
             // ---------- output coupler calculation
             int oc_loc = (oc_shift + i) % N;
             // store the intensity of the output beam at it goes outside the cavity
-            pulse_amplitude_after[oc_loc] = pulse_amplitude[oc_loc] * oc_out_val;
+            state_amplitude_after[oc_loc] = state_amplitude[oc_loc] * oc_out_val;
 
-            pulse_amplitude[oc_loc] *= oc_val_sqrt;
+            state_amplitude[oc_loc] *= oc_val_sqrt;
         }
 #ifdef USE_FFT_FILTER_CUDA
-        fft_filter_run(&ctx, pulse_amplitude);
+        fft_filter_run(&ctx, state_amplitude);
 #endif
 
     }
@@ -336,9 +336,9 @@ void mb_diode_round_trip(
     double *loss_value,     /* optional diagnostics: local loss change fraction */
 
     /* field arrays */
-    double _Complex *pulse_init,       /* full-round complex samples array (length N) */
-    double _Complex *pulse_amplitude,       /* full-round complex samples array (length N) */
-    double _Complex *pulse_amplitude_after, /* output coupler extracted amplitude */
+    double _Complex *state_init,       /* full-round complex samples array (length N) */
+    double _Complex *state_amplitude,       /* full-round complex samples array (length N) */
+    double _Complex *state_amplitude_after, /* output coupler extracted amplitude */
 
     /* simulation control */
     int n_rounds,          /* number of round trips */
@@ -399,7 +399,7 @@ void mb_diode_round_trip(
         //     // if (oc_loc < 10) {
         //     //     printf("Output coupler at index %d: amp=%f + i%f\n", 
         //     //         oc_loc, 
-        //     //         creal(pulse_amplitude[oc_loc]), cimag(pulse_amplitude[oc_loc]));
+        //     //         creal(state_amplitude[oc_loc]), cimag(state_amplitude[oc_loc]));
         //     // }
         // }
     
@@ -417,7 +417,7 @@ void mb_diode_round_trip(
             idx_loss_b = (i + loss_shift) % N;
 
             // amplitude sum in the absorber
-            amplitude_loss = pulse_amplitude[idx_loss_a] + pulse_amplitude[idx_loss_b];
+            amplitude_loss = state_amplitude[idx_loss_a] + state_amplitude[idx_loss_b];
 
             /* ------ the P update equation */
             drive = - I * kappa * amplitude_loss * (double _Complex)lossN[i];
@@ -432,25 +432,25 @@ void mb_diode_round_trip(
 
             // light amplitude change due to absorber
             I_tot = cabs_square(amplitude_loss);
-            double _Complex old_amp_a = pulse_amplitude[idx_loss_a];
-            double _Complex old_amp_b = pulse_amplitude[idx_loss_b];
-            // double oamp_a = cabs(pulse_amplitude[idx_loss_a]);
-            // double oamp_b = cabs(pulse_amplitude[idx_loss_b]);
-            old_intensity = cabs_square(pulse_amplitude[idx_loss_a]) + cabs_square(pulse_amplitude[idx_loss_b]);
+            double _Complex old_amp_a = state_amplitude[idx_loss_a];
+            double _Complex old_amp_b = state_amplitude[idx_loss_b];
+            // double oamp_a = cabs(state_amplitude[idx_loss_a]);
+            // double oamp_b = cabs(state_amplitude[idx_loss_b]);
+            old_intensity = cabs_square(state_amplitude[idx_loss_a]) + cabs_square(state_amplitude[idx_loss_b]);
             /* ------ the E update equation */
-            pulse_amplitude[idx_loss_a] += delta_loss * cabs_square(pulse_amplitude[idx_loss_a]) / (0.000001 + old_intensity);
-            pulse_amplitude[idx_loss_b] += delta_loss * cabs_square(pulse_amplitude[idx_loss_b]) / (0.000001 + old_intensity);
+            state_amplitude[idx_loss_a] += delta_loss * cabs_square(state_amplitude[idx_loss_a]) / (0.000001 + old_intensity);
+            state_amplitude[idx_loss_b] += delta_loss * cabs_square(state_amplitude[idx_loss_b]) / (0.000001 + old_intensity);
 
             if(old_intensity > 1.0e+06) {
 
-                loss_value[i] = (cabs_square(pulse_amplitude[idx_loss_a]) + cabs_square(pulse_amplitude[idx_loss_b])) / (0.000001 + old_intensity);
+                loss_value[i] = (cabs_square(state_amplitude[idx_loss_a]) + cabs_square(state_amplitude[idx_loss_b])) / (0.000001 + old_intensity);
                 // if (i > 900 && i < 950 || loss_value[i] > 2.0) {
                 if (loss_value[i] > 500.0) {
                     printf("\n----- Loss idx %d (%d %d)\nalpha=%s, 1ma=%s\nlossN=%f amp_loss=%s drive=%s\n lossP=(%s + %s)/2 = %s\nI_tot=%f\ndelta_l=%s old_int=%f new_int=%f loss_v=%f\n",
                         i, idx_loss_a, idx_loss_b, sc(alpha), sc(one_minus_alpha_div_a),
                         lossN[iN], sc(amplitude_loss), sc(drive), sc(lossP[i]), sc(lossP[iN]), sc(averageP),
                         I_tot, sc(delta_loss),
-                        old_intensity, cabs_square(pulse_amplitude[idx_loss_a]) + cabs_square(pulse_amplitude[idx_loss_b]), loss_value[i]
+                        old_intensity, cabs_square(state_amplitude[idx_loss_a]) + cabs_square(state_amplitude[idx_loss_b]), loss_value[i]
                     );
                     printf("oamp_a=%s oamp_b=%s ==> %f + %f = %f\n",
                         sc(old_amp_a), sc(old_amp_b), 
@@ -458,10 +458,10 @@ void mb_diode_round_trip(
                         cabs_square(old_amp_a) + cabs_square(old_amp_b)
                     );
                     printf("namp_a=%s namp_b=%s ==> %f + %f = %f  new/old = %f\n",
-                        sc(pulse_amplitude[idx_loss_a]), sc(pulse_amplitude[idx_loss_b]), 
-                        cabs_square(pulse_amplitude[idx_loss_a]), cabs_square(pulse_amplitude[idx_loss_b]), 
-                        cabs_square(pulse_amplitude[idx_loss_a]) + cabs_square(pulse_amplitude[idx_loss_b]),
-                        (cabs_square(pulse_amplitude[idx_loss_a]) + cabs_square(pulse_amplitude[idx_loss_b])) / (0.000001 + old_intensity)
+                        sc(state_amplitude[idx_loss_a]), sc(state_amplitude[idx_loss_b]), 
+                        cabs_square(state_amplitude[idx_loss_a]), cabs_square(state_amplitude[idx_loss_b]), 
+                        cabs_square(state_amplitude[idx_loss_a]) + cabs_square(state_amplitude[idx_loss_b]),
+                        (cabs_square(state_amplitude[idx_loss_a]) + cabs_square(state_amplitude[idx_loss_b])) / (0.000001 + old_intensity)
                     );
                     printf("delta_l=%s averageP=%s drive=%s lossP[i]=%s lossP[iN]=%s\n",
                         sc(delta_loss), sc(averageP), sc(drive), sc(lossP[i]), sc(lossP[iN])
@@ -477,7 +477,7 @@ void mb_diode_round_trip(
             idx_gain_b = (i + loss_shift - gain_distance) % N;
             
             // amplitude sum in the gain medium
-            amplitude_gain = pulse_amplitude[idx_gain_a] + pulse_amplitude[idx_gain_b];
+            amplitude_gain = state_amplitude[idx_gain_a] + state_amplitude[idx_gain_b];
             
             /* ------ the P update equation */
             drive = - I * kappa * amplitude_gain * (double _Complex)gainN[i];
@@ -501,25 +501,25 @@ void mb_diode_round_trip(
             // light amplitude change due to gain medium
             I_tot = cabs_square(amplitude_gain);
 
-            old_intensity = cabs_square(pulse_amplitude[idx_gain_a]) + cabs_square(pulse_amplitude[idx_gain_b]);
-            old_amp_a = pulse_amplitude[idx_gain_a];
-            old_amp_b = pulse_amplitude[idx_gain_b];
+            old_intensity = cabs_square(state_amplitude[idx_gain_a]) + cabs_square(state_amplitude[idx_gain_b]);
+            old_amp_a = state_amplitude[idx_gain_a];
+            old_amp_b = state_amplitude[idx_gain_b];
             
             /* ------ the E update equation */
-            pulse_amplitude[idx_gain_a] += delta_gain * cabs_square(pulse_amplitude[idx_gain_a]) / (0.000001 + old_intensity);
-            pulse_amplitude[idx_gain_b] += delta_gain * cabs_square(pulse_amplitude[idx_gain_b]) / (0.000001 + old_intensity);
+            state_amplitude[idx_gain_a] += delta_gain * cabs_square(state_amplitude[idx_gain_a]) / (0.000001 + old_intensity);
+            state_amplitude[idx_gain_b] += delta_gain * cabs_square(state_amplitude[idx_gain_b]) / (0.000001 + old_intensity);
 
             if(old_intensity > 1.0e+06) {
 
-                gain_value[i] = (cabs_square(pulse_amplitude[idx_gain_a]) + cabs_square(pulse_amplitude[idx_gain_b])) / (0.000001 + old_intensity);
+                gain_value[i] = (cabs_square(state_amplitude[idx_gain_a]) + cabs_square(state_amplitude[idx_gain_b])) / (0.000001 + old_intensity);
                 // if (i > 900 && i < 950) {
                 //     // printf("Loss idx %d (%d %d) loss_v=%f \n", i, idx_loss_a, idx_loss_b, loss_value[i]);
                 //     printf("-----\nGAIN idx %d (%d %d): gainN=%f gainP=%s, I_tot=%f delta_g=%s old_int=%f new_int=%f gain_v=%f namp_a=%s namp_b=%s oamp_a=%s oamp_b=%s \n",
                 //         i, idx_gain_a, idx_gain_b, 
                 //         gainN[iN], sc(gainP[i]),
                 //         I_tot, sc(delta_gain),
-                //         old_intensity, cabs_square(pulse_amplitude[idx_gain_a]) + cabs_square(pulse_amplitude[idx_gain_b]), gain_value[i],
-                //         sc(pulse_amplitude[idx_gain_a]), sc(pulse_amplitude[idx_gain_b]), 
+                //         old_intensity, cabs_square(state_amplitude[idx_gain_a]) + cabs_square(state_amplitude[idx_gain_b]), gain_value[i],
+                //         sc(state_amplitude[idx_gain_a]), sc(state_amplitude[idx_gain_b]), 
                 //         sc(old_amp_a), sc(old_amp_b)
                 //     );
                 //     printf("oamp_a=%s oamp_b=%s ==> %f + %f = %f\n",
@@ -528,10 +528,10 @@ void mb_diode_round_trip(
                 //         cabs_square(old_amp_a) + cabs_square(old_amp_b)
                 //     );
                 //     printf("namp_a=%s namp_b=%s ==> %f + %f = %f  new/old = %f\n",
-                //         sc(pulse_amplitude[idx_loss_a]), sc(pulse_amplitude[idx_loss_b]), 
-                //         cabs_square(pulse_amplitude[idx_gain_a]), cabs_square(pulse_amplitude[idx_gain_b]), 
-                //         cabs_square(pulse_amplitude[idx_gain_a]) + cabs_square(pulse_amplitude[idx_gain_b]),
-                //         (cabs_square(pulse_amplitude[idx_gain_a]) + cabs_square(pulse_amplitude[idx_gain_b])) / (old_intensity + 1.0e-12)
+                //         sc(state_amplitude[idx_loss_a]), sc(state_amplitude[idx_loss_b]), 
+                //         cabs_square(state_amplitude[idx_gain_a]), cabs_square(state_amplitude[idx_gain_b]), 
+                //         cabs_square(state_amplitude[idx_gain_a]) + cabs_square(state_amplitude[idx_gain_b]),
+                //         (cabs_square(state_amplitude[idx_gain_a]) + cabs_square(state_amplitude[idx_gain_b])) / (old_intensity + 1.0e-12)
                 //     );
                 //     printf("delta_g=%s averageP=%s drive=%s gainP[i]=%s gainP[iN]=%s\n",
                 //         sc(delta_gain), sc(averageP), sc(drive), sc(gainP[i]), sc(gainP[iN])
@@ -543,16 +543,16 @@ void mb_diode_round_trip(
 
             /* inject small complex Gaussian noise at gain interaction points (spontaneous-like) */
             double _Complex noise = sigma * gaussian_rand01_complex();          
-            pulse_amplitude[idx_gain_a] += noise;
-            pulse_amplitude[idx_gain_b] += noise;
+            state_amplitude[idx_gain_a] += noise;
+            state_amplitude[idx_gain_b] += noise;
 
             // ---------- output coupler calculation
             //int oc_loc = (oc_shift + i) % N;
             // store the intensity of the output beam at it goes outside the cavity
-            pulse_amplitude_after[oc_loc] = pulse_amplitude[oc_loc] * oc_out_val;
+            state_amplitude_after[oc_loc] = state_amplitude[oc_loc] * oc_out_val;
 
-            pulse_amplitude[oc_loc] = pulse_amplitude[oc_loc] * oc_val_sqrt + pulse_init[oc_loc];
-            pulse_init[oc_loc] = 0.0 + 0.0*I;        }
+            state_amplitude[oc_loc] = state_amplitude[oc_loc] * oc_val_sqrt + state_init[oc_loc];
+            state_init[oc_loc] = 0.0 + 0.0*I;        }
         printf("Round %d complete\n", i_round);
     }
 

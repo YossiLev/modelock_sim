@@ -72,10 +72,10 @@ __global__ void diode_cavity_round_trip_kernel(DiodeCavityCtx *data,
             if (data->beam_init_type == 0 /* pulse */) {
                 double pulseWidth = data->beam_init_parameter;
                 double x = (offset + data->N / 2) % data->N;
-                double pulseVal = 4.0E08 * exp(-((x - data->N / 2) * (x - data->N / 2) / (2 * pulseWidth * pulseWidth)));
+                double stateVal = 4.0E08 * exp(-((x - data->N / 2) * (x - data->N / 2) / (2 * pulseWidth * pulseWidth)));
 
-                E1 = make_cuDoubleComplex(pulseVal, 0.0);
-                //E2 = make_cuDoubleComplex(pulseVal, 0.0);
+                E1 = make_cuDoubleComplex(stateVal, 0.0);
+                //E2 = make_cuDoubleComplex(stateVal, 0.0);
             } else if (data->beam_init_type == 1 /* noise */) {
                 //double noise_amplitude = data->beam_init_parameter;
                 double real_part = 1.0;//noise_amplitude * (2.0 * ((double)rand() / RAND_MAX) - 1.0);

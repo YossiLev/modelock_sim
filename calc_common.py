@@ -103,10 +103,10 @@ class CalcCommonBeam(CalcCommon):
             "x_label": "Time (s)",
             "y_label": "Intensity",
             "lines": [
-                {"color": "orange", "values": cget(intens(self.diode_pulse)).tolist(), "text": f"rrrrrrrrrr"}
+                {"color": "orange", "values": cget(intens(self.diode_state)).tolist(), "text": f"rrrrrrrrrr"}
             ],
             # "x_values": cget(self.diode_t_list).tolist(),
-            # "y_values": cget(intens(self.diode_pulse)).tolist(),
+            # "y_values": cget(intens(self.diode_state)).tolist(),
         })
 
         return graphs

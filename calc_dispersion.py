@@ -15,7 +15,7 @@ class dispersion_calc(CalcCommonBeam):
 
         self.dispersion_mode = "Amplitude"
         self.beam_sampling = "65536"
-        self.dispersion_pulse_dtype = np.complex128
+        self.dispersion_state_dtype = np.complex128
 
         self.beam_time = 3.95138389E-09 #4E-09
         self.beam_N = int(self.beam_sampling) # * 4
@@ -23,7 +23,7 @@ class dispersion_calc(CalcCommonBeam):
         self.dispersion_intensity = "Pulse"
         self.calculation_rounds = 1
         self.calculation_rounds_done = 0
-        self.dispersion_pulse_width = 1.0
+        self.dispersion_state_width = 1.0
 
         # actual shift parameters in millimeters
         #self.dispersion_beta2 = 6E-23
@@ -38,12 +38,12 @@ class dispersion_calc(CalcCommonBeam):
 
         self.volume = 1 #0.46 * 0.03 * 2E-05
         self.cavity_loss = 4.5
-        self.dispersion_update_pulse = "Update Pulse"
+        self.dispersion_update_pulse = "Update State"
         self.h = 0.1
 
         # diode dynamics parameters
         self.dispersion_t_list = np.array([1], dtype=np.float64)
-        self.dispersion_pulse = np.array([], dtype=self.dispersion_pulse_dtype)
+        self.dispersion_state = np.array([], dtype=self.dispersion_state_dtype)
         self.dispersion_calculated_fft = np.array([], dtype=np.float64)
         self.dispersion_calculated_fd = np.array([], dtype=np.float64)
         self.dispersion_calculated_fd_s5 = np.array([], dtype=np.float64)
@@ -68,53 +68,53 @@ class dispersion_calc(CalcCommonBeam):
 
                 self.dispersion_t_list = np.arange(self.beam_N, dtype=np.float64)
                 print(f"Generated time list of size {self.dispersion_t_list.size} dt={self.beam_N}")
-                self.dispersion_pulse_dtype = np.complex128 if self.dispersion_mode != "Intensity" else np.float64 
-                self.dispersion_pulse = np.array([], dtype=self.dispersion_pulse_dtype)
-                self.dispersion_calculated_fd = np.array([], dtype=self.dispersion_pulse_dtype)
-                self.dispersion_calculated_fd_s5 = np.array([], dtype=self.dispersion_pulse_dtype)
-                self.dispersion_calculated_fd_m5 = np.array([], dtype=self.dispersion_pulse_dtype)
-                self.dispersion_calculated_fd2 = np.array([], dtype=self.dispersion_pulse_dtype)
-                self.dispersion_calculated_mem = np.array([], dtype=self.dispersion_pulse_dtype)
+                self.dispersion_state_dtype = np.complex128 if self.dispersion_mode != "Intensity" else np.float64 
+                self.dispersion_state = np.array([], dtype=self.dispersion_state_dtype)
+                self.dispersion_calculated_fd = np.array([], dtype=self.dispersion_state_dtype)
+                self.dispersion_calculated_fd_s5 = np.array([], dtype=self.dispersion_state_dtype)
+                self.dispersion_calculated_fd_m5 = np.array([], dtype=self.dispersion_state_dtype)
+                self.dispersion_calculated_fd2 = np.array([], dtype=self.dispersion_state_dtype)
+                self.dispersion_calculated_mem = np.array([], dtype=self.dispersion_state_dtype)
             
-                pulseVal = np.array([60000 / self.beam_dt / self.volume], dtype=self.dispersion_pulse_dtype)
+                stateVal = np.array([60000 / self.beam_dt / self.volume], dtype=self.dispersion_state_dtype)
                 match self.dispersion_intensity:
                     case "Pulse":
                         print("Generating Pulse", self.dispersion_intensity)
 
-                        w2 = (self.dispersion_pulse_width * 1.0E-12 /self.beam_dt * 1.41421356237) if self.dispersion_pulse_dtype == np.complex128 else self.dispersion_pulse_width 
+                        w2 = (self.dispersion_state_width * 1.0E-12 /self.beam_dt * 1.41421356237) if self.dispersion_state_dtype == np.complex128 else self.dispersion_state_width 
                         print(w2)
-                        self.dispersion_pulse = pulseVal * np.exp(-np.square(self.dispersion_t_list - self.beam_N / 2) / (2 * w2 * w2))
-                        self.dispersion_accum_pulse = np.add.accumulate(intens(self.dispersion_pulse)) * self.beam_dt * self.volume
-                        pulse_ratio = self.initial_photons / self.dispersion_accum_pulse[-1]
-                        self.dispersion_accum_pulse = np.multiply(self.dispersion_accum_pulse, pulse_ratio)
-                        if self.dispersion_pulse_dtype == np.complex128:
+                        self.dispersion_state = stateVal * np.exp(-np.square(self.dispersion_t_list - self.beam_N / 2) / (2 * w2 * w2))
+                        self.dispersion_accum_state = np.add.accumulate(intens(self.dispersion_state)) * self.beam_dt * self.volume
+                        pulse_ratio = self.initial_photons / self.dispersion_accum_state[-1]
+                        self.dispersion_accum_state = np.multiply(self.dispersion_accum_state, pulse_ratio)
+                        if self.dispersion_state_dtype == np.complex128:
                             pulse_ratio = np.sqrt(pulse_ratio)
-                        self.dispersion_pulse = np.multiply(self.dispersion_pulse, pulse_ratio)
+                        self.dispersion_state = np.multiply(self.dispersion_state, pulse_ratio)
                     case "Noise":
-                        self.dispersion_pulse = np.random.random(self.dispersion_t_list.shape).astype(self.dispersion_pulse_dtype)
-                        self.dispersion_accum_pulse = np.add.accumulate(intens(self.dispersion_pulse)) * self.beam_dt * self.volume
-                        pulse_ratio = self.initial_photons / self.dispersion_accum_pulse[-1]
-                        self.dispersion_accum_pulse = np.multiply(self.dispersion_accum_pulse, pulse_ratio)
-                        if self.dispersion_pulse_dtype == np.complex128:
+                        self.dispersion_state = np.random.random(self.dispersion_t_list.shape).astype(self.dispersion_state_dtype)
+                        self.dispersion_accum_state = np.add.accumulate(intens(self.dispersion_state)) * self.beam_dt * self.volume
+                        pulse_ratio = self.initial_photons / self.dispersion_accum_state[-1]
+                        self.dispersion_accum_state = np.multiply(self.dispersion_accum_state, pulse_ratio)
+                        if self.dispersion_state_dtype == np.complex128:
                             pulse_ratio = np.sqrt(pulse_ratio)
-                        self.dispersion_pulse = np.multiply(self.dispersion_pulse, pulse_ratio)
+                        self.dispersion_state = np.multiply(self.dispersion_state, pulse_ratio)
                     case "CW":
-                        self.dispersion_pulse = np.full(self.beam_N, 1.0, dtype=self.dispersion_pulse_dtype)
-                        self.dispersion_accum_pulse = np.add.accumulate(intens(self.dispersion_pulse)) * self.beam_dt * self.volume
-                        pulse_ratio = self.initial_photons / self.dispersion_accum_pulse[-1]
-                        self.dispersion_accum_pulse = np.multiply(self.dispersion_accum_pulse, pulse_ratio)
-                        if self.dispersion_pulse_dtype == np.complex128:
+                        self.dispersion_state = np.full(self.beam_N, 1.0, dtype=self.dispersion_state_dtype)
+                        self.dispersion_accum_state = np.add.accumulate(intens(self.dispersion_state)) * self.beam_dt * self.volume
+                        pulse_ratio = self.initial_photons / self.dispersion_accum_state[-1]
+                        self.dispersion_accum_state = np.multiply(self.dispersion_accum_state, pulse_ratio)
+                        if self.dispersion_state_dtype == np.complex128:
                             pulse_ratio = np.sqrt(pulse_ratio)
-                        self.dispersion_pulse = np.multiply(self.dispersion_pulse, pulse_ratio)
+                        self.dispersion_state = np.multiply(self.dispersion_state, pulse_ratio)
                     case "Flat":
-                        self.dispersion_pulse = np.full_like(self.dispersion_t_list, 0).astype(self.dispersion_pulse_dtype)
-                        self.dispersion_accum_pulse = np.add.accumulate(intens(self.dispersion_pulse)) * self.beam_dt * self.volume
+                        self.dispersion_state = np.full_like(self.dispersion_t_list, 0).astype(self.dispersion_state_dtype)
+                        self.dispersion_accum_state = np.add.accumulate(intens(self.dispersion_state)) * self.beam_dt * self.volume
                         
-                # if self.dispersion_pulse_dtype == np.complex128:
+                # if self.dispersion_state_dtype == np.complex128:
                 #     lambda_ = 1064E-09
                 #     omega0 = 2.0 * np.pi * 3E+08 / lambda_
                 #     phase = self.dispersion_t_list * (-1.j * omega0 * self.beam_dt)
-                #     self.dispersion_pulse = self.dispersion_pulse * np.exp(phase)
+                #     self.dispersion_state = self.dispersion_state * np.exp(phase)
                     
                 # for i in range(990, 1010):
                 global count
@@ -127,11 +127,11 @@ class dispersion_calc(CalcCommonBeam):
                 epsilon = self.dispersion_epsilon
                 dz = self.medium_length_mm * 0.001
                 dt = self.beam_dt
-                self.dispersion_calculated_fft = apply_dispersion(self.dispersion_pulse, dt, L=dz, beta2=beta2, beta3=0.0, beta4=0.0)
+                self.dispersion_calculated_fft = apply_dispersion(self.dispersion_state, dt, L=dz, beta2=beta2, beta3=0.0, beta4=0.0)
                 df_diode_cells = np.floor(dz / (dt * 3E+08 / 3)).astype(np.int32)
                 alpha = (-epsilon + 1j * beta2) * (dz / df_diode_cells) / (2 * dt**2)
-                self.dispersion_calculated_fd = np.copy(self.dispersion_pulse)
-                self.dispersion_calculated_fd2 = np.copy(self.dispersion_pulse)
+                self.dispersion_calculated_fd = np.copy(self.dispersion_state)
+                self.dispersion_calculated_fd2 = np.copy(self.dispersion_state)
                 p = self.beam_N // 2 - df_diode_cells - 500
                 print(f"FD dispersion with alpha={alpha} p={p} df_diode_cells={df_diode_cells}, beam_n={self.beam_N} alpha={alpha}")
                 for start in range(0, df_diode_cells + 1000, 2):
@@ -140,26 +140,26 @@ class dispersion_calc(CalcCommonBeam):
                     dispersion_fd_step(self.dispersion_calculated_fd, self.dispersion_calculated_fd2, p + start, p + end, alpha, 3)
                     dispersion_fd_step(self.dispersion_calculated_fd2, self.dispersion_calculated_fd, p + start + 1, p + end + 1, alpha, 3)
 
-                self.dispersion_calculated_fd_s5 = np.copy(self.dispersion_pulse)
-                self.dispersion_calculated_fd2 = np.copy(self.dispersion_pulse)
+                self.dispersion_calculated_fd_s5 = np.copy(self.dispersion_state)
+                self.dispersion_calculated_fd2 = np.copy(self.dispersion_state)
                 for start in range(0, df_diode_cells + 1000, 2):
                     end = start + df_diode_cells
                     #print(f"FD dispersion step from {p + start} to {p + end} with alpha={alpha} p={p} df_diode_cells={df_diode_cells}, beam_n={self.beam_N}")
                     dispersion_fd_step(self.dispersion_calculated_fd_s5, self.dispersion_calculated_fd2, p + start, p + end, alpha, 5)
                     dispersion_fd_step(self.dispersion_calculated_fd2, self.dispersion_calculated_fd_s5, p + start + 1, p + end + 1, alpha, 5)
 
-                # self.dispersion_calculated_fd_m5 = np.copy(self.dispersion_pulse)
-                # self.dispersion_calculated_fd2 = np.copy(self.dispersion_pulse)
+                # self.dispersion_calculated_fd_m5 = np.copy(self.dispersion_state)
+                # self.dispersion_calculated_fd2 = np.copy(self.dispersion_state)
                 # for start in range(0, df_diode_cells + 1000, 2):
                 #     end = start + df_diode_cells
                 #     #print(f"FD dispersion step from {p + start} to {p + end} with alpha={alpha} p={p} df_diode_cells={df_diode_cells}, beam_n={self.beam_N}")
                 #     dispersion_fd_step(self.dispersion_calculated_fd_m5, self.dispersion_calculated_fd2, p + start, p + end, alpha, -5)
                 #     dispersion_fd_step(self.dispersion_calculated_fd2, self.dispersion_calculated_fd_m5, p + start + 1, p + end + 1, alpha, -5)
 
-                #self.dispersion_calculated_cn = propagate_dispersion_CN(self.dispersion_pulse, self.beam_dt, 6E-23, 1.0E-2/200, 200)
+                #self.dispersion_calculated_cn = propagate_dispersion_CN(self.dispersion_state, self.beam_dt, 6E-23, 1.0E-2/200, 200)
 
                 # print(f"df_diode_cells {df_diode_cells}")
-                # self.dispersion_calculated_mem = np.copy(self.dispersion_pulse)
+                # self.dispersion_calculated_mem = np.copy(self.dispersion_state)
                 # self.dispersion_past = np.zeros((5, df_diode_cells), dtype=np.complex128)
                 # coeff = (alpha / 12.0) * np.array([35.0,  - 104.0,  114.0, - 56.0, 11.0], dtype=np.float64)
                 # for start in range(0, df_diode_cells + 1000):
@@ -170,7 +170,7 @@ class dispersion_calc(CalcCommonBeam):
         tab = 6
         colors = ["#ff0000", "#ff8800", "#aaaa00", "#008800", "#0000ff", "#ff00ff", "#110011"]
 
-        pulse = intens(self.dispersion_pulse)
+        pulse = intens(self.dispersion_state)
         t_list = cget(shrink_with_max(self.dispersion_t_list, 1024, self.beam_view_from, self.beam_view_to)).tolist()
 
         added = Div(
@@ -210,7 +210,7 @@ class dispersion_calc(CalcCommonBeam):
                     Div(
                         SelectCalcS(tab, f'DispersionSelectSampling', "Sampling", ["4096", "8192", "16384", "32768", "65536", "131072", "262144", "524288", "1048576"], self.beam_sampling, width = 100),
                         SelectCalcS(tab, f'CalcDispersionSelectMode', "mode", ["Intensity", "Amplitude", "MB", "MBGPU"], self.dispersion_mode, width = 120),
-                        InputCalcS(f'DispersionPulseWidth', "Pulse width (ps)", f'{self.dispersion_pulse_width}', width = 80),
+                        InputCalcS(f'DispersionPulseWidth', "Pulse width (ps)", f'{self.dispersion_state_width}', width = 80),
                         SelectCalcS(tab, f'CalcDispersionSelectIntensity', "Intensity", ["Pulse", "Noise", "CW", "Flat"], self.dispersion_intensity, width = 80),
                         InputCalcS(f'DispersionViewFrom', "View from", f'{self.beam_view_from}', width = 80),
                         InputCalcS(f'DispersionViewTo', "View to", f'{self.beam_view_to}', width = 80),
@@ -228,7 +228,7 @@ class dispersion_calc(CalcCommonBeam):
                         InputCalcS(f'volume', "Volume cm^3", f'{self.volume}', width = 80),
                         InputCalcS(f'initial_photons', "Initial Photns", f'{self.initial_photons}', width = 100),
                         InputCalcS(f'cavity_loss', "OC (Cavity loss)", f'{self.cavity_loss}', width = 80),
-                        SelectCalcS(tab, f'CalcDiodeUpdatePulse', "UpdatePulse", ["Update Pulse", "Unchanged Pulse"], self.dispersion_update_pulse, width = 120),
+                        SelectCalcS(tab, f'CalcDiodeUpdatePulse', "UpdatePulse", ["Update State", "Unchanged State"], self.dispersion_update_pulse, width = 120),
                         #InputCalcS(f'h', "Abs ratio", f'{self.h}', width = 50),
                     ),
 
@@ -247,12 +247,12 @@ class dispersion_calc(CalcCommonBeam):
                                     "Pulse in (photons/sec)", color=["red"], twinx=True),
                     # Div(
                     #    Div(cls="handle", draggable="true"),
-                    #        FlexN([graphCanvas(id="dispersion_pulse_chart", width=1100, height=300, options=False, mode = 2), 
+                    #        FlexN([graphCanvas(id="dispersion_state_chart", width=1100, height=300, options=False, mode = 2), 
                     #        ]), cls="container"
                     # ),
                     generate_chart([t_list], 
-                                    [cget(np.angle(self.shrink_def(self.dispersion_pulse))).tolist(), 
-                                        cget(np.absolute(self.shrink_def(self.dispersion_pulse))).tolist()],
+                                    [cget(np.angle(self.shrink_def(self.dispersion_state))).tolist(), 
+                                        cget(np.absolute(self.shrink_def(self.dispersion_state))).tolist()],
                                     "E", color=["green", "red"], lw=[1, 3], twinx=True),
                     #generate_chart_complex(t_list, self.shrink_def(self.dispersion_calculated_fft), "Using FFT"),
                     generate_chart([t_list], 
@@ -280,7 +280,7 @@ class dispersion_calc(CalcCommonBeam):
 
                     cls="box", style="background-color: #008080;"
                 ),
-            ) if (len(self.dispersion_pulse) > 0) else Div(),
+            ) if (len(self.dispersion_state) > 0) else Div(),
         )
         return added
     

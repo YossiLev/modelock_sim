@@ -5,9 +5,6 @@ from fasthtml.common import *
 from controls import *
 from itertools import product
 
-
-from app import get_Data_obj
-
 class Iteration():
     def __init__(self, sim, seed, modifications, parameter, value_start, value_end, n_values, values_mode, max_count, name = f"General"):
         self.sim = sim

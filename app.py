@@ -7,7 +7,7 @@ import time
 
 #internal imports
 from gen_data import *
-from simulation import generate_all_charts
+from simulation import register_simulation, generate_simulation, generate_all_charts
 from geometry import generate_geometry, generate_beam_params
 from fun import generate_multimode, collectData, generate_multi_on_server
 from design import generate_design
@@ -16,7 +16,7 @@ from cavity import CavityData
 from calc import generate_calc
 from settings import generate_settings
 
-import app
+#import app
 import jsonpickle
 import dataset   
 
@@ -51,6 +51,7 @@ app = FastHTML(htmx=False, ws_hdr=False, hdrs=(
 app.mount("/static", StaticFiles(directory="static"), name="static")
 setup_toasts(app)
 
+register_simulation(app) 
     
 @app.post("/menu/{new_tab}")
 def menu(new_tab: str, localId: str):
@@ -83,22 +84,10 @@ def make_page(data_obj):
     match current_tab:
         case "Simulation":
             return my_frame("Simulation",
-                Div(
-                    Button("Restart", hx_post=f"/init", hx_target="#charts", hx_include="#seedInit, #cbxmatlab", hx_vals='js:{localId: getLocalId()}', hx_swap="innerHTML"), 
-                    Input(type="text", id="seedInit", name="seedInit", placeholder="Initial seed", style="width:90px;"),
-                    Button("Step", hx_post="/inc", hx_target="#charts", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
-                    Button("Run", hx_ext="ws", ws_connect="/run", ws_send=True, hx_target="#charts", hx_swap="innerHTML", hx_include="#cbxQuick,#cbxmatlabt", hx_vals='js:{localId: getLocalId()}'),
-                    Button("Stop", hx_post="/stop", hx_target="#charts", hx_swap="innerHTML", hx_vals='js:{localId: getLocalId()}'),
-                    Label(Input(id="cbxQuick", type='checkbox', name='quick', checked=False), "Speed"),
-                    Label(Input(id="cbxmatlab", type='checkbox', name='matlab', checked=False), "Matlab style"),
-                    Div(generate_all_charts(data_obj), id="charts"),
-                    style="width:1100px;"
-                )
-            )
+                Div(Div(generate_simulation(data_obj, 1), cls="box", style="background-color: rgb(208 245 254);", id="fun"), style="width:1100px"))
         case "Geometry":
             return my_frame("Geometry", 
-                Div(
-                    Div(generate_geometry(data_obj, 1), cls="box", style="background-color: rgb(208 245 254);", id="geometry"), style="width:1100px"))
+                Div(Div(generate_geometry(data_obj, 1), cls="box", style="background-color: rgb(208 245 254);", id="geometry"), style="width:1100px"))
         case "Design":
             return my_frame("Design",
                 Div(
@@ -179,83 +168,6 @@ def parameter_num(localId: str, id: str):
     simParam.pinned = (simParam.pinned + 1) % 3
 
     return simParam.render()
-
-@app.post("/init")
-def init(session, seedInit: str, localId: str, matlab:bool = False):
-    dataObj = get_Data_obj(localId)
-    dataObj.assure('cavityData')
-    
-    seed = 0
-    try:
-        seed = int(seedInit)
-    except:
-        pass
-    if seed == 0:
-        seed = int(np.random.rand() * (2 ** 32 - 1))
-
-    dataObj.seed = seed
-    dataObj.count = 0
-    dataObj.run_state = False
-    dataObj.cavityData.restart(seed)
-
-    add_toast(session, f"Simulation initialized", "info")
-
-    return generate_all_charts(dataObj)
-
-@app.post("/stop")
-def stop(localId: str):
-    dataObj = get_Data_obj(localId)
-    dataObj.assure('cavityData')
-    dataObj.run_state = False
-
-    return generate_all_charts(dataObj)
-
-@app.post("/inc")
-def increment(localId: str):
-    dataObj = get_Data_obj(localId)
-    dataObj.assure('cavityData')
-    dataObj.count += 1
-
-    return generate_all_charts(dataObj)
-
-async def on_connect(session, send):
-    print('Connected!')
-
-async def on_disconnect(ws):
-    print('Disconnected!')
-
-@app.ws('/run', conn=on_connect, disconn=on_disconnect)
-async def run(send, quick: bool, localId: str, matlab:bool = False):
-    dataObj = get_Data_obj(localId)
-    sim = get_sim_obj(localId)
-
-    if dataObj.run_state:
-        return
-    dataObj.run_state = True
-    count = dataObj.count
-    end_count = count + 1000
-    sim.matlab = matlab
-    sim.finalize()
-
-    while dataObj.run_state and count < end_count:
-        
-        sim.simulation_step()
-
-        count = count + 1
-        dataObj.count = count
-
-        if count % 100 == 0:
-            sim.get_state_analysis()
-            if quick == 1:
-                await send(Div(generate_all_charts(dataObj), id="charts", cls="rowx"))
-                await asyncio.sleep(0.001)
-
-        if quick != 1:
-            await send(Div(generate_all_charts(dataObj), id="charts", cls="rowx"))
-            await asyncio.sleep(0.001)
-
-    if count >= end_count:
-        dataObj.run_state = False
 
 #------------------- iterations
 @app.post("/iterInit")

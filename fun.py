@@ -353,7 +353,7 @@ def generate_multi_on_server(data_obj):
         ),
         Div(
             Div(
-                Input(type="number", id=f'lambdaNM', placeholder="wavelength", step="1", style="width:90px;", value=f'{params["lambdaNM"]}'),
+                Input(type="number", id=f'lambdaNM', title="Wavelength (nM)", placeholder="wavelength", step="1", style="width:90px;", value=f'{params["lambdaNM"]}'),
 
                 Select(Option("Radial", selected="1") if params["beamType"] == 1 else Option("Radial"),
                         Option("1-Dimensional", selected="1") if params["beamType"] == 0 else Option("1-Dimensional"), id="beamType",),

@@ -41,13 +41,13 @@ def register_simulation(app):
 
         return generate_all_charts(dataObj)
 
-        @app.post("/inc")
-        def increment(localId: str):
-            dataObj = get_Data_obj(localId)
-            dataObj.assure('cavityData')
-            dataObj.count += 1
+    @app.post("/inc")
+    def increment(localId: str):
+        dataObj = get_Data_obj(localId)
+        dataObj.assure('cavityData')
+        dataObj.count += 1
 
-            return generate_all_charts(dataObj)
+        return generate_all_charts(dataObj)
 
     async def on_connect(session, send):
         print('Connected!')
